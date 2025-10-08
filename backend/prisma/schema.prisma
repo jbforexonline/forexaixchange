@@ -1,0 +1,29 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  phone      String?  @unique
+  kycStatus  String   @default("PENDING") // PENDING | PASS | FAIL
+  premium    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  wallet     Wallet?
+}
+
+model Wallet {
+  userId    String   @id
+  user      User     @relation(fields: [userId], references: [id])
+  available Decimal  @default(0) @db.Decimal(18, 2)
+  held      Decimal  @default(0) @db.Decimal(18, 2)
+  updatedAt DateTime @updatedAt
+}
