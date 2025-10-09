@@ -1,0 +1,143 @@
+.register-container {
+  display: flex;
+  //   height: 100vh;
+  //   width: 100%;
+  margin: auto;
+}
+
+.register-left {
+  flex: 1;
+  background: url("/image/Login.png") no-repeat center center;
+  background-size: cover;
+}
+
+.register-right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #fff;
+}
+
+.register-form-wrapper {
+  width: 100%;
+  max-width: 380px;
+  padding: 2rem;
+}
+
+.register-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  text-align: center;
+  color: black;
+}
+
+.register-subtitle {
+  text-align: center;
+  color: #494646;
+  font-size: 0.8rem;
+  margin-bottom: 1.5rem;
+
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+
+  label {
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    margin-bottom: 0.4rem;
+    color: #555;
+  }
+
+  input {
+    padding: 0.8rem;
+    border: 1px solid #878282;
+    border-radius: 8px;
+    outline: none;
+    color: #555;
+
+    &:focus {
+      border-color: #000;
+    }
+  }
+
+  select {
+    padding: 0.8rem;
+    border: 1px solid #878282;
+    border-radius: 8px;
+    outline: none;
+    color: #555;
+    background: #fff;
+
+    &:focus {
+      border-color: #000;
+    }
+  }
+}
+
+.register-btn {
+  margin-top: 1.5rem;
+  padding: 0.9rem;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.register-divider {
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #aaa;
+  position: relative;
+
+  span {
+    background: #fff;
+    padding: 0 1rem;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 1px;
+    width: 100%;
+    background: #ddd;
+    z-index: -1;
+  }
+}
+
+.google-btn {
+  width: 100%;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.register-login {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555;
+
+  a {
+    font-weight: 600;
+    color: #000;
+    text-decoration: none;
+  }
+}
