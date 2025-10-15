@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15
+    container_name: fx-postgres
+    environment:
+      POSTGRES_USER: fx
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: forexaixchange
+    ports:
+      - "5432:5432"   # <— external:internal (standard PostgreSQL port)
+    volumes:
+      - fx_pg_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: fx-redis
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  fx_pg_data:

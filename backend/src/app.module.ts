@@ -4,9 +4,28 @@ import { PrismaService } from './database/prisma.service';
 import { RedisModule } from './cache/redis.module';
 import { HealthController } from './monitoring/health.controller';
 import { RealtimeGateway } from './realtime/realtime.gateway';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { WalletModule } from './wallet/wallet.module';
+import { SpinsModule } from './spins/spins.module';
+import { PremiumModule } from './premium/premium.module';
+import { AffiliateModule } from './affiliate/affiliate.module';
+import { AdminModule } from './admin/admin.module';
+import { AppThrottlerModule } from './common/throttler.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), RedisModule],
+  imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
+    AppThrottlerModule,
+    RedisModule,
+    AuthModule,
+    UsersModule,
+    WalletModule,
+    SpinsModule,
+    PremiumModule,
+    AffiliateModule,
+    AdminModule,
+  ],
   controllers: [HealthController],
   providers: [PrismaService, RealtimeGateway],
 })
