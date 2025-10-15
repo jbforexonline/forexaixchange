@@ -9,21 +9,263 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User Management
 model User {
-  id         String   @id @default(cuid())
-  email      String   @unique
-  phone      String?  @unique
-  kycStatus  String   @default("PENDING") // PENDING | PASS | FAIL
-  premium    Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  wallet     Wallet?
+  id                String    @id @default(cuid())
+  email             String?   @unique
+  password          String
+  phone             String?   @unique
+  username          String    @unique
+  firstName         String?
+  lastName          String?
+  role              UserRole  @default(USER)
+  isActive          Boolean   @default(true)
+  isBanned          Boolean   @default(false)
+  isVerified        Boolean   @default(false)
+  verificationBadge Boolean   @default(false)
+  affiliateCode     String    @unique @default(cuid())
+  referredBy        String?
+  kycStatus         KycStatus @default(PENDING)
+  premium           Boolean   @default(false)
+  premiumExpiresAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  wallet           Wallet?
+  transactions     Transaction[]
+  spins            Spin[]
+  referrals        User[]      @relation("UserReferrals")
+  referrer         User?       @relation("UserReferrals", fields: [referredBy], references: [id])
+  affiliateEarnings AffiliateEarning[] @relation("AffiliateEarnings")
+  referredEarnings AffiliateEarning[] @relation("ReferredBy")
+  internalTransfers InternalTransfer[]
+  internalTransfersReceived InternalTransfer[] @relation("InternalTransferReceived")
+  premiumSubscriptions PremiumSubscription[]
+  communitySentiment CommunitySentiment[]
 }
 
+// Wallet & Ledger
 model Wallet {
-  userId    String   @id
-  user      User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   available Decimal  @default(0) @db.Decimal(18, 2)
   held      Decimal  @default(0) @db.Decimal(18, 2)
+  totalDeposited    Decimal @default(0) @db.Decimal(18, 2)
+  totalWithdrawn    Decimal @default(0) @db.Decimal(18, 2)
+  totalWon          Decimal @default(0) @db.Decimal(18, 2)
+  totalLost         Decimal @default(0) @db.Decimal(18, 2)
+  createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Transactions
+model Transaction {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  type          TransactionType
+  amount        Decimal         @db.Decimal(18, 2)
+  fee           Decimal         @default(0) @db.Decimal(18, 2)
+  status        TransactionStatus @default(PENDING)
+  method        String?         // MoMo, Crypto, Bank, Visa
+  reference     String?         @unique
+  description   String?
+  metadata      Json?
+  processedAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+}
+
+// Spins & Games
+model Spin {
+  id              String     @id @default(cuid())
+  userId          String
+  user            User       @relation(fields: [userId], references: [id])
+  betAmount       Decimal    @db.Decimal(18, 2)
+  betType         BetType
+  volatility      VolatilityType?
+  color           ColorType?
+  outcome         SpinOutcome
+  winAmount       Decimal?   @db.Decimal(18, 2)
+  isWin           Boolean
+  roundNumber     Int
+  countdownTime   Int        // seconds
+  isPremiumUser   Boolean    @default(false)
+  autoSpin        Boolean    @default(false)
+  createdAt       DateTime   @default(now())
+  completedAt     DateTime?
+}
+
+// Affiliate System
+model AffiliateEarning {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation("AffiliateEarnings", fields: [userId], references: [id])
+  referredUserId String
+  referredUser  User     @relation("ReferredBy", fields: [referredUserId], references: [id])
+  amount        Decimal  @db.Decimal(18, 2)
+  tier          AffiliateTier
+  date          DateTime @default(now())
+  isPaid        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+// Premium Plans
+model PremiumPlan {
+  id          String   @id @default(cuid())
+  name        String
+  duration    Int      // months
+  price       Decimal  @db.Decimal(18, 2)
+  isActive    Boolean  @default(true)
+  features    Json     // array of features
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  subscriptions PremiumSubscription[]
+}
+
+model PremiumSubscription {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  planId      String
+  plan        PremiumPlan @relation(fields: [planId], references: [id])
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime @default(now())
+  endDate     DateTime
+  amountPaid  Decimal  @db.Decimal(18, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Internal Transfers
+model InternalTransfer {
+  id            String   @id @default(cuid())
+  senderId      String
+  sender        User     @relation(fields: [senderId], references: [id])
+  recipientId   String
+  recipient     User     @relation("InternalTransferReceived", fields: [recipientId], references: [id])
+  amount        Decimal  @db.Decimal(18, 2)
+  fee           Decimal  @db.Decimal(18, 2)
+  feePayer      FeePayer @default(SENDER)
+  status        TransferStatus @default(PENDING)
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Community Sentiment
+model CommunitySentiment {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  sentiment     SentimentType
+  confidence    Decimal  @db.Decimal(3, 2) // 0.00 to 1.00
+  roundNumber   Int
+  createdAt     DateTime @default(now())
+}
+
+// System Configuration
+model SystemConfig {
+  id                    String   @id @default(cuid())
+  key                   String   @unique
+  value                 String
+  description           String?
+  isPublic              Boolean  @default(false)
+  updatedBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Enums
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+
+enum KycStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  SPIN_WIN
+  SPIN_LOSS
+  AFFILIATE_EARNING
+  INTERNAL_TRANSFER_SENT
+  INTERNAL_TRANSFER_RECEIVED
+  PREMIUM_SUBSCRIPTION
+  REFUND
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum BetType {
+  BUY
+  SELL
+  HIGH_VOLATILE
+  LOW_VOLATILE
+  BLUE
+  RED
+  INDECISION
+}
+
+enum VolatilityType {
+  HIGH
+  LOW
+}
+
+enum ColorType {
+  BLUE
+  RED
+}
+
+enum SpinOutcome {
+  WIN
+  LOSS
+  DRAW
+}
+
+enum AffiliateTier {
+  TIER_1 // $0-49 → $0
+  TIER_2 // $50-99 → $1
+  TIER_3 // $100-499 → $2
+  TIER_4 // $500-1999 → $5
+  TIER_5 // $2000+ → $7
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum FeePayer {
+  SENDER
+  RECIPIENT
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum SentimentType {
+  BUY
+  SELL
+  INDECISION
 }
