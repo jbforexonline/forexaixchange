@@ -1,7 +1,16 @@
 "use client"
 
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
+  const router = useRouter()
+
+  const handleLogin = (e) => {
+    e.preventDefault()
+    // For demo purposes, redirect to dashboard
+    // In a real app, you'd validate credentials first
+    router.push('/dashboard')
+  }
   return (
     <div className="login-container">
       {/* Left side background */}
@@ -13,7 +22,7 @@ export default function LoginPage() {
           <h1 className="login-title">Welcome Back!!</h1>
           <p className="login-subtitle">Please Login your Account</p>
 
-          <form className="login-form">
+          <form className="login-form" onSubmit={handleLogin}>
             <label>Email</label>
             <input type="email" placeholder="admin@gmail.com" />
 
