@@ -1,0 +1,132 @@
+.dashboard-root {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    grid-template-rows: 64px 1fr;
+    grid-template-areas:
+        "sidebar header"
+        "sidebar main";
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background: #0f0f23;
+    color: #e6f1ff;
+}
+
+.dashboard-sidebar {
+    grid-area: sidebar;
+    background: linear-gradient(180deg, #0f0f23, #16213e);
+    border-right: 1px solid rgba(74, 158, 255, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    transition: width 0.25s ease;
+    width: 260px;
+}
+
+.dashboard-sidebar.collapsed {
+    width: 72px;
+}
+
+.sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.brand {
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #4a9eff;
+}
+
+.sidebar-toggle {
+    background: rgba(74, 158, 255, 0.15);
+    color: #e6f1ff;
+    border: 1px solid rgba(74, 158, 255, 0.3);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.nav-link {
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: #e6f1ff;
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.nav-link:hover {
+    background: rgba(74, 158, 255, 0.12);
+    border-color: rgba(74, 158, 255, 0.25);
+}
+
+.dashboard-content {
+    grid-area: header / header / main / main;
+    display: contents;
+}
+
+.dashboard-header {
+    grid-area: header;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(74, 158, 255, 0.2);
+    background: rgba(15, 15, 35, 0.6);
+    backdrop-filter: blur(6px);
+}
+
+.header-title {
+    font-size: 18px;
+    color: #cfe3ff;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.search {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(74, 158, 255, 0.25);
+    color: #e6f1ff;
+    padding: 8px 10px;
+    border-radius: 8px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #4a9eff;
+    color: #0f0f23;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+}
+
+.dashboard-main {
+    grid-area: main;
+    overflow: auto;
+    padding: 16px;
+}
+
+// Make the brain section fit
+.dashboard-main .digital-brain-container {
+    height: calc(100vh - 96px);
+}
+
+@media (max-width: 900px) {
+    .dashboard-root {
+        grid-template-columns: 72px 1fr;
+    }
+}

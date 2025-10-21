@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import io from 'socket.io-client';
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
@@ -22,6 +23,9 @@ export default function Home() {
       <h1 className="text-2xl font-bold">forexaixchange</h1>
       <p>Backend health: {health ? 'ok' : 'loading...'}</p>
       <p>Realtime heartbeat: {heartbeatTs ?? 'waiting...'}</p>
+      <p>
+        <Link className="text-blue-600 underline" href="/login">Go to Login</Link>
+      </p>
     </main>
   );
 }
