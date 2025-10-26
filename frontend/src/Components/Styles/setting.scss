@@ -1,0 +1,258 @@
+.profile-page {
+  font-family: 'Inter', sans-serif;
+  padding: 2rem;
+  transition: all 0.3s;
+
+  &.light {
+    background: #f8fafc;
+    color: #1e293b;
+  }
+
+  &.dark {
+    background: #1e293b;
+    color: #f8fafc;
+
+    .profile-card {
+      background: #334155;
+    }
+
+    input,
+    select {
+      background: #475569;
+      color: white;
+      border: 1px solid #64748b;
+    }
+
+    .save-btn,
+    .save-pass-btn {
+      background: #22c55e;
+      color: white;
+    }
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+
+    h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 20px;
+
+        input {
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+
+        .slider {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          border-radius: 20px;
+          transition: 0.4s;
+
+          &:before {
+            content: '';
+            position: absolute;
+            height: 16px;
+            width: 16px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            border-radius: 50%;
+            transition: 0.4s;
+          }
+        }
+
+        input:checked + .slider {
+          background-color: #6366f1;
+        }
+
+        input:checked + .slider:before {
+          transform: translateX(20px);
+        }
+      }
+    }
+  }
+
+  .profile-card {
+    display: flex;
+    gap: 2rem;
+    background: white;
+    border-radius: 1rem;
+    padding: 2rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+
+    .left-section,
+    .right-section {
+      flex: 1;
+    }
+
+    .avatar-section {
+      text-align: center;
+      margin-bottom: 1.5rem;
+
+      img {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        margin-bottom: 1rem;
+      }
+
+      h3 {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+      }
+
+      p {
+        color: #64748b;
+        font-size: 0.9rem;
+      }
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 1rem;
+
+      label {
+        font-weight: 500;
+        margin-bottom: 0.3rem;
+      }
+
+      input,
+      select {
+        border: 1px solid #e2e8f0;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        outline: none;
+      }
+
+      &.inline {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+
+        select {
+          width: 60%;
+        }
+      }
+    }
+
+    .password-section {
+      margin-top: 1rem;
+
+      .change-pass-btn {
+        background: transparent;
+        border: 1px solid #6366f1;
+        color: #6366f1;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: 0.3s;
+
+        &:hover {
+          background: #6366f1;
+          color: white;
+        }
+      }
+
+      .password-fields {
+        margin-top: 1rem;
+        border-top: 1px solid #e2e8f0;
+        padding-top: 1rem;
+
+        .save-pass-btn {
+          background: #22c55e;
+          border: none;
+          color: white;
+          padding: 0.6rem 1rem;
+          border-radius: 0.5rem;
+          cursor: pointer;
+        }
+      }
+    }
+
+    .withdraw-section {
+      margin-top: 1.5rem;
+
+      h4 {
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+      }
+
+      .methods {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+
+        .method {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          background: #f1f5f9;
+          padding: 0.75rem 1rem;
+          border-radius: 0.5rem;
+
+          img {
+            width: 60px;
+            height: auto;
+          }
+
+          button {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-weight: 500;
+          }
+        }
+      }
+
+      .add-method-btn {
+        margin-top: 1rem;
+        border: 1px dashed #22c55e;
+        color: #22c55e;
+        background: transparent;
+        padding: 0.6rem 1rem;
+        border-radius: 0.5rem;
+        cursor: pointer;
+
+        &:hover {
+          background: #22c55e;
+          color: white;
+        }
+      }
+    }
+
+    .save-btn {
+      margin-top: 2rem;
+      width: 100%;
+      background: #22c55e;
+      color: white;
+      border: none;
+      padding: 0.8rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+  }
+}

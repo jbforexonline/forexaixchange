@@ -34,7 +34,7 @@
   font-size: 1.8rem;
   font-weight: 700;
   text-align: center;
-  color: black;
+  color: #2906FF;
   //   padding-top:4rem ;
 }
 
@@ -47,6 +47,55 @@
 .login-form {
   display: flex;
   flex-direction: column;
+
+  .role-selection {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    .role-option {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+
+      input[type="radio"] {
+        display: none;
+      }
+
+      .role-label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        border: 2px solid #e5e7eb;
+        border-radius: 0.5rem;
+        background: #f9fafb;
+        transition: all 0.2s;
+        width: 100%;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: #374151;
+
+        .role-icon {
+          font-size: 1.25rem;
+        }
+
+        &:hover {
+          border-color: #3b82f6;
+          background: #f0f9ff;
+        }
+      }
+
+      input[type="radio"]:checked + .role-label {
+        border-color: #3b82f6;
+        background: #eff6ff;
+        color: #1e40af;
+        font-weight: 600;
+      }
+    }
+  }
 
   label {
     font-size: 0.9rem;
@@ -86,7 +135,7 @@
 .login-btn {
   margin-top: 1.5rem;
   padding: 0.9rem;
-  background: #000;
+  background: #2906FF;
   color: #fff;
   border: none;
   border-radius: 8px;
@@ -145,7 +194,7 @@
 
   a {
     font-weight: 600;
-    color: #000;
+    color: #2906FF;
     text-decoration: none;
   }
 }

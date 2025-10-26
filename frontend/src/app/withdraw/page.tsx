@@ -1,12 +1,11 @@
 import DashboardLayout from '@/Components/Layout/DashboardLayout'
-import DashboardHome from '@/Components/Dashboard/DashboardHome'
+import WithdrawPage from '@/Components/Dashboard/WithdrawPage'
 import '@/Components/Layout/DashboardLayout.scss'
-import '@/Components/Styles/DashboardHome.scss'
 
-export default function DashboardPage() {
+export default function Withdraw() {
     return (
         <DashboardLayout>
-            <DashboardHome />
+            <WithdrawPage />
         </DashboardLayout>
     )
 }

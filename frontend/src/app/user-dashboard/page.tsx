@@ -1,12 +1,11 @@
 import DashboardLayout from '@/Components/Layout/DashboardLayout'
-import DashboardHome from '@/Components/Dashboard/DashboardHome'
+import UserDashboard from '@/Components/Dashboard/UserDashboard'
 import '@/Components/Layout/DashboardLayout.scss'
-import '@/Components/Styles/DashboardHome.scss'
 
-export default function DashboardPage() {
+export default function UserDashboardPage() {
     return (
         <DashboardLayout>
-            <DashboardHome />
+            <UserDashboard />
         </DashboardLayout>
     )
 }

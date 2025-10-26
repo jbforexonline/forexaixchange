@@ -1,15 +1,21 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 export default function LoginPage() {
   const router = useRouter()
+  const [userRole, setUserRole] = useState('admin')
 
   const handleLogin = (e) => {
     e.preventDefault()
-    // For demo purposes, redirect to dashboard
+    // For demo purposes, redirect based on role
     // In a real app, you'd validate credentials first
-    router.push('/dashboard')
+    if (userRole === 'admin') {
+      router.push('/dashboard')
+    } else {
+      router.push('/user-dashboard')
+    }
   }
   return (
     <div className="login-container">
@@ -29,8 +35,38 @@ export default function LoginPage() {
             <label>Password</label>
             <input type="password" placeholder="********" />
 
+            <label>Login As</label>
+            <div className="role-selection">
+              <label className="role-option">
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="admin" 
+                  checked={userRole === 'admin'}
+                  onChange={(e) => setUserRole(e.target.value)}
+                />
+                <span className="role-label">
+                  <span className="role-icon">👨‍💼</span>
+                  Admin Dashboard
+                </span>
+              </label>
+              <label className="role-option">
+                <input 
+                  type="radio" 
+                  name="role" 
+                  value="user" 
+                  checked={userRole === 'user'}
+                  onChange={(e) => setUserRole(e.target.value)}
+                />
+                <span className="role-label">
+                  <span className="role-icon">👤</span>
+                  User Dashboard
+                </span>
+              </label>
+            </div>
+
             <div className="login-forgot">
-              <a href="#">Forgot Password</a>
+              <a href="/forgetpassword">Forgot Password</a>
             </div>
 
             <button type="submit" className="login-btn">Sign in</button>

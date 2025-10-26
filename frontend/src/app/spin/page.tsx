@@ -1,12 +1,12 @@
 import DashboardLayout from '@/Components/Layout/DashboardLayout'
-import DashboardHome from '@/Components/Dashboard/DashboardHome'
+import SpinPage from '@/Components/Dashboard/SpinPage'
 import '@/Components/Layout/DashboardLayout.scss'
-import '@/Components/Styles/DashboardHome.scss'
+import '@/Components/Styles/SpinPage.scss'
 
-export default function DashboardPage() {
+export default function Spin() {
     return (
         <DashboardLayout>
-            <DashboardHome />
+            <SpinPage />
         </DashboardLayout>
     )
 }
