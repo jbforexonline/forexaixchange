@@ -11,6 +11,7 @@ import { SpinsModule } from './spins/spins.module';
 import { PremiumModule } from './premium/premium.module';
 import { AffiliateModule } from './affiliate/affiliate.module';
 import { AdminModule } from './admin/admin.module';
+import { RoundsModule } from './rounds/rounds.module';
 import { AppThrottlerModule } from './common/throttler.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { AppThrottlerModule } from './common/throttler.module';
     PremiumModule,
     AffiliateModule,
     AdminModule,
+    RoundsModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService, RealtimeGateway],
