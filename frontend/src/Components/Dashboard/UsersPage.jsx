@@ -14,7 +14,7 @@ export default function Page() {
       due: '3/4/16',
       amount: 10,
       send: 1,
-      status: 'Paid',
+      status: 'New user',
       avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
     },
     {
@@ -24,7 +24,7 @@ export default function Page() {
       due: '8/21/15',
       amount: 30,
       send: 3,
-      status: 'Unpaid',
+      status: 'New User',
       avatar: 'https://randomuser.me/api/portraits/men/40.jpg',
     },
     {
