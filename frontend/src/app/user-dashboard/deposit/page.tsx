@@ -1,11 +1,11 @@
 import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout'
-import UserDashboard from '@/Components/Dashboard/UserDashboard/UserDashboard'
+import DepositPage from '@/Components/Dashboard/UserDashboard/DepositPage'
 import '@/Components/Layout/DashboardLayout.scss'
 
-export default function UserDashboardPage() {
+export default function UserDepositPage() {
     return (
         <UserDashboardLayout>
-            <UserDashboard />
+            <DepositPage />
         </UserDashboardLayout>
     )
 }

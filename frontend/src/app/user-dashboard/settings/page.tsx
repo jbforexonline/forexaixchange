@@ -1,11 +1,11 @@
 import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout'
-import UserDashboard from '@/Components/Dashboard/UserDashboard/UserDashboard'
+import SettingsPage from '@/Components/Dashboard/UserDashboard/SettingsPage'
 import '@/Components/Layout/DashboardLayout.scss'
 
-export default function UserDashboardPage() {
+export default function UserSettingsPage() {
     return (
         <UserDashboardLayout>
-            <UserDashboard />
+            <SettingsPage />
         </UserDashboardLayout>
     )
 }

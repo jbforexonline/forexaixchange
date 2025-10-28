@@ -1,11 +1,11 @@
 import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout'
-import UserDashboard from '@/Components/Dashboard/UserDashboard/UserDashboard'
+import SpinPage from '@/Components/Dashboard/UserDashboard/SpinPage'
 import '@/Components/Layout/DashboardLayout.scss'
 
-export default function UserDashboardPage() {
+export default function UserSpinPage() {
     return (
         <UserDashboardLayout>
-            <UserDashboard />
+            <SpinPage />
         </UserDashboardLayout>
     )
 }

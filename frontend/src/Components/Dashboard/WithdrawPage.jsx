@@ -10,7 +10,7 @@ export default function WithdrawPage() {
     bankName: "",
     accountName: "",
     routingNumber: ""
-  });   
+  });
 
   const handleWithdraw = () => {
     if (!amount || !bankDetails.accountNumber) {
