@@ -1,2 +1,2 @@
-export { default } from "../../Components/Forms/ForgetPassword.jsx";
+export { default } from "../../Components/Forms/ForgotPasswordStep1.jsx";
 

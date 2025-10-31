@@ -1,5 +1,10 @@
 "use client"
 
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+
+const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+
 const COUNTRIES = [
   "Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan",
   "Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi",
@@ -28,6 +33,115 @@ const COUNTRIES = [
 ];
 
 export default function Register() {
+  const router = useRouter()
+  const [formData, setFormData] = useState({
+    fullName: '',
+    username: '',
+    email: '',
+    country: '',
+    phone: '',
+    password: '',
+    confirmPassword: ''
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setError('')
+
+    // Validate passwords match
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
+    // Validate password length
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      return
+    }
+
+    // Validate email or phone
+    if (!formData.email && !formData.phone) {
+      setError('Please provide either email or phone number')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Split full name into first and last name
+      const nameParts = formData.fullName.trim().split(' ')
+      const firstName = nameParts[0] || ''
+      const lastName = nameParts.slice(1).join(' ') || ''
+
+      // Prepare username - use provided username or derive from email
+      let username = formData.username
+      if (!username && formData.email) {
+        username = formData.email.split('@')[0]
+      }
+      if (!username) {
+        username = formData.fullName.replace(/\s+/g, '').toLowerCase()
+      }
+
+      const requestBody = {
+        password: formData.password,
+        username: username,
+        firstName: firstName,
+        lastName: lastName,
+      }
+
+      // Add email or phone (at least one is required)
+      if (formData.email) {
+        requestBody.email = formData.email
+      }
+      if (formData.phone) {
+        requestBody.phone = formData.phone
+      }
+
+      console.log('Sending registration request to:', `${apiUrl}/auth/register`)
+      console.log('Request body:', requestBody)
+
+      const response = await fetch(`${apiUrl}/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      })
+
+      console.log('Response status:', response.status)
+
+      const data = await response.json()
+      console.log('Response data:', data)
+
+      if (response.ok) {
+        // Store token and user data in localStorage
+        localStorage.setItem('token', data.token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+
+        // Redirect based on user role
+        if (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN') {
+          router.push('/dashboard')
+        } else {
+          router.push('/user-dashboard')
+        }
+      } else {
+        setError(data.message || 'Registration failed. Please try again.')
+      }
+    } catch (err) {
+      console.error('Registration error details:', err)
+      setError(`Network error: ${err.message}. Please check if backend is running on ${apiUrl}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="register-container">
       {/* Left background */}
@@ -41,31 +155,103 @@ export default function Register() {
             Are you ready to join us? Let’s create Account
           </p>
 
-          <form className="register-form">
+          {error && (
+            <div style={{
+              padding: '0.8rem',
+              backgroundColor: '#fee',
+              color: '#c33',
+              borderRadius: '8px',
+              marginBottom: '1rem',
+              fontSize: '0.9rem'
+            }}>
+              {error}
+            </div>
+          )}
+
+          <form className="register-form" onSubmit={handleSubmit}>
             <label>Full name</label>
-            <input type="text" placeholder="John Doe" />
+            <input
+              type="text"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              placeholder="John Doe"
+              required
+              disabled={loading}
+            />
+
+            <label>Username</label>
+            <input
+              type="text"
+              name="username"
+              value={formData.username}
+              onChange={handleChange}
+              placeholder="johndoe"
+              required
+              disabled={loading}
+            />
 
             <label>Email</label>
-            <input type="email" placeholder="admin@gmail.com" />
+            <input
+              type="email"
+              name="email"
+              value={formData.email}
+              onChange={handleChange}
+              placeholder="admin@gmail.com"
+              disabled={loading}
+            />
 
             <label>Country</label>
-            <select defaultValue="" className="country-select">
-              <option value="" disabled>Select country</option>
+            <select
+              name="country"
+              value={formData.country}
+              onChange={handleChange}
+              className="country-select"
+              disabled={loading}
+            >
+              <option value="">Select country</option>
               {COUNTRIES.map(country => (
                 <option key={country} value={country}>{country}</option>
               ))}
             </select>
 
-            <label>Phone Number</label>
-            <input type="text" placeholder="0780622121" />
+            <label>Phone Number (optional)</label>
+            <input
+              type="text"
+              name="phone"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+1234567890"
+              disabled={loading}
+            />
 
             <label>Password</label>
-            <input type="password" placeholder="********" />
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              placeholder="********"
+              required
+              minLength="6"
+              disabled={loading}
+            />
 
             <label>Confirm password</label>
-            <input type="password" placeholder="********" />
+            <input
+              type="password"
+              name="confirmPassword"
+              value={formData.confirmPassword}
+              onChange={handleChange}
+              placeholder="********"
+              required
+              minLength="6"
+              disabled={loading}
+            />
 
-            <button type="submit" className="register-btn">Create Account</button>
+            <button type="submit" className="register-btn" disabled={loading}>
+              {loading ? 'Creating Account...' : 'Create Account'}
+            </button>
           </form>
 
           <div className="register-divider">

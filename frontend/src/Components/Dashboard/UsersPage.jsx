@@ -34,7 +34,7 @@ export default function Page() {
       due: '4/4/18',
       amount: 15,
       send: 4,
-      status: 'Overdue',
+      status: 'Primuim',
       avatar: 'https://randomuser.me/api/portraits/men/21.jpg',
     },
     {
@@ -44,7 +44,7 @@ export default function Page() {
       due: '12/4/17',
       amount: 24,
       send: 2,
-      status: 'Draft',
+      status: 'New User',
       avatar: 'https://randomuser.me/api/portraits/men/5.jpg',
     },
     {
@@ -54,7 +54,7 @@ export default function Page() {
       due: '3/15/20',
       amount: 45,
       send: 2,
-      status: 'Paid',
+      status: 'Resctricted',
       avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
     },
     {
@@ -64,7 +64,7 @@ export default function Page() {
       due: '2/8/21',
       amount: 28,
       send: 1,
-      status: 'Unpaid',
+      status: 'Primuim',
       avatar: 'https://randomuser.me/api/portraits/men/22.jpg',
     },
     {
@@ -74,7 +74,7 @@ export default function Page() {
       due: '7/12/20',
       amount: 35,
       send: 3,
-      status: 'Overdue',
+      status: 'Restricted',
       avatar: 'https://randomuser.me/api/portraits/women/68.jpg',
     },
     {
@@ -84,7 +84,7 @@ export default function Page() {
       due: '10/3/19',
       amount: 52,
       send: 4,
-      status: 'Paid',
+      status: 'Primuim',
       avatar: 'https://randomuser.me/api/portraits/men/15.jpg',
     },
     {
@@ -94,7 +94,7 @@ export default function Page() {
       due: '12/20/20',
       amount: 18,
       send: 2,
-      status: 'Draft',
+      status: 'Restricted',
       avatar: 'https://randomuser.me/api/portraits/women/25.jpg',
     },
     {
@@ -104,7 +104,7 @@ export default function Page() {
       due: '5/7/21',
       amount: 67,
       send: 1,
-      status: 'Unpaid',
+      status: 'New User',
       avatar: 'https://randomuser.me/api/portraits/men/33.jpg',
     },
     {
@@ -114,7 +114,7 @@ export default function Page() {
       due: '9/14/20',
       amount: 41,
       send: 3,
-      status: 'Overdue',
+      status: 'Primuim',
       avatar: 'https://randomuser.me/api/portraits/women/50.jpg',
     },
     {
@@ -124,7 +124,7 @@ export default function Page() {
       due: '1/1/20',
       amount: 33,
       send: 2,
-      status: 'Paid',
+      status: 'New User',
       avatar: 'https://randomuser.me/api/portraits/men/28.jpg',
     },
   ]);
@@ -159,41 +159,31 @@ export default function Page() {
   };
 
   const filteredInvoices =
-    filter === 'All' ? invoices : invoices.filter((inv) => inv.status === filter);
+    filter === 'All' ? invoices : invoices.filter((inv) => inv.status.toLowerCase() === filter.toLowerCase());
 
   const stats = {
-    Paid: invoices.filter((i) => i.status === 'Paid'),
-    Unpaid: invoices.filter((i) => i.status === 'Unpaid'),
-    Overdue: invoices.filter((i) => i.status === 'Overdue'),
-    Draft: invoices.filter((i) => i.status === 'Draft'),
+    'All': invoices,
+    'New User': invoices.filter((i) => i.status.toLowerCase() === 'new user'),
+    'primuim': invoices.filter((i) => i.status.toLowerCase() === 'primuim'),
+    'Restricted': invoices.filter((i) => i.status.toLowerCase() === 'restricted'),
   };
 
   return (
     <div className="dashboard">
       <div className="header">
-        <h1>Invoices</h1>
+        <h1>Users</h1>
         <button
           className="create-btn"
           onClick={() => alert('Create Invoice Clicked!')}
         >
-          + Create Invoice
+          Download
         </button>
       </div>
 
-      <div className="stats">
-        {Object.keys(stats).slice(0, 3).map((key) => (
-          <div key={key} className={`card ${key.toLowerCase()}`}>
-            <div className="card-title">{key}</div>
-            <div className="card-info">
-              Pies: {stats[key].length} | Value: $
-              {stats[key].reduce((a, c) => a + c.amount, 0)}
-            </div>
-          </div>
-        ))}
-      </div>
+     
 
       <div className="filters">
-        {['All', 'Paid', 'Unpaid', 'Overdue', 'Draft'].map((f) => (
+        {['All', 'New User', 'primuim', 'Restricted'].map((f) => (
           <button
             key={f}
             className={filter === f ? 'active' : ''}
