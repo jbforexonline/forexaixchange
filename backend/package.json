@@ -7,14 +7,18 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "nest start",
+    "start:prod": "node dist/src/main.js",
     "dev": "nest start --watch",
     "build": "nest build",
     "lint": "echo 'ESLint disabled'",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:prod": "node -r ts-node/register prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && npm run db:seed",
+    "postinstall": "prisma generate",
     "health:curl": "curl -s http://localhost:4000/health && echo"
   },
   "dependencies": {
