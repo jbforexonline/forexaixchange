@@ -1,0 +1,607 @@
+// Neural Interface - Light Mode Version
+.neural-interface {
+  padding: 2rem;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  min-height: 100vh;
+  color: #1e293b;
+  font-family: 'Inter', sans-serif;
+  position: relative;
+  overflow: hidden;
+
+  .interface-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  // Chart Panels
+  .chart-panel {
+    position: absolute;
+    background: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    border-radius: 8px;
+    padding: 1rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+
+    &.top-left {
+      top: 5%;
+      left: 5%;
+      width: 280px;
+      height: 200px;
+    }
+
+    &.bottom-left {
+      bottom: 5%;
+      left: 5%;
+      width: 280px;
+      height: 150px;
+    }
+
+    &.top-right {
+      top: 5%;
+      right: 5%;
+      width: 280px;
+      height: 200px;
+    }
+
+    &.bottom-right {
+      bottom: 5%;
+      right: 5%;
+      width: 280px;
+      height: 200px;
+    }
+  }
+
+  // Top Left - Vertical Bar Chart with Scale
+  .top-left {
+    .vertical-bars {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      height: 120px;
+      margin-bottom: 10px;
+
+      .bar {
+        flex: 1;
+        background: linear-gradient(to top, #3b82f6, #60a5fa);
+        border-radius: 2px 2px 0 0;
+        min-height: 10px;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      }
+    }
+
+    .scale-labels {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 20px;
+      position: absolute;
+      left: -30px;
+      top: 0;
+      height: 120px;
+      font-size: 10px;
+      color: #64748b;
+
+      span {
+        line-height: 1;
+      }
+    }
+
+    .horizontal-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 10px;
+
+      .h-bar {
+        height: 8px;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        border-radius: 4px;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+
+        &.h-bar-1 { width: 60%; }
+        &.h-bar-2 { width: 80%; }
+        &.h-bar-3 { width: 45%; }
+        &.h-bar-4 { width: 70%; }
+      }
+    }
+  }
+
+  // Bottom Left - Line Graph
+  .bottom-left {
+    .line-graph {
+      width: 100%;
+      height: 100%;
+
+      .graph-svg {
+        width: 100%;
+        height: 100%;
+
+        .graph-line {
+          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
+        }
+
+        .data-point {
+          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
+        }
+      }
+    }
+  }
+
+  // Top Right - Vertical Bar Chart
+  .top-right {
+    .vertical-bars {
+      display: flex;
+      align-items: end;
+      gap: 8px;
+      height: 150px;
+
+      .bar {
+        flex: 1;
+        background: linear-gradient(to top, #3b82f6, #60a5fa);
+        border-radius: 2px 2px 0 0;
+        min-height: 10px;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+      }
+    }
+  }
+
+  // Bottom Right - Dual Line Graph with Waveform
+  .bottom-right {
+    .dual-line-graph {
+      width: 100%;
+      height: 60%;
+      margin-bottom: 10px;
+
+      .graph-svg {
+        width: 100%;
+        height: 100%;
+
+        .graph-line-1 {
+          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
+        }
+
+        .graph-line-2 {
+          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
+        }
+
+        .data-point {
+          filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.8));
+        }
+      }
+    }
+
+    .waveform {
+      display: flex;
+      align-items: end;
+      gap: 3px;
+      height: 40px;
+
+      .wave-bar {
+        background: linear-gradient(to top, #3b82f6, #60a5fa);
+        border-radius: 1px;
+        width: 4px;
+        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+
+        &.wave-1 { height: 60%; }
+        &.wave-2 { height: 80%; }
+        &.wave-3 { height: 40%; }
+        &.wave-4 { height: 90%; }
+        &.wave-5 { height: 30%; }
+        &.wave-6 { height: 70%; }
+        &.wave-7 { height: 50%; }
+        &.wave-8 { height: 85%; }
+      }
+    }
+  }
+
+  // Central Brain Interface
+  .central-brain {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    height: 400px;
+    z-index: 10;
+
+    .brain-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+
+      // Outer Circular UI
+      .circular-ui {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 350px;
+        height: 350px;
+
+        .ui-ring {
+          position: absolute;
+          border: 2px solid rgba(96, 165, 250, 0.3);
+          border-radius: 50%;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+
+          &.ring-1 {
+            width: 300px;
+            height: 300px;
+            border-style: solid;
+          }
+
+          &.ring-2 {
+            width: 250px;
+            height: 250px;
+            border-style: dashed;
+          }
+
+          &.ring-3 {
+            width: 200px;
+            height: 200px;
+            border-style: solid;
+          }
+        }
+
+        .ui-arc {
+          position: absolute;
+          border: 2px solid rgba(96, 165, 250, 0.5);
+          border-radius: 50%;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+
+          &.arc-1 {
+            width: 320px;
+            height: 320px;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+          }
+
+          &.arc-2 {
+            width: 270px;
+            height: 270px;
+            border-bottom: none;
+            border-left: none;
+            border-right: none;
+          }
+
+          &.arc-3 {
+            width: 220px;
+            height: 220px;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+          }
+        }
+
+        .ui-marker {
+          position: absolute;
+          width: 8px;
+          height: 8px;
+          background: #60a5fa;
+          border-radius: 50%;
+          box-shadow: 0 0 10px #60a5fa;
+
+          &.marker-1 { top: 10px; left: 50%; }
+          &.marker-2 { bottom: 10px; left: 50%; }
+          &.marker-3 { top: 50%; left: 10px; }
+          &.marker-4 { top: 50%; right: 10px; }
+        }
+      }
+
+      // Central Brain
+      .brain-core {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.8));
+        border: 2px solid rgba(59, 130, 246, 0.6);
+        box-shadow: 
+          0 0 50px rgba(59, 130, 246, 0.4),
+          inset 0 0 50px rgba(255, 255, 255, 0.3);
+
+        &.spinning {
+          animation: brainSpin 3s ease-out;
+        }
+
+        .neural-network {
+          position: relative;
+          width: 100%;
+          height: wall;
+
+          .neural-line {
+            position: absolute;
+            background: linear-gradient(90deg, transparent, #60a5fa, transparent);
+            height: 2px;
+            animation: neuralFlow 3s infinite;
+
+            &.line-1 {
+              top: 20%;
+              left: 10%;
+              width: 80%;
+              transform: rotate(0deg);
+            }
+
+            &.line-2 {
+              top: 40%;
+              left: 15%;
+              width: 70%;
+              transform: rotate(15deg);
+            }
+
+            &.line-3 {
+              top: 60%;
+              left: 10%;
+              width: 80%;
+              transform: rotate(-10deg);
+            }
+
+            &.line-4 {
+              top: 80%;
+              left: 15%;
+              width: 70%;
+              transform: rotate(20deg);
+            }
+
+            &.line-5 {
+              top: 30%;
+              left: 5%;
+              width: 90%;
+              transform: rotate(-15deg);
+            }
+
+            &.line-6 {
+              top: 70%;
+              left: 5%;
+              width: 90%;
+              transform: rotate(10deg);
+            }
+          }
+
+          .neural-node {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #60a5fa;
+            border-radius: 50%;
+            box-shadow: 0 0 15px #60a5fa;
+            animation: nodePulse 2s infinite;
+
+            &.node-1 { top: 15%; left: 20%; }
+            &.node-2 { top: 25%; right: 15%; }
+            &.node-3 { top: 45%; left: 10%; }
+            &.node-4 { top: 55%; right: 10%; }
+            &.node-5 { top: 75%; left: 20%; }
+            &.node-6 { top: 85%; right: 20%; }
+            &.node-7 { top: 35%; left: 50%; }
+            &.node-8 { top: 65%; right: 50%; }
+          }
+        }
+
+        .brain-center-glow {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: radial-gradient(circle, rgba(96, 165, 250, 0.4), transparent);
+          animation: centerGlow 2s infinite alternate;
+        }
+      }
+
+      // Spin Button
+      .spin-button {
+        position: absolute;
+        bottom: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        border: none;
+        border-radius: 25px;
+        padding: 12px 30px;
+        font-size: 14px;
+        font-weight: 700;
+        color: white;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+
+        &:hover:not(:disabled) {
+          transform: translateX(-50%) translateY(-2px);
+          box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
+        }
+
+        &:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+        }
+
+        &.active {
+          background: linear-gradient(135deg, #ef4444, #dc2626);
+          animation: buttonPulse 0.5s infinite alternate;
+        }
+      }
+    }
+  }
+
+  // Result Overlay
+  .result-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+
+    .result-popup {
+      background: linear-gradient(135deg, #ffffff, #f8fafc);
+      border: 2px solid #3b82f6;
+      border-radius: 20px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+
+      h2 {
+        font-size: 2rem;
+        font-weight: 800;
+        margin: 0 0 1rem 0;
+        text-shadow: 0 0 20px currentColor;
+      }
+
+      p {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin: 0;
+      }
+    }
+  }
+}
+
+// Animations
+@keyframes brainSpin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes neuralFlow {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+}
+
+@keyframes nodePulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes centerGlow {
+  0% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+}
+
+@keyframes buttonPulse {
+  0% {
+    box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
+  }
+  100% {
+    box-shadow: 0 5px 30px rgba(239, 68, 68, 0.8);
+  }
+}
+
+// Light Mode Support
+.dashboard-root.light .neural-interface {
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+}
+
+// Responsive Design
+@media (max-width: 1200px) {
+  .neural-interface {
+    .central-brain {
+      width: 300px;
+      height: 300px;
+
+      .brain-container {
+        .circular-ui {
+          width: 250px;
+          height: 250px;
+
+          .ui-ring {
+            &.ring-1 { width: 200px; height: 200px; }
+            &.ring-2 { width: 150px; height: 150px; }
+            &.ring-3 { width: 100px; height: 100px; }
+          }
+
+          .ui-arc {
+            &.arc-1 { width: 220px; height: 220px; }
+            &.arc-2 { width: 170px; height: 170px; }
+            &.arc-3 { width: 120px; height: 120px; }
+          }
+        }
+
+        .brain-core {
+          width: 120px;
+          height: 120px;
+        }
+      }
+    }
+
+    .chart-panel {
+      &.top-left, &.top-right {
+        width: 200px;
+        height: 150px;
+      }
+
+      &.bottom-left, &.bottom-right {
+        width: 200px;
+        height: 120px;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .neural-interface {
+    padding: 1rem;
+
+    .central-brain {
+      width: 250px;
+      height: 250px;
+    }
+
+    .chart-panel {
+      &.top-left, &.top-right {
+        width: 150px;
+        height: 100px;
+      }
+
+      &.bottom-left, &.bottom-right {
+        width: 150px;
+        height: 80px;
+      }
+    }
+  }
+}

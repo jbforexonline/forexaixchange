@@ -1,0 +1,76 @@
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #fff;
+}
+
+.container {
+  display: flex;
+  height: 100vh;
+  background-color: #fff;
+}
+
+.left-pane {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+
+  .bg-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.right-pane {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card {
+  text-align: center;
+
+  h2 {
+    font-size: 1.8rem;
+    color: #007bff;
+    margin-top: 1rem;
+  }
+
+  p {
+    color: #4b5563;
+    margin-top: 0.5rem;
+  }
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.check-icon {
+  font-size: 3rem;
+  background: linear-gradient(135deg, #007bff, #8b5cf6);
+  color: white;
+  border-radius: 50%;
+  padding: 1.2rem;
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
+  border: 4px solid rgba(255, 255, 255, 0.4);
+}
+
+/* Optional Responsive Design */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .left-pane {
+    height: 40vh;
+  }
+
+  .right-pane {
+    height: 60vh;
+  }
+}

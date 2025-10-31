@@ -2,49 +2,28 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../database/prisma.service';
+import { AuthService } from '../auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService,
+    private authService: AuthService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromExtractors([
-        // Custom extractor that handles both "Bearer <token>" and just "<token>"
-        (request) => {
-          let token = null;
-          if (request && request.headers.authorization) {
-            const authHeader = request.headers.authorization;
-            // Check if it starts with "Bearer "
-            if (authHeader.startsWith('Bearer ')) {
-              token = authHeader.substring(7);
-            } else {
-              // If no "Bearer " prefix, treat the whole string as the token
-              token = authHeader;
-            }
-          }
-          return token;
-        },
-      ]),
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_SECRET'),
+      secretOrKey: configService.get<string>('JWT_SECRET', 'your-secret-key'),
     });
   }
 
   async validate(payload: any) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-    });
-
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('User not found or inactive');
+    const user = await this.authService.validateUser(payload.sub);
+    
+    if (!user) {
+      throw new UnauthorizedException('Invalid token or user not found');
     }
 
-    return { userId: user.id, role: user.role };
+    return user;
   }
 }
-
-
-
