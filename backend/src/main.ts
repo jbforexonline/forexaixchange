@@ -22,8 +22,13 @@ async function bootstrap() {
   app.useGlobalInterceptors(new TransformInterceptor());
 
   // CORS configuration
+  const frontendUrl = process.env.FRONTEND_URL;
+  const allowedOrigins = frontendUrl
+    ? [frontendUrl, 'http://localhost:3000', 'http://localhost:3001']
+    : ['http://localhost:3000', 'http://localhost:3001'];
+  
   app.enableCors({
-    origin: ['http://localhost:3000', 'http://localhost:3001'],
+    origin: allowedOrigins,
     methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
     credentials: true,
   });
