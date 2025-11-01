@@ -15,9 +15,9 @@ async function createApp(): Promise<express.Express> {
     console.log('🚀 Initializing NestJS application...');
     
     // Dynamic imports to handle path resolution issues
-    const { AppModule } = await import('../src/app.module');
-    const { AllExceptionsFilter } = await import('../src/common/filters/all-exceptions.filter');
-    const { TransformInterceptor } = await import('../src/common/interceptors/transform.interceptor');
+    const { AppModule } = await import('../src/app.module.js');
+    const { AllExceptionsFilter } = await import('../src/common/filters/all-exceptions.filter.js');
+    const { TransformInterceptor } = await import('../src/common/interceptors/transform.interceptor.js');
 
     const expressApp = express();
     const adapter = new ExpressAdapter(expressApp);
