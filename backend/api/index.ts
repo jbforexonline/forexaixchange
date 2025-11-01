@@ -53,41 +53,39 @@ async function createApp(): Promise<express.Express> {
       credentials: true,
     });
 
-    // Swagger configuration
-    if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
-      const config = new DocumentBuilder()
-        .setTitle('ForexAI Exchange API')
-        .setDescription('Backend API for ForexAI Exchange - A trading platform with spin-based games')
-        .setVersion('1.0')
-        .addBearerAuth(
-          {
-            type: 'http',
-            scheme: 'bearer',
-            bearerFormat: 'JWT',
-            name: 'Authorization',
-            description: 'Enter JWT token (without Bearer prefix)',
-            in: 'header',
-          },
-          'JWT-auth',
-        )
-        .addTag('Authentication', 'User authentication endpoints')
-        .addTag('Users', 'User management endpoints')
-        .addTag('Wallet', 'Wallet and transaction management')
-        .addTag('Spins', 'Spin-based trading game endpoints')
-        .addTag('Premium', 'Premium subscription management')
-        .addTag('Affiliate', 'Affiliate program management')
-        .addTag('Admin', 'Administrative endpoints')
-        .build();
-
-      const document = SwaggerModule.createDocument(app, config);
-      SwaggerModule.setup('api/docs', app, document, {
-        swaggerOptions: {
-          persistAuthorization: true,
-          defaultModelsExpandDepth: -1,
-          docExpansion: 'none',
+    // Swagger configuration - always enable in serverless
+    const config = new DocumentBuilder()
+      .setTitle('ForexAI Exchange API')
+      .setDescription('Backend API for ForexAI Exchange - A trading platform with spin-based games')
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          description: 'Enter JWT token (without Bearer prefix)',
+          in: 'header',
         },
-      });
-    }
+        'JWT-auth',
+      )
+      .addTag('Authentication', 'User authentication endpoints')
+      .addTag('Users', 'User management endpoints')
+      .addTag('Wallet', 'Wallet and transaction management')
+      .addTag('Spins', 'Spin-based trading game endpoints')
+      .addTag('Premium', 'Premium subscription management')
+      .addTag('Affiliate', 'Affiliate program management')
+      .addTag('Admin', 'Administrative endpoints')
+      .build();
+
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        defaultModelsExpandDepth: -1,
+        docExpansion: 'none',
+      },
+    });
 
     await app.init();
     cachedApp = expressApp;
