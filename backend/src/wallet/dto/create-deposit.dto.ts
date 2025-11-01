@@ -14,8 +14,9 @@ export class CreateDepositDto {
   amount: number;
 
   @ApiProperty({
-    description: 'Payment method',
-    example: 'MoMo',
+    description: 'Payment method (MTN, MoMo, Bank, Visa, Crypto)',
+    example: 'MTN',
+    enum: ['MTN', 'MoMo', 'Bank', 'Visa', 'Crypto'],
   })
   @IsString()
   method: string;

@@ -5,7 +5,7 @@ import { FeePayer } from '@prisma/client';
 
 export class CreateTransferDto {
   @ApiProperty({
-    description: 'Recipient username or ID',
+    description: 'Recipient username, ID, or email (for contact purposes)',
     example: 'johndoe',
   })
   @IsString()

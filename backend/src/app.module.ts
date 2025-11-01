@@ -12,6 +12,8 @@ import { PremiumModule } from './premium/premium.module';
 import { AffiliateModule } from './affiliate/affiliate.module';
 import { AdminModule } from './admin/admin.module';
 import { RoundsModule } from './rounds/rounds.module';
+import { ChatModule } from './chat/chat.module';
+import { PreferencesModule } from './preferences/preferences.module';
 import { AppThrottlerModule } from './common/throttler.module';
 
 @Module({
@@ -27,6 +29,8 @@ import { AppThrottlerModule } from './common/throttler.module';
     AffiliateModule,
     AdminModule,
     RoundsModule,
+    ChatModule,
+    PreferencesModule,
   ],
   controllers: [HealthController],
   providers: [PrismaService, RealtimeGateway],

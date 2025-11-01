@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,336 +7,302 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User Management
 model User {
-  id                String    @id @default(cuid())
-  email             String?   @unique
-  password          String
-  phone             String?   @unique
-  username          String    @unique
-  firstName         String?
-  lastName          String?
-  role              UserRole  @default(USER)
-  isActive          Boolean   @default(true)
-  isBanned          Boolean   @default(false)
-  isVerified        Boolean   @default(false)
-  verificationBadge Boolean   @default(false)
-  affiliateCode     String    @unique @default(cuid())
-  referredBy        String?
-  kycStatus         KycStatus @default(PENDING)
-  premium           Boolean   @default(false)
-  premiumExpiresAt  DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
-  // Relations
-  bets            Bet[]
-  chatMessages    ChatMessage[]
-  wallet           Wallet?
-  transactions     Transaction[]
-  spins            Spin[]
-  referrals        User[]      @relation("UserReferrals")
-  referrer         User?       @relation("UserReferrals", fields: [referredBy], references: [id])
-  affiliateEarnings AffiliateEarning[] @relation("AffiliateEarnings")
-  referredEarnings AffiliateEarning[] @relation("ReferredBy")
-  internalTransfers InternalTransfer[]
-  internalTransfersReceived InternalTransfer[] @relation("InternalTransferReceived")
-  premiumSubscriptions PremiumSubscription[]
-  communitySentiment CommunitySentiment[]
+  id                        String                @id @default(cuid())
+  email                     String?               @unique
+  phone                     String?               @unique
+  premium                   Boolean               @default(false)
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+  affiliateCode             String                @unique @default(cuid())
+  firstName                 String?
+  isActive                  Boolean               @default(true)
+  isBanned                  Boolean               @default(false)
+  isVerified                Boolean               @default(false)
+  lastName                  String?
+  password                  String
+  premiumExpiresAt          DateTime?
+  referredBy                String?
+  role                      UserRole              @default(USER)
+  username                  String                @unique
+  verificationBadge         Boolean               @default(false)
+  kycStatus                 KycStatus             @default(PENDING)
+  referredEarnings          AffiliateEarning[]    @relation("ReferredBy")
+  affiliateEarnings         AffiliateEarning[]    @relation("AffiliateEarnings")
+  autoSpinOrders            AutoSpinOrder[]
+  bets                      Bet[]
+  chatMessages              ChatMessage[]
+  communitySentiment        CommunitySentiment[]
+  internalTransfersReceived InternalTransfer[]    @relation("InternalTransferReceived")
+  internalTransfers         InternalTransfer[]
+  premiumSubscriptions      PremiumSubscription[]
+  spins                     Spin[]
+  transactions              Transaction[]
+  referrer                  User?                 @relation("UserReferrals", fields: [referredBy], references: [id])
+  referrals                 User[]                @relation("UserReferrals")
+  userPreferences           UserPreferences?
+  wallet                    Wallet?
 }
 
-// Wallet & Ledger
 model Wallet {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  available Decimal  @default(0) @db.Decimal(18, 2)
-  held      Decimal  @default(0) @db.Decimal(18, 2)
-  totalDeposited    Decimal @default(0) @db.Decimal(18, 2)
-  totalWithdrawn    Decimal @default(0) @db.Decimal(18, 2)
-  totalWon          Decimal @default(0) @db.Decimal(18, 2)
-  totalLost         Decimal @default(0) @db.Decimal(18, 2)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  userId         String   @unique
+  available      Decimal  @default(0) @db.Decimal(18, 2)
+  held           Decimal  @default(0) @db.Decimal(18, 2)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+  id             String   @id @default(cuid())
+  totalDeposited Decimal  @default(0) @db.Decimal(18, 2)
+  totalLost      Decimal  @default(0) @db.Decimal(18, 2)
+  totalWithdrawn Decimal  @default(0) @db.Decimal(18, 2)
+  totalWon       Decimal  @default(0) @db.Decimal(18, 2)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// Transactions
 model Transaction {
+  id          String            @id @default(cuid())
+  userId      String
+  type        TransactionType
+  amount      Decimal           @db.Decimal(18, 2)
+  fee         Decimal           @default(0) @db.Decimal(18, 2)
+  status      TransactionStatus @default(PENDING)
+  method      String?
+  reference   String?           @unique
+  description String?
+  metadata    Json?
+  processedAt DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  user        User              @relation(fields: [userId], references: [id])
+}
+
+model Spin {
   id            String          @id @default(cuid())
   userId        String
-  user          User            @relation(fields: [userId], references: [id])
-  type          TransactionType
-  amount        Decimal         @db.Decimal(18, 2)
-  fee           Decimal         @default(0) @db.Decimal(18, 2)
-  status        TransactionStatus @default(PENDING)
-  method        String?         // MoMo, Crypto, Bank, Visa
-  reference     String?         @unique
-  description   String?
-  metadata      Json?
-  processedAt   DateTime?
+  betAmount     Decimal         @db.Decimal(18, 2)
+  betType       BetType
+  volatility    VolatilityType?
+  color         ColorType?
+  outcome       SpinOutcome
+  winAmount     Decimal?        @db.Decimal(18, 2)
+  isWin         Boolean
+  roundNumber   Int
+  countdownTime Int
+  isPremiumUser Boolean         @default(false)
+  autoSpin      Boolean         @default(false)
   createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  completedAt   DateTime?
+  user          User            @relation(fields: [userId], references: [id])
 }
 
-// Spins & Games
-model Spin {
-  id              String     @id @default(cuid())
-  userId          String
-  user            User       @relation(fields: [userId], references: [id])
-  betAmount       Decimal    @db.Decimal(18, 2)
-  betType         BetType
-  volatility      VolatilityType?
-  color           ColorType?
-  outcome         SpinOutcome
-  winAmount       Decimal?   @db.Decimal(18, 2)
-  isWin           Boolean
-  roundNumber     Int
-  countdownTime   Int        // seconds
-  isPremiumUser   Boolean    @default(false)
-  autoSpin        Boolean    @default(false)
-  createdAt       DateTime   @default(now())
-  completedAt     DateTime?
-}
-
-// Affiliate System
 model AffiliateEarning {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation("AffiliateEarnings", fields: [userId], references: [id])
+  id             String        @id @default(cuid())
+  userId         String
   referredUserId String
-  referredUser  User     @relation("ReferredBy", fields: [referredUserId], references: [id])
-  amount        Decimal  @db.Decimal(18, 2)
-  tier          AffiliateTier
-  date          DateTime @default(now())
-  isPaid        Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  amount         Decimal       @db.Decimal(18, 2)
+  tier           AffiliateTier
+  date           DateTime      @default(now())
+  isPaid         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
+  referredUser   User          @relation("ReferredBy", fields: [referredUserId], references: [id])
+  user           User          @relation("AffiliateEarnings", fields: [userId], references: [id])
 }
 
-// Premium Plans
 model PremiumPlan {
-  id          String   @id @default(cuid())
-  name        String
-  duration    Int      // months
-  price       Decimal  @db.Decimal(18, 2)
-  isActive    Boolean  @default(true)
-  features    Json     // array of features
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id            String                @id @default(cuid())
+  name          String
+  duration      Int
+  price         Decimal               @db.Decimal(18, 2)
+  isActive      Boolean               @default(true)
+  features      Json
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
   subscriptions PremiumSubscription[]
 }
 
 model PremiumSubscription {
-  id          String   @id @default(cuid())
+  id         String             @id @default(cuid())
+  userId     String
+  planId     String
+  status     SubscriptionStatus @default(ACTIVE)
+  startDate  DateTime           @default(now())
+  endDate    DateTime
+  amountPaid Decimal            @db.Decimal(18, 2)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  plan       PremiumPlan        @relation(fields: [planId], references: [id])
+  user       User               @relation(fields: [userId], references: [id])
+}
+
+model InternalTransfer {
+  id          String         @id @default(cuid())
+  senderId    String
+  recipientId String
+  amount      Decimal        @db.Decimal(18, 2)
+  fee         Decimal        @db.Decimal(18, 2)
+  feePayer    FeePayer       @default(SENDER)
+  status      TransferStatus @default(PENDING)
+  approvedBy  String?
+  approvedAt  DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  recipient   User           @relation("InternalTransferReceived", fields: [recipientId], references: [id])
+  sender      User           @relation(fields: [senderId], references: [id])
+}
+
+model CommunitySentiment {
+  id          String        @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  planId      String
-  plan        PremiumPlan @relation(fields: [planId], references: [id])
-  status      SubscriptionStatus @default(ACTIVE)
-  startDate   DateTime @default(now())
-  endDate     DateTime
-  amountPaid  Decimal  @db.Decimal(18, 2)
+  sentiment   SentimentType
+  confidence  Decimal       @db.Decimal(3, 2)
+  roundNumber Int
+  createdAt   DateTime      @default(now())
+  user        User          @relation(fields: [userId], references: [id])
+}
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isPublic    Boolean  @default(false)
+  updatedBy   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
-// Internal Transfers
-model InternalTransfer {
-  id            String   @id @default(cuid())
-  senderId      String
-  sender        User     @relation(fields: [senderId], references: [id])
-  recipientId   String
-  recipient     User     @relation("InternalTransferReceived", fields: [recipientId], references: [id])
-  amount        Decimal  @db.Decimal(18, 2)
-  fee           Decimal  @db.Decimal(18, 2)
-  feePayer      FeePayer @default(SENDER)
-  status        TransferStatus @default(PENDING)
-  approvedBy    String?
-  approvedAt    DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-// Community Sentiment
-model CommunitySentiment {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id])
-  sentiment     SentimentType
-  confidence    Decimal  @db.Decimal(3, 2) // 0.00 to 1.00
-  roundNumber   Int
-  createdAt     DateTime @default(now())
-}
-
-// System Configuration
-model SystemConfig {
-  id                    String   @id @default(cuid())
-  key                   String   @unique
-  value                 String
-  description           String?
-  isPublic              Boolean  @default(false)
-  updatedBy             String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-}
-
 model Round {
-  id              String        @id @default(cuid())
-  roundNumber     Int           @unique @default(autoincrement())
-  state           RoundState    @default(OPEN)
-  
-  // Timing configuration
-  openedAt        DateTime      @default(now())
-  freezeAt        DateTime      // Calculated: openedAt + roundDuration - freezeOffset
-  settleAt        DateTime      // Calculated: openedAt + roundDuration
-  settledAt       DateTime?     // Actual settlement timestamp
-  
-  // Duration config (in seconds) - configurable per round
-  roundDuration   Int           @default(1200) // 20 minutes (free users)
-  freezeOffset    Int           @default(60)   // 1 minute freeze before settle
-  
-  // Premium cutoffs (seconds before freeze)
-  premiumCutoff   Int           @default(5)    // Premium can bet until 5s before freeze
-  regularCutoff   Int           @default(60)   // Regular stop 60s before freeze
-  
-  // FINAL TOTALS (computed at FROZEN, used for settlement)
-  outerBuy        Decimal       @default(0) @db.Decimal(18, 2)
-  outerSell       Decimal       @default(0) @db.Decimal(18, 2)
-  middleBlue      Decimal       @default(0) @db.Decimal(18, 2)
-  middleRed       Decimal       @default(0) @db.Decimal(18, 2)
-  innerHighVol    Decimal       @default(0) @db.Decimal(18, 2)
-  innerLowVol     Decimal       @default(0) @db.Decimal(18, 2)
-  globalIndecision Decimal      @default(0) @db.Decimal(18, 2)
-  
-  // SETTLEMENT RESULTS
-  indecisionTriggered Boolean   @default(false)
-  outerWinner     String?       // 'BUY' or 'SELL' or null if tied
-  middleWinner    String?       // 'BLUE' or 'RED' or null if tied
-  innerWinner     String?       // 'HIGH_VOL' or 'LOW_VOL' or null if tied
-  
-  // Tie flags per layer
-  outerTied       Boolean       @default(false)
-  middleTied      Boolean       @default(false)
-  innerTied       Boolean       @default(false)
-  
-  // House fees collected this round
-  totalHouseFee   Decimal       @default(0) @db.Decimal(18, 2)
-  feeBps          Int           @default(200) // 2% = 200 basis points
-  
-  // Total volume
-  totalVolume     Decimal       @default(0) @db.Decimal(18, 2)
-  
-  // Relations
-  bets            Bet[]
-  artifact        FairnessArtifact?
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  id                  String            @id @default(cuid())
+  roundNumber         Int               @unique @default(autoincrement())
+  state               RoundState        @default(OPEN)
+  openedAt            DateTime          @default(now())
+  freezeAt            DateTime
+  settleAt            DateTime
+  settledAt           DateTime?
+  roundDuration       Int               @default(1200)
+  freezeOffset        Int               @default(60)
+  premiumCutoff       Int               @default(5)
+  regularCutoff       Int               @default(60)
+  outerBuy            Decimal           @default(0) @db.Decimal(18, 2)
+  outerSell           Decimal           @default(0) @db.Decimal(18, 2)
+  middleBlue          Decimal           @default(0) @db.Decimal(18, 2)
+  middleRed           Decimal           @default(0) @db.Decimal(18, 2)
+  innerHighVol        Decimal           @default(0) @db.Decimal(18, 2)
+  innerLowVol         Decimal           @default(0) @db.Decimal(18, 2)
+  globalIndecision    Decimal           @default(0) @db.Decimal(18, 2)
+  indecisionTriggered Boolean           @default(false)
+  outerWinner         String?
+  middleWinner        String?
+  innerWinner         String?
+  outerTied           Boolean           @default(false)
+  middleTied          Boolean           @default(false)
+  innerTied           Boolean           @default(false)
+  totalHouseFee       Decimal           @default(0) @db.Decimal(18, 2)
+  feeBps              Int               @default(200)
+  totalVolume         Decimal           @default(0) @db.Decimal(18, 2)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  bets                Bet[]
+  artifact            FairnessArtifact?
+
   @@index([state, freezeAt])
   @@index([state, settleAt])
   @@index([roundNumber])
 }
 
 model Bet {
-  id              String        @id @default(cuid())
-  roundId         String
-  round           Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  
-  // Bet details
-  market          BetMarket
-  selection       String        // 'BUY'/'SELL', 'BLUE'/'RED', 'HIGH_VOL'/'LOW_VOL', 'INDECISION'
-  amountUsd       Decimal       @db.Decimal(18, 2)
-  
-  // Status tracking
-  status          BetStatus     @default(ACCEPTED)
-  
-  // Settlement results
-  isWinner        Boolean?      // Set during settlement
-  payoutAmount    Decimal?      @db.Decimal(18, 2) // Total returned (stake + profit)
-  profitAmount    Decimal?      @db.Decimal(18, 2) // Profit only
-  payoutRatio     Decimal?      @db.Decimal(10, 6) // Multiplier applied
-  
-  // User context at bet time
-  isPremiumUser   Boolean       @default(false)
-  
-  // Idempotency (prevent duplicate bets)
-  idempotencyKey  String?       @unique
-  
-  // Ledger references
-  holdLedgerId    String?       // Reference to HOLD ledger entry
-  payoutLedgerId  String?       // Reference to PAYOUT ledger entry
-  
-  createdAt       DateTime      @default(now())
-  settledAt       DateTime?
-  
+  id             String    @id @default(cuid())
+  roundId        String
+  userId         String
+  market         BetMarket
+  selection      String
+  amountUsd      Decimal   @db.Decimal(18, 2)
+  status         BetStatus @default(ACCEPTED)
+  isWinner       Boolean?
+  payoutAmount   Decimal?  @db.Decimal(18, 2)
+  profitAmount   Decimal?  @db.Decimal(18, 2)
+  payoutRatio    Decimal?  @db.Decimal(10, 6)
+  isPremiumUser  Boolean   @default(false)
+  idempotencyKey String?   @unique
+  holdLedgerId   String?
+  payoutLedgerId String?
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+  round          Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id])
+
   @@index([roundId, userId])
   @@index([userId, createdAt])
   @@index([roundId, market, selection])
   @@index([status])
 }
 
-// =============================================================================
-// FAIRNESS & PROVABILITY
-// =============================================================================
-
 model FairnessArtifact {
-  id              String        @id @default(cuid())
-  roundId         String        @unique
-  round           Round         @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  
-  // Commit/Reveal for provable fairness
-  commitHash      String        // SHA256(roundId || secret) - published at OPEN
-  secret          String?       // Revealed at SETTLED
-  animationSeed   String?       // Derived from secret for UI animation
-  
-  // Settlement snapshot (JSON for audit)
-  artifactData    Json          // {
-                                //   totals: {...},
-                                //   winners: {...},
-                                //   fees: {...},
-                                //   timestamp: ...,
-                                //   betCount: ...,
-                                //   participantCount: ...
-                                // }
-  
-  createdAt       DateTime      @default(now())
-  revealedAt      DateTime?
-  
+  id            String    @id @default(cuid())
+  roundId       String    @unique
+  commitHash    String
+  secret        String?
+  animationSeed String?
+  artifactData  Json
+  createdAt     DateTime  @default(now())
+  revealedAt    DateTime?
+  round         Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
   @@index([createdAt])
 }
 
-// =============================================================================
-// CHAT SYSTEM (Premium Feature)
-// =============================================================================
-
 model ChatMessage {
-  id              String        @id @default(cuid())
-  userId          String
-  user            User          @relation(fields: [userId], references: [id])
-  
-  content         String        @db.Text
-  roomType        ChatRoomType  @default(GENERAL)
-  
-  // Moderation
-  isDeleted       Boolean       @default(false)
-  deletedBy       String?
-  deletedAt       DateTime?
-  deleteReason    String?
-  
-  // Rate limiting metadata
-  ipAddress       String?
-  
-  createdAt       DateTime      @default(now())
-  
+  id           String       @id @default(cuid())
+  userId       String
+  content      String
+  roomType     ChatRoomType @default(GENERAL)
+  isDeleted    Boolean      @default(false)
+  deletedBy    String?
+  deletedAt    DateTime?
+  deleteReason String?
+  ipAddress    String?
+  createdAt    DateTime     @default(now())
+  user         User         @relation(fields: [userId], references: [id])
+
   @@index([createdAt])
   @@index([roomType, createdAt])
   @@index([userId, createdAt])
 }
 
-// Enums
+model AutoSpinOrder {
+  id                String         @id @default(cuid())
+  userId            String
+  market            BetMarket
+  selection         String
+  amountUsd         Decimal        @db.Decimal(18, 2)
+  status            AutoSpinStatus @default(PENDING)
+  roundsRemaining   Int
+  roundsExecuted    Int            @default(0)
+  targetRoundNumber Int?
+  executedForRounds Json
+  isActive          Boolean        @default(true)
+  expiresAt         DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status])
+  @@index([status, createdAt])
+  @@index([isActive, createdAt])
+}
+
+model UserPreferences {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  preferredRoundDuration Int?
+  autoSpinEnabled        Boolean  @default(false)
+  maxAutoSpinOrders      Int      @default(50)
+  emailNotifications     Boolean  @default(true)
+  pushNotifications      Boolean  @default(true)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 enum UserRole {
   SUPER_ADMIN
   ADMIN
@@ -397,11 +361,11 @@ enum SpinOutcome {
 }
 
 enum AffiliateTier {
-  TIER_1 // $0-49 → $0
-  TIER_2 // $50-99 → $1
-  TIER_3 // $100-499 → $2
-  TIER_4 // $500-1999 → $5
-  TIER_5 // $2000+ → $7
+  TIER_1
+  TIER_2
+  TIER_3
+  TIER_4
+  TIER_5
 }
 
 enum SubscriptionStatus {
@@ -429,28 +393,36 @@ enum SentimentType {
 }
 
 enum RoundState {
-  OPEN        // Accepting bets
-  FROZEN      // No new bets, waiting for settlement
-  SETTLING    // Settlement in progress
-  SETTLED     // Completed and payouts done
+  OPEN
+  FROZEN
+  SETTLING
+  SETTLED
 }
 
 enum BetMarket {
-  OUTER       // BUY vs SELL
-  MIDDLE      // BLUE vs RED
-  INNER       // HIGH_VOL vs LOW_VOL
-  GLOBAL      // INDECISION
+  OUTER
+  MIDDLE
+  INNER
+  GLOBAL
 }
 
 enum BetStatus {
-  ACCEPTED    // Bet placed and funds held
-  WON         // Payout issued
-  LOST        // Stake forfeited
-  CANCELLED   // Refunded (rare)
+  ACCEPTED
+  WON
+  LOST
+  CANCELLED
 }
 
 enum ChatRoomType {
-  GENERAL     // Public chat
-  PREMIUM     // Premium members only
-  ADMIN       // Admin/moderator chat
+  GENERAL
+  PREMIUM
+  ADMIN
+}
+
+enum AutoSpinStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EXPIRED
 }

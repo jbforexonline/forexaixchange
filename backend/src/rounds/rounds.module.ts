@@ -13,22 +13,28 @@ import { RoundsFairnessService } from './rounds-fairness.service';
 import { RoundsSchedulerService } from './rounds-scheduler.service';
 import { BetsService } from './bets.service';
 import { BetsController } from './bets.controller';
+import { AutoSpinService } from './autospin.service';
+import { AutoSpinController } from './autospin.controller';
+import { SuggestionsService } from './suggestions.service';
+import { SuggestionsController } from './suggestions.controller';
 import { PrismaService } from '../database/prisma.service';
 import { RedisModule } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Module({
   imports: [ScheduleModule.forRoot(), RedisModule],
-  controllers: [RoundsController, BetsController],
+  controllers: [RoundsController, BetsController, AutoSpinController, SuggestionsController],
   providers: [
     RoundsService,
     RoundsSettlementService,
     RoundsFairnessService,
     RoundsSchedulerService,
     BetsService,
+    AutoSpinService,
+    SuggestionsService,
     PrismaService,
     RealtimeGateway,
   ],
-  exports: [RoundsService, BetsService],
+  exports: [RoundsService, BetsService, AutoSpinService, SuggestionsService],
 })
 export class RoundsModule {}

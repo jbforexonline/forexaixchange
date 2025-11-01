@@ -8,6 +8,7 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
@@ -107,7 +108,7 @@ export class BetsService {
 
       // 6. Apply bet limits (could be configurable)
       const minBet = new Decimal(1); // $1 minimum
-      const maxBet = isPremium ? new Decimal(10000) : new Decimal(1000);
+      const maxBet = isPremium ? new Decimal(200) : new Decimal(1000); // Premium: $200 per order, Regular: $1000 per order
 
       if (amount.lt(minBet) || amount.gt(maxBet)) {
         throw new BadRequestException(
@@ -173,7 +174,140 @@ export class BetsService {
         totals,
       });
 
+      // Emit real-time wallet balance update (bet deducted instantly)
+      const updatedWallet = await tx.wallet.findUnique({
+        where: { userId },
+      });
+      this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
+        userId,
+        available: updatedWallet.available.toNumber(),
+        held: updatedWallet.held.toNumber(),
+        total: updatedWallet.available.add(updatedWallet.held).toNumber(),
+        reason: 'bet_placed',
+        betAmount: amount.toNumber(),
+      });
+
       return bet;
+    });
+  }
+
+  /**
+   * Cancel a bet (Premium only, before freeze)
+   */
+  async cancelBet(userId: string, betId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      // Get bet and round
+      const bet = await tx.bet.findUnique({
+        where: { id: betId },
+        include: {
+          round: true,
+          user: true,
+        },
+      });
+
+      if (!bet) {
+        throw new NotFoundException('Bet not found');
+      }
+
+      if (bet.userId !== userId) {
+        throw new BadRequestException('Not authorized to cancel this bet');
+      }
+
+      // Check premium status
+      const isPremium =
+        bet.user.premium &&
+        (!bet.user.premiumExpiresAt ||
+          new Date(bet.user.premiumExpiresAt) >= new Date());
+
+      if (!isPremium) {
+        throw new ForbiddenException(
+          'Canceling bets is available to premium users only',
+        );
+      }
+
+      // Check bet status
+      if (bet.status !== 'ACCEPTED') {
+        throw new BadRequestException(
+          `Cannot cancel bet with status: ${bet.status}`,
+        );
+      }
+
+      // Check if round is still open (before freeze)
+      const now = new Date();
+      if (bet.round.state !== RoundState.OPEN || now >= bet.round.freezeAt) {
+        throw new BadRequestException(
+          'Cannot cancel bet: round is frozen or settled',
+        );
+      }
+
+      // Check cutoff time
+      const cutoffTime = isPremium
+        ? new Date(bet.round.freezeAt.getTime() - bet.round.premiumCutoff * 1000)
+        : new Date(bet.round.freezeAt.getTime() - bet.round.regularCutoff * 1000);
+
+      if (now >= cutoffTime) {
+        throw new BadRequestException(
+          'Cannot cancel bet: cutoff time has passed',
+        );
+      }
+
+      // Refund held funds
+      await tx.wallet.update({
+        where: { userId },
+        data: {
+          available: { increment: bet.amountUsd },
+          held: { decrement: bet.amountUsd },
+        },
+      });
+
+      // Update bet status
+      const cancelledBet = await tx.bet.update({
+        where: { id: betId },
+        data: {
+          status: 'CANCELLED',
+        },
+      });
+
+      // Remove from Redis totals
+      await this.updateRedisTotals(
+        bet.roundId,
+        bet.market,
+        bet.selection,
+        bet.amountUsd.neg(),
+      );
+
+      // Create refund transaction
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: 'REFUND',
+          amount: bet.amountUsd,
+          status: 'COMPLETED',
+          description: `Bet cancelled - Round ${bet.round.roundNumber} ${bet.market} ${bet.selection}`,
+        },
+      });
+
+      this.logger.log(
+        `❌ Bet cancelled: ${bet.user.username} - Round ${bet.round.roundNumber} ${bet.market} ${bet.selection} $${bet.amountUsd.toString()}`,
+      );
+
+      // Emit WebSocket event
+      this.gateway.server.emit('betCancelled', {
+        betId,
+        roundId: bet.roundId,
+        roundNumber: bet.round.roundNumber,
+        market: bet.market,
+        selection: bet.selection,
+        amount: bet.amountUsd.toNumber(),
+      });
+
+      const totals = await this.getRedisTotals(bet.roundId);
+      this.gateway.server.emit('totalsUpdated', {
+        roundId: bet.roundId,
+        totals,
+      });
+
+      return cancelledBet;
     });
   }
 

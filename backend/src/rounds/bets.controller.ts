@@ -39,6 +39,15 @@ export class BetsController {
     private readonly roundsService: RoundsService,
   ) {}
 
+  @Post('cancel/:betId')
+  @ApiOperation({ summary: 'Cancel a bet (Premium only, before freeze)' })
+  @ApiResponse({ status: 200, description: 'Bet cancelled successfully' })
+  @ApiResponse({ status: 403, description: 'Premium subscription required' })
+  @ApiResponse({ status: 400, description: 'Cannot cancel bet' })
+  async cancelBet(@Param('betId') betId: string, @CurrentUser() user: any) {
+    return this.betsService.cancelBet(user.id, betId);
+  }
+
   @Post()
   @ApiOperation({ summary: 'Place a bet on the current active round' })
   @ApiBody({ type: PlaceBetDto })

@@ -133,36 +133,64 @@ export class AffiliateService {
     const commission = this.calculateCommission(depositAmount, tier);
 
     if (commission.gt(0)) {
-      // Create affiliate earning record
-      await this.prisma.affiliateEarning.create({
+      // Check if there was a payout today (once-per-day rule)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+
+      const todayPayouts = await this.prisma.affiliateEarning.findFirst({
+        where: {
+          userId: referrer.id,
+          isPaid: true,
+          date: {
+            gte: today,
+            lt: tomorrow,
+          },
+        },
+      });
+
+      // Create affiliate earning record (always record)
+      const earning = await this.prisma.affiliateEarning.create({
         data: {
           userId: referrer.id,
           referredUserId,
           amount: commission,
           tier,
+          isPaid: false, // Will be paid in daily batch
         },
       });
 
-      // Add commission to referrer's wallet
-      await this.prisma.wallet.update({
-        where: { userId: referrer.id },
-        data: {
-          available: {
-            increment: commission,
+      // Only pay immediately if no payout was made today (once-per-day rule)
+      if (!todayPayouts) {
+        // Add commission to referrer's wallet
+        await this.prisma.wallet.update({
+          where: { userId: referrer.id },
+          data: {
+            available: {
+              increment: commission,
+            },
           },
-        },
-      });
+        });
 
-      // Create transaction record
-      await this.prisma.transaction.create({
-        data: {
-          userId: referrer.id,
-          type: 'AFFILIATE_EARNING',
-          amount: commission,
-          status: 'COMPLETED',
-          description: `Affiliate commission from ${referredUser.username}`,
-        },
-      });
+        // Mark as paid
+        await this.prisma.affiliateEarning.update({
+          where: { id: earning.id },
+          data: { isPaid: true },
+        });
+
+        // Create transaction record
+        await this.prisma.transaction.create({
+          data: {
+            userId: referrer.id,
+            type: 'AFFILIATE_EARNING',
+            amount: commission,
+            status: 'COMPLETED',
+            description: `Affiliate commission from ${referredUser.username}`,
+          },
+        });
+      }
+      // If payout already made today, commission will be paid in next day's batch
     }
   }
 

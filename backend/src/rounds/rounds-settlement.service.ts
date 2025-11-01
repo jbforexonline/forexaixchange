@@ -309,10 +309,12 @@ export class RoundsSettlementService {
 
   /**
    * Check if two amounts constitute a tie
+   * Updated: Tie if both sides are equal (including 0-0 case)
+   * If any layer ties (including 0-0), Indecision wins globally
    */
   private isTied(a: Decimal, b: Decimal): boolean {
-    // Tie only if both > 0 and exactly equal (to the cent)
-    return a.gt(0) && b.gt(0) && a.eq(b);
+    // Tie if both sides are equal (to the cent), including 0-0
+    return a.eq(b);
   }
 
   /**
@@ -399,12 +401,13 @@ export class RoundsSettlementService {
       // Update wallet
       if (payout.isWinner) {
         // Winner: return stake + profit to available, remove from held
+        // Balance = original balance + profit (stake already deducted at bet time)
         await tx.wallet.update({
           where: { userId: bet.userId },
           data: {
-            available: { increment: payout.payoutAmount },
-            held: { decrement: bet.amountUsd },
-            totalWon: { increment: payout.profitAmount },
+            available: { increment: payout.payoutAmount }, // Stake + profit added back
+            held: { decrement: bet.amountUsd }, // Remove held stake
+            totalWon: { increment: payout.profitAmount }, // Track profit only
           },
         });
 
@@ -415,16 +418,31 @@ export class RoundsSettlementService {
             type: 'SPIN_WIN',
             amount: payout.profitAmount,
             status: 'COMPLETED',
-            description: `Round ${round.roundNumber} win - ${bet.market} ${bet.selection}`,
+            description: `Round ${round.roundNumber} win - ${bet.market} ${bet.selection} - Profit: $${payout.profitAmount.toFixed(2)}`,
+            processedAt: new Date(),
           },
         });
+
+        // Emit real-time wallet update for winner
+        const winnerWallet = await tx.wallet.findUnique({
+          where: { userId: bet.userId },
+        });
+        this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
+          userId: bet.userId,
+          available: winnerWallet.available.toNumber(),
+          held: winnerWallet.held.toNumber(),
+          total: winnerWallet.available.add(winnerWallet.held).toNumber(),
+          reason: 'bet_won',
+          profitAmount: payout.profitAmount.toNumber(),
+          payoutAmount: payout.payoutAmount.toNumber(),
+        });
       } else {
-        // Loser: remove held funds, increase totalLost
+        // Loser: remove held funds, increase totalLost (no return - funds lost)
         await tx.wallet.update({
           where: { userId: bet.userId },
           data: {
-            held: { decrement: bet.amountUsd },
-            totalLost: { increment: bet.amountUsd },
+            held: { decrement: bet.amountUsd }, // Remove held stake (funds lost)
+            totalLost: { increment: bet.amountUsd }, // Track loss
           },
         });
 
@@ -435,8 +453,22 @@ export class RoundsSettlementService {
             type: 'SPIN_LOSS',
             amount: bet.amountUsd,
             status: 'COMPLETED',
-            description: `Round ${round.roundNumber} loss - ${bet.market} ${bet.selection}`,
+            description: `Round ${round.roundNumber} loss - ${bet.market} ${bet.selection} - Lost: $${bet.amountUsd.toFixed(2)}`,
+            processedAt: new Date(),
           },
+        });
+
+        // Emit real-time wallet update for loser
+        const loserWallet = await tx.wallet.findUnique({
+          where: { userId: bet.userId },
+        });
+        this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
+          userId: bet.userId,
+          available: loserWallet.available.toNumber(),
+          held: loserWallet.held.toNumber(),
+          total: loserWallet.available.add(loserWallet.held).toNumber(),
+          reason: 'bet_lost',
+          lostAmount: bet.amountUsd.toNumber(),
         });
       }
     }
