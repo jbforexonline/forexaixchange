@@ -80,10 +80,19 @@ async function createApp(): Promise<express.Express> {
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('api/docs', app, document, {
+      customSiteTitle: 'ForexAI Exchange API',
+      customfavIcon: 'https://static-00.iconduck.com/assets.00/swagger-icon-512x512.png',
+      customCssUrl: 'https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css',
+      customJs: [
+        'https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js',
+        'https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-standalone-preset.js',
+      ],
       swaggerOptions: {
         persistAuthorization: true,
         defaultModelsExpandDepth: -1,
         docExpansion: 'none',
+        filter: true,
+        showRequestDuration: true,
       },
     });
 
