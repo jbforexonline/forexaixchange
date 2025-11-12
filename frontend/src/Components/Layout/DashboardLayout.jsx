@@ -27,6 +27,7 @@ export default function DashboardLayout({ children }) {
           <Link href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>Dashboard</Link>
           <Link href="/spin" className={`nav-link ${pathname === '/spin' ? 'active' : ''}`}>Spin</Link>
           <Link href="/withdraw" className={`nav-link ${pathname === '/withdraw' ? 'active' : ''}`}>Withdraw</Link>
+          <Link href="/Affiliate" className={`nav-link ${pathname === '/Affiliate' ? 'active' : ''}`}>Affiliate</Link>
           {/* <Link href="/deposit" className={`nav-link ${pathname === '/deposit' ? 'active' : ''}`}>Deposit</Link> */}
           <Link href="/users" className={`nav-link ${pathname === '/users' ? 'active' : ''}`}>Users</Link>
           <hr />

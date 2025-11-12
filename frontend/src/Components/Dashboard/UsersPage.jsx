@@ -130,10 +130,45 @@ export default function Page() {
   ]);
 
   // CRUD Functions
-  const handleDelete = (index) => {
-    if (window.confirm('Are you sure you want to delete this user?')) {
-      setInvoices(invoices.filter((_, i) => i !== index));
+  // Pause user instead of deleting: offer a duration choice and set a pausedUntil date
+  const handlePause = (index) => {
+    const choice = window.prompt(
+      'Pause user for:\n1) 1 week\n2) 1 month\n3) 5 months\n4) 1 year\n\nEnter 1-4',
+    );
+
+    if (!choice) return; // cancelled
+
+    const pick = choice.trim();
+    const now = new Date();
+    let pausedUntil = null;
+
+    if (pick === '1') {
+      pausedUntil = new Date(now);
+      pausedUntil.setDate(pausedUntil.getDate() + 7);
+    } else if (pick === '2') {
+      pausedUntil = new Date(now);
+      pausedUntil.setMonth(pausedUntil.getMonth() + 1);
+    } else if (pick === '3') {
+      pausedUntil = new Date(now);
+      pausedUntil.setMonth(pausedUntil.getMonth() + 5);
+    } else if (pick === '4') {
+      pausedUntil = new Date(now);
+      pausedUntil.setFullYear(pausedUntil.getFullYear() + 1);
+    } else {
+      alert('Invalid choice — please enter 1, 2, 3 or 4');
+      return;
     }
+
+    const iso = pausedUntil.toISOString().split('T')[0];
+
+    const updated = invoices.map((inv, i) =>
+      i === index
+        ? { ...inv, status: `Paused until ${iso}`, pausedUntil: iso }
+        : inv,
+    );
+
+    setInvoices(updated);
+    alert(`User paused until ${iso}`);
   };
 
   const handleEdit = (user, index) => {
@@ -331,11 +366,11 @@ export default function Page() {
                         ✏️
                       </button>
                       <button
-                        className="delete-btn"
-                        onClick={() => handleDelete(idx)}
-                        title="Delete user"
+                        className="pause-btn"
+                        onClick={() => handlePause(idx)}
+                        title="Pause user"
                       >
-                        🗑️
+                        ⏸️
                       </button>
                     </>
                   )}

@@ -1,59 +1,118 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "../Styles/SpinPage.scss";
+import SpinWheel from "../Spin/SpinWheel";
 
 export default function SpinPage() {
   const [isSpinning, setIsSpinning] = useState(false);
   const [spinResult, setSpinResult] = useState(null);
+  const [countdownSec, setCountdownSec] = useState(0);
+  const [showOverlays, setShowOverlays] = useState(true);
 
   const handleSpin = () => {
+    // Start spin with a 3s countdown
     setIsSpinning(true);
     setSpinResult(null);
-    
-    // Simulate spin duration
-    setTimeout(() => {
-      setIsSpinning(false);
-      const results = [
-        { type: "Bonus", amount: 500, color: "#00ff88" },
-        { type: "Jackpot", amount: 2000, color: "#ff6b6b" },
-        { type: "Multiplier", amount: 100, color: "#4ecdc4" },
-        { type: "Energy", amount: 50, color: "#45b7d1" },
-        { type: "Coins", amount: 300, color: "#f9ca24" }
-      ];
-      const randomResult = results[Math.floor(Math.random() * results.length)];
-      setSpinResult(randomResult);
-    }, 3000);
+    setCountdownSec(3);
   };
+
+  // countdown effect for spin
+  useEffect(() => {
+    if (!isSpinning) return;
+    if (countdownSec <= 0) return;
+
+    const t = setInterval(() => {
+      setCountdownSec((s) => {
+        if (s <= 1) {
+          clearInterval(t);
+          // finish spin
+          setIsSpinning(false);
+          const results = [
+            { type: "Bonus", amount: 500, color: "#00ff88" },
+            { type: "Jackpot", amount: 2000, color: "#ff6b6b" },
+            { type: "Multiplier", amount: 100, color: "#4ecdc4" },
+            { type: "Energy", amount: 50, color: "#45b7d1" },
+            { type: "Coins", amount: 300, color: "#f9ca24" }
+          ];
+          const randomResult = results[Math.floor(Math.random() * results.length)];
+          setSpinResult(randomResult);
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, [isSpinning, countdownSec]);
+
+  // derive wheel state for SpinWheel component
+  const wheelState = useMemo(() => {
+    if (isSpinning) return 'open';
+    if (spinResult) return 'settled';
+    return 'preopen';
+  }, [isSpinning, spinResult]);
+
+  // map spinResult to winners flags for the wheel
+  const winners = useMemo(() => {
+    if (!spinResult) return undefined;
+    switch (spinResult.type) {
+      case 'Jackpot':
+        return { outer: 'BUY', color: 'RED', vol: 'HIGH' };
+      case 'Bonus':
+        return { outer: 'SELL', color: 'BLUE', vol: 'LOW' };
+      case 'Multiplier':
+        return { outer: 'BUY', color: 'BLUE', vol: 'HIGH' };
+      case 'Energy':
+        return { outer: 'SELL', color: 'RED', vol: 'LOW' };
+      case 'Coins':
+        return { outer: 'BUY', color: 'BLUE', vol: 'LOW' };
+      default:
+        return { outer: 'BUY', color: 'BLUE', vol: 'HIGH' };
+    }
+  }, [spinResult]);
 
   return (
     <div className="neural-interface">
       <div className="interface-container">
+        {/* Header */}
+        <header className="spin-header">
+          <h2>RESULTS</h2>
+          <div className="header-controls">
+            <button
+              className="overlay-toggle"
+              onClick={() => setShowOverlays((s) => !s)}
+              title="Toggle decorative overlays"
+            >
+              {showOverlays ? 'Hide Overlays' : 'Show Overlays'}
+            </button>
+          </div>
+        </header>
         {/* Top Left - Vertical Bar Chart */}
         <div className="chart-panel top-left">
-          <div className="vertical-bars">
+          {/* <div className="vertical-bars">
             <div className="bar bar-1" style={{ height: '60%' }}></div>
             <div className="bar bar-2" style={{ height: '40%' }}></div>
             <div className="bar bar-3" style={{ height: '80%' }}></div>
             <div className="bar bar-4" style={{ height: '30%' }}></div>
             <div className="bar bar-5" style={{ height: '70%' }}></div>
-          </div>
-          <div className="scale-labels">
+          </div> */}
+          {/* <div className="scale-labels">
             <span>-100</span>
             <span>-200</span>
             <span>-300</span>
             <span>-400</span>
             <span>-500</span>
-          </div>
-          <div className="horizontal-bars">
+          </div> */}
+          {/* <div className="horizontal-bars">
             <div className="h-bar h-bar-1"></div>
             <div className="h-bar h-bar-2"></div>
             <div className="h-bar h-bar-3"></div>
             <div className="h-bar h-bar-4"></div>
-          </div>
+          </div> */}
         </div>
 
         {/* Bottom Left - Line Graph */}
-        <div className="chart-panel bottom-left">
+        {/* <div className="chart-panel bottom-left">
           <div className="line-graph">
             <svg className="graph-svg" viewBox="0 0 200 100">
               <polyline
@@ -75,10 +134,10 @@ export default function SpinPage() {
               <circle cx="190" cy="8" r="2" fill="#ffffff" className="data-point" />
             </svg>
           </div>
-        </div>
+        </div> */}
 
         {/* Top Right - Vertical Bar Chart */}
-        <div className="chart-panel top-right">
+        {/* <div className="chart-panel top-right">
           <div className="vertical-bars">
             <div className="bar bar-1" style={{ height: '45%' }}></div>
             <div className="bar bar-2" style={{ height: '65%' }}></div>
@@ -86,7 +145,7 @@ export default function SpinPage() {
             <div className="bar bar-4" style={{ height: '55%' }}></div>
             <div className="bar bar-5" style={{ height: '75%' }}></div>
           </div>
-        </div>
+        </div> */}
 
         {/* Bottom Right - Dual Line Graph */}
         <div className="chart-panel bottom-right">
@@ -145,45 +204,23 @@ export default function SpinPage() {
           </div>
         </div>
 
-        {/* Central Brain Interface */}
-        <div className="central-brain">
+        {/* Central Brain Interface - replaced with SpinWheel SVG while keeping surrounding layout */}
+        <div className="central-brain left-column">
           <div className="brain-container">
-            {/* Outer Circular UI */}
-            <div className="circular-ui">
-              <div className="ui-ring ring-1"></div>
-              <div className="ui-ring ring-2"></div>
-              <div className="ui-ring ring-3"></div>
-              <div className="ui-arc arc-1"></div>
-              <div className="ui-arc arc-2"></div>
-              <div className="ui-arc arc-3"></div>
-              <div className="ui-marker marker-1"></div>
-              <div className="ui-marker marker-2"></div>
-              <div className="ui-marker marker-3"></div>
-              <div className="ui-marker marker-4"></div>
+            {/* Inserted Spin Wheel SVG (keeps the original design feel) */}
+            <div className={`spinwheel-wrapper ${isSpinning ? 'spinning' : ''} ${showOverlays ? '' : 'hide-overlays'}`}>
+              {/* background image (place your uploaded image at /public/image/ai-brain.png) */}
+              <img
+                src="/image/ai-brain.png"
+                alt="neural graphic"
+                className="spin-bg"
+                aria-hidden="true"
+                style={{ pointerEvents: 'none' }}
+              />
+              <SpinWheel state={wheelState} countdownSec={countdownSec} winners={winners} />
             </div>
 
-            {/* Central Brain */}
-            <div className={`brain-core ${isSpinning ? 'spinning' : ''}`}>
-              <div className="neural-network">
-                <div className="neural-line line-1"></div>
-                <div className="neural-line line-2"></div>
-                <div className="neural-line line-3"></div>
-                <div className="neural-line line-4"></div>
-                <div className="neural-line line-5"></div>
-                <div className="neural-line line-6"></div>
-                <div className="neural-node node-1"></div>
-                <div className="neural-node node-2"></div>
-                <div className="neural-node node-3"></div>
-                <div className="neural-node node-4"></div>
-                <div className="neural-node node-5"></div>
-                <div className="neural-node node-6"></div>
-                <div className="neural-node node-7"></div>
-                <div className="neural-node node-8"></div>
-              </div>
-              <div className="brain-center-glow"></div>
-            </div>
-
-            {/* Spin Button */}
+            {/* Keep the original spin button below the wheel */}
             <button 
               className={`spin-button ${isSpinning ? 'active' : ''}`}
               onClick={handleSpin}
@@ -194,15 +231,17 @@ export default function SpinPage() {
           </div>
         </div>
 
-        {/* Result Display */}
-        {spinResult && (
-          <div className="result-overlay">
-            <div className="result-popup">
-              <h2 style={{ color: spinResult.color }}>{spinResult.type}</h2>
-              <p>+{spinResult.amount}</p>
-            </div>
+        {/* Right column - Winners panel and fireworks */}
+        {/* <aside className="right-column">
+          <div className="indecision-banner">Indecision wins<br/><span className="sub">(Middle tie)</span></div>
+
+          <div className="fireworks">
+            <div className="firework fw-1"></div>
+            <div className="firework fw-2"></div>
           </div>
-        )}
+
+        
+        </aside> */}
       </div>
     </div>
   );
