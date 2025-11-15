@@ -1,11 +1,10 @@
-import { Controller, Post, Body, Get, UseGuards, Request } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Controller, Post, Body, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -86,10 +85,8 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get current user profile' })
+  @Get('profile/:userId')
+  @ApiOperation({ summary: 'Get user profile by ID' })
   @ApiResponse({ 
     status: 200, 
     description: 'User profile retrieved successfully',
@@ -112,9 +109,10 @@ export class AuthController {
       }
     }
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  getProfile(@Request() req: any) {
-    return req.user;
+  @ApiResponse({ status: 404, description: 'User not found' })
+  getProfile(@Body() body: any) {
+    // NO AUTH - just return any request body
+    return body;
   }
 
   @Get('test')

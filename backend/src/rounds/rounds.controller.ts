@@ -11,25 +11,18 @@ import {
   Param,
   Query,
   ParseIntPipe,
-  UseGuards,
   Body,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
 import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
 import { RoundsSchedulerService } from './rounds-scheduler.service';
 import { BetsService } from './bets.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { CurrentUser } from '../auth/decorators/user.decorator';
-import { UserRole } from '@prisma/client';
 
 @ApiTags('Rounds')
 @Controller('rounds')
@@ -46,8 +39,6 @@ export class RoundsController {
   // =============================================================================
 
   @Get('current')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get current active round' })
   @ApiResponse({
     status: 200,
@@ -96,8 +87,6 @@ export class RoundsController {
   }
 
   @Get('history')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get round history with pagination' })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
@@ -110,8 +99,6 @@ export class RoundsController {
   }
 
   @Get('stats')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get round statistics' })
   @ApiResponse({
     status: 200,
@@ -141,8 +128,6 @@ export class RoundsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get round by ID or number' })
   @ApiResponse({ status: 200, description: 'Round retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Round not found' })
@@ -153,8 +138,6 @@ export class RoundsController {
   }
 
   @Get(':id/totals')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
   @ApiOperation({ summary: 'Get live totals for a round (from Redis)' })
   @ApiResponse({
     status: 200,
@@ -202,12 +185,8 @@ export class RoundsController {
   // =============================================================================
 
   @Post('admin/new')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Manually open a new round (Admin only)' })
+  @ApiOperation({ summary: 'Manually open a new round' })
   @ApiResponse({ status: 201, description: 'Round created successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async adminOpenRound(
     @Body('roundDuration') roundDuration?: number,
     @Body('freezeOffset') freezeOffset?: number,
@@ -216,36 +195,24 @@ export class RoundsController {
   }
 
   @Post('admin/:id/freeze')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Force freeze a round (Admin only)' })
+  @ApiOperation({ summary: 'Force freeze a round' })
   @ApiResponse({ status: 200, description: 'Round frozen successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 404, description: 'Round not found' })
   async adminFreezeRound(@Param('id') id: string) {
     return this.roundsService.adminForceFreeze(id);
   }
 
   @Post('admin/:id/settle')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Force settle a round (Admin only)' })
+  @ApiOperation({ summary: 'Force settle a round' })
   @ApiResponse({ status: 200, description: 'Round settled successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   @ApiResponse({ status: 404, description: 'Round not found' })
   async adminSettleRound(@Param('id') id: string) {
     return this.settlementService.settleRound(id);
   }
 
   @Post('admin/:id/cancel')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Cancel a round and refund all bets (Super Admin only)' })
+  @ApiOperation({ summary: 'Cancel a round and refund all bets' })
   @ApiResponse({ status: 200, description: 'Round cancelled and bets refunded' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Super Admin access required' })
   @ApiResponse({ status: 404, description: 'Round not found' })
   async adminCancelRound(
     @Param('id') id: string,
@@ -255,26 +222,18 @@ export class RoundsController {
   }
 
   @Post('admin/trigger-transitions')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Manually trigger round transitions check (Admin only)' })
+  @ApiOperation({ summary: 'Manually trigger round transitions check' })
   @ApiResponse({ status: 200, description: 'Transitions triggered successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async adminTriggerTransitions() {
     await this.schedulerService.manualTrigger();
     return { message: 'Round transitions triggered manually' };
   }
 
   @Get('admin/:id/bets')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.SUPER_ADMIN, UserRole.ADMIN)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get all bets for a round (Admin only)' })
+  @ApiOperation({ summary: 'Get all bets for a round' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiResponse({ status: 200, description: 'Bets retrieved successfully' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin access required' })
   async adminGetRoundBets(
     @Param('id') id: string,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,

@@ -1,58 +1,57 @@
 // Neural Interface - Light Mode Version
 .neural-interface {
   padding: 2rem;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
+  background: radial-gradient(circle at 50% 40%, #001018 0%, #001424 20%, #021826 45%, #001018 100%);
   min-height: 100vh;
-  color: #1e293b;
+  color: #cfe9f8;
   font-family: 'Inter', sans-serif;
   position: relative;
   overflow: hidden;
 
   .interface-container {
     position: relative;
-    width: 100%;
-    height: 100vh;
-    max-width: 1400px;
-    margin: 0 auto;
+  width: 100%;
+  height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  /* single-column layout so the wheel can be perfectly centered */
+  grid-template-columns: 1fr;
+  /* header, main wheel, footer/aux */
+  grid-template-rows: 72px auto auto;
+  gap: 16px;
+  justify-items: center;
+  align-items: center;
   }
 
-  // Chart Panels
-  .chart-panel {
+  /* subtle vignette + outer glow to emulate the image feel */
+  &::before {
+    content: '';
     position: absolute;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    border-radius: 8px;
-    padding: 1rem;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(60% 50% at 50% 45%, rgba(6,40,70,0.18), transparent 40%);
+    mix-blend-mode: screen;
+  }
 
-    &.top-left {
-      top: 5%;
-      left: 5%;
-      width: 280px;
-      height: 200px;
+  .spin-header {
+    grid-column: 1 / -1;
+    align-self: center;
+    text-align: center;
+    padding: 0;
+    h2 {
+      margin: 0;
+      font-size: 32px;
+      letter-spacing: 1px;
+      color: #f3b67a;
+      text-transform: uppercase;
+      letter-spacing: 2px;
     }
+  }
 
-    &.bottom-left {
-      bottom: 5%;
-      left: 5%;
-      width: 280px;
-      height: 150px;
-    }
-
-    &.top-right {
-      top: 5%;
-      right: 5%;
-      width: 280px;
-      height: 200px;
-    }
-
-    &.bottom-right {
-      bottom: 5%;
-      right: 5%;
-      width: 280px;
-      height: 200px;
-    }
+  // Chart Panels (hidden for the centered wheel layout)
+  .chart-panel {
+    display: none;
   }
 
   // Top Left - Vertical Bar Chart with Scale
@@ -200,27 +199,32 @@
 
   // Central Brain Interface
   .central-brain {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 400px;
-    height: 400px;
+    position: relative;
+    /* span full width so it sits centered in the page */
+    grid-column: 1 / -1;
+    grid-row: 2 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: auto;
     z-index: 10;
+    justify-self: center;
+    align-self: center;
 
-    .brain-container {
-      position: relative;
-      width: 100%;
-      height: 100%;
+  .brain-container {
+  position: relative;
+  width: 100%;
+  height: auto;
 
       // Outer Circular UI
-      .circular-ui {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 350px;
-        height: 350px;
+        .circular-ui {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 560px;
+          height: 560px;
 
         .ui-ring {
           position: absolute;
@@ -230,26 +234,12 @@
           left: 50%;
           transform: translate(-50%, -50%);
 
-          &.ring-1 {
-            width: 300px;
-            height: 300px;
-            border-style: solid;
-          }
-
-          &.ring-2 {
-            width: 250px;
-            height: 250px;
-            border-style: dashed;
-          }
-
-          &.ring-3 {
-            width: 200px;
-            height: 200px;
-            border-style: solid;
-          }
+          &.ring-1 { width: 440px; height: 440px; border-style: solid; box-shadow: 0 0 60px rgba(56,160,255,0.08); }
+          &.ring-2 { width: 360px; height: 360px; border-style: dashed; opacity: 0.85; }
+          &.ring-3 { width: 300px; height: 300px; border-style: solid; opacity: 0.95; }
         }
 
-        .ui-arc {
+  .ui-arc {
           position: absolute;
           border: 2px solid rgba(96, 165, 250, 0.5);
           border-radius: 50%;
@@ -400,15 +390,16 @@
           border-radius: 50%;
           background: radial-gradient(circle, rgba(96, 165, 250, 0.4), transparent);
           animation: centerGlow 2s infinite alternate;
+          filter: blur(10px);
         }
       }
 
       // Spin Button
-      .spin-button {
-        position: absolute;
-        bottom: -60px;
-        left: 50%;
-        transform: translateX(-50%);
+  .spin-button {
+  position: absolute;
+  bottom: -56px;
+  left: 50%;
+  transform: translateX(-50%);
         background: linear-gradient(135deg, #3b82f6, #1d4ed8);
         border: none;
         border-radius: 25px;
@@ -437,6 +428,138 @@
       }
     }
   }
+
+  .spinwheel-wrapper {
+    width: 600px;
+    height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* make the wheel visually circular */
+    border-radius: 50%;
+    overflow: hidden;
+    background: radial-gradient(circle at 50% 45%, rgba(11,16,32,0.9), rgba(4,8,16,0.6));
+    position: relative; /* allow absolutely positioned background image */
+    box-shadow: 0 30px 80px rgba(2,8,20,0.7), inset 0 0 80px rgba(8,40,80,0.35);
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      border-radius: 50% !important; /* ensure SVG corners are rounded */
+      z-index: 2; /* keep wheel above the background image */
+    }
+
+    .spin-bg {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.98;
+      mix-blend-mode: screen;
+      filter: contrast(1.05) saturate(1.2) drop-shadow(0 18px 60px rgba(0,0,0,0.7));
+      z-index: 1; /* behind the wheel */
+      pointer-events: none;
+      border-radius: 50%;
+    }
+
+    /* concentric rings overlay to emulate the circular HUD in the image */
+    &::before, &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(0deg);
+      border-radius: 50%;
+      pointer-events: none;
+      transition: opacity 300ms ease, transform 600ms ease;
+    }
+
+    &::before {
+      width: 94%;
+      height: 94%;
+      border: 6px solid rgba(96,165,250,0.06);
+      box-shadow: 0 0 60px rgba(24,110,255,0.06), inset 0 0 40px rgba(24,110,255,0.06);
+      z-index: 1;
+    }
+
+    &::after {
+      width: 78%;
+      height: 78%;
+      border: 2px dashed rgba(96,165,250,0.08);
+      box-shadow: 0 0 30px rgba(24,110,255,0.04);
+      z-index: 1;
+    }
+
+    /* spinning animation — subtle rotations applied to the decorative rings */
+    &.spinning::before {
+      animation: ringRotateCW 2.2s linear infinite;
+    }
+
+    &.spinning::after {
+      animation: ringRotateCCW 3s linear infinite;
+    }
+
+    /* hide overlays when user toggles them off */
+    &.hide-overlays {
+      &::before, &::after { opacity: 0; transform: translate(-50%, -50%) rotate(0deg); }
+      .spin-bg { opacity: 0 !important; visibility: hidden; }
+      .circular-ui { opacity: 0; visibility: hidden; }
+      .brain-center-glow { opacity: 0; visibility: hidden; }
+    }
+  }
+
+  @keyframes ringRotateCW {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    50% { transform: translate(-50%, -50%) rotate(6deg); }
+    100% { transform: translate(-50%, -50%) rotate(0deg); }
+  }
+
+  @keyframes ringRotateCCW {
+    0% { transform: translate(-50%, -50%) rotate(0deg); }
+    50% { transform: translate(-50%, -50%) rotate(-8deg); }
+    100% { transform: translate(-50%, -50%) rotate(0deg); }
+  }
+
+  /* Right column layout - move under the wheel in single-column layout */
+  .right-column {
+    grid-column: 1 / -1;
+    grid-row: 3 / 4;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    align-items: center; /* center winners under the wheel */
+    justify-content: flex-start;
+  }
+
+  .indecision-banner {
+    font-size: 28px;
+    color: #76e4f7;
+    font-weight: 700;
+    line-height: 1.1;
+    .sub { display: block; font-size: 14px; color: rgba(255,255,255,0.6); font-weight: 500; }
+  }
+
+  .fireworks { position: relative; width: 100%; height: 120px; }
+  .firework { position: absolute; width: 120px; height: 120px; top: 8px; right: 20px; }
+  .fw-1 { right: 24px; top: 0; background: radial-gradient(circle at 30% 30%, rgba(120,200,255,0.95), transparent 30%); filter: blur(10px); opacity: 0.9; }
+  .fw-2 { right: 100px; top: 20px; background: radial-gradient(circle at 60% 40%, rgba(80,220,240,0.95), transparent 30%); filter: blur(10px); opacity: 0.9; }
+
+  .winners-card {
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.06);
+    padding: 14px 18px;
+    border-radius: 12px;
+    width: 360px;
+    color: #fff;
+    h3 { margin: 0 0 8px 0; color: #f3b67a; }
+    ul { list-style: none; margin: 0; padding: 0; li { display:flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.02); span{opacity:0.9;} b{color:#fff;} } }
+  }
+
+  /* Bet slip removed - styles cleaned up */
 
   // Result Overlay
   .result-overlay {
@@ -541,44 +664,20 @@
 @media (max-width: 1200px) {
   .neural-interface {
     .central-brain {
-      width: 300px;
-      height: 300px;
+      width: 100%;
+      height: auto;
 
       .brain-container {
-        .circular-ui {
-          width: 250px;
-          height: 250px;
-
-          .ui-ring {
-            &.ring-1 { width: 200px; height: 200px; }
-            &.ring-2 { width: 150px; height: 150px; }
-            &.ring-3 { width: 100px; height: 100px; }
-          }
-
-          .ui-arc {
-            &.arc-1 { width: 220px; height: 220px; }
-            &.arc-2 { width: 170px; height: 170px; }
-            &.arc-3 { width: 120px; height: 120px; }
-          }
-        }
-
-        .brain-core {
-          width: 120px;
-          height: 120px;
+        .spinwheel-wrapper {
+          width: 420px;
+          height: 420px;
         }
       }
     }
 
     .chart-panel {
-      &.top-left, &.top-right {
-        width: 200px;
-        height: 150px;
-      }
-
-      &.bottom-left, &.bottom-right {
-        width: 200px;
-        height: 120px;
-      }
+      &.top-left, &.top-right { display: none; }
+      &.bottom-left, &.bottom-right { display: none; }
     }
   }
 }
@@ -588,20 +687,17 @@
     padding: 1rem;
 
     .central-brain {
-      width: 250px;
-      height: 250px;
-    }
+      width: 100%;
+      height: auto;
 
-    .chart-panel {
-      &.top-left, &.top-right {
-        width: 150px;
-        height: 100px;
-      }
-
-      &.bottom-left, &.bottom-right {
-        width: 150px;
-        height: 80px;
+      .brain-container {
+        .spinwheel-wrapper {
+          width: 320px;
+          height: 320px;
+        }
       }
     }
+
+    .chart-panel { display: none; }
   }
 }

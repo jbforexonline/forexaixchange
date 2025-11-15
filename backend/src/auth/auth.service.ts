@@ -1,19 +1,16 @@
 import { Injectable, UnauthorizedException, ConflictException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../database/prisma.service';
-import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { OtpService } from './services/otp.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-    private otpService: OtpService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -45,12 +42,7 @@ export class AuthService {
         throw new ConflictException('User with this email, phone, or username already exists');
       }
 
-      console.log('✅ No existing user found - hashing password...');
-
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 12);
-
-      console.log('✅ Password hashed - checking referral code...');
+      console.log('✅ No existing user found - creating user...');
 
       // Validate referral code if provided
       let validReferredBy = null;
@@ -64,18 +56,15 @@ export class AuthService {
           console.log('✅ Valid referral code found:', referringUser.username);
         } else {
           console.log('⚠️ Invalid referral code provided:', referredBy);
-          // Continue without referral code rather than failing
         }
       }
 
-      console.log('✅ Creating user...');
-
-      // Create user with wallet
+      // Create user with wallet (NO PASSWORD HASHING)
       const user = await this.prisma.user.create({
         data: {
           email,
           phone,
-          password: hashedPassword,
+          password: password || 'nopass',
           username,
           firstName,
           lastName,
@@ -115,7 +104,7 @@ export class AuthService {
       throw new UnauthorizedException('Either email or phone number is required');
     }
 
-    // Find user by email or phone
+    // Find user by email or phone (NO PASSWORD VALIDATION)
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -128,8 +117,8 @@ export class AuthService {
       },
     });
 
-    if (!user || !await bcrypt.compare(password, user.password)) {
-      throw new UnauthorizedException('Invalid credentials');
+    if (!user) {
+      throw new UnauthorizedException('User not found');
     }
 
     if (!user.isActive || user.isBanned) {
@@ -169,11 +158,11 @@ export class AuthService {
   }
 
   async hashPassword(password: string): Promise<string> {
-    return bcrypt.hash(password, 12);
+    return password; // NO HASHING
   }
 
   async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(password, hashedPassword);
+    return password === hashedPassword; // DIRECT COMPARISON
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
@@ -202,18 +191,12 @@ export class AuthService {
       throw new BadRequestException('Account is inactive or banned');
     }
 
-    // Send OTP
+    // NO OTP SENT - just return success message
     const identifier = email || phone!;
     const isEmail = !!email;
-    
-    const otpSent = await this.otpService.sendOtp(identifier, isEmail);
-    
-    if (!otpSent) {
-      throw new BadRequestException('Failed to send OTP. Please try again.');
-    }
 
     return {
-      message: `OTP sent successfully to ${isEmail ? 'email' : 'phone number'}`,
+      message: `Password reset requested for ${isEmail ? 'email' : 'phone number'}`,
       identifier: isEmail ? email : phone?.replace(/(\d{3})(\d{3})(\d{4})/, '$1***$3'), // Mask phone number
     };
   }
@@ -244,21 +227,11 @@ export class AuthService {
       throw new BadRequestException('Account is inactive or banned');
     }
 
-    // Verify OTP
-    const identifier = email || phone!;
-    const isOtpValid = this.otpService.verifyOtp(identifier, otp);
-    
-    if (!isOtpValid) {
-      throw new BadRequestException('Invalid or expired OTP');
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    // Update password
+    // NO OTP VERIFICATION - just update password directly
+    // Update password (NO HASHING)
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { password: hashedPassword },
+      data: { password: newPassword },
     });
 
     return {

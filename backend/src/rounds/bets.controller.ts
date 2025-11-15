@@ -12,27 +12,21 @@ import {
   Query,
   Param,
   ParseIntPipe,
-  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiBearerAuth,
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
 import { BetsService } from './bets.service';
 import { RoundsService } from './rounds.service';
 import { PlaceBetDto } from './dto/place-bet.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @ApiTags('Bets')
 @Controller('bets')
-@UseGuards(JwtAuthGuard)
-@ApiBearerAuth('JWT-auth')
 export class BetsController {
   constructor(
     private readonly betsService: BetsService,
@@ -70,8 +64,8 @@ export class BetsController {
   })
   @ApiResponse({ status: 400, description: 'Bad request - Invalid bet or insufficient funds' })
   @ApiResponse({ status: 404, description: 'No active round available' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async placeBet(@Body() dto: PlaceBetDto, @CurrentUser() user: any) {
+  async placeBet(@Body() dto: PlaceBetDto) {
+    const userId = dto['userId'] || 'default-user';
     // Get current active round
     const currentRound = await this.roundsService.getCurrentRound();
     
@@ -84,7 +78,7 @@ export class BetsController {
     }
 
     // Place bet
-    return this.betsService.placeBet(user.id, {
+    return this.betsService.placeBet(userId, {
       ...dto,
       roundId: currentRound.id,
     });
@@ -92,6 +86,7 @@ export class BetsController {
 
   @Get('current-round')
   @ApiOperation({ summary: 'Get user\'s bets for the current active round' })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'User bets for current round retrieved successfully',
@@ -112,18 +107,20 @@ export class BetsController {
       },
     },
   })
-  async getCurrentRoundBets(@CurrentUser() user: any) {
+  async getCurrentRoundBets(@Query('userId') userId: string) {
+    const id = userId || 'default-user';
     const currentRound = await this.roundsService.getCurrentRound();
     
     if (!currentRound) {
       return [];
     }
 
-    return this.betsService.getUserBets(user.id, currentRound.id);
+    return this.betsService.getUserBets(id, currentRound.id);
   }
 
   @Get('history')
   @ApiOperation({ summary: 'Get user\'s complete bet history with pagination' })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
   @ApiResponse({
@@ -170,15 +167,17 @@ export class BetsController {
     },
   })
   async getHistory(
-    @CurrentUser() user: any,
+    @Query('userId') userId: string,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
   ) {
-    return this.betsService.getUserBetHistory(user.id, page, limit);
+    const id = userId || 'default-user';
+    return this.betsService.getUserBetHistory(id, page, limit);
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Get user\'s betting statistics' })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiResponse({
     status: 200,
     description: 'Statistics retrieved successfully',
@@ -195,21 +194,24 @@ export class BetsController {
       },
     },
   })
-  async getStats(@CurrentUser() user: any) {
-    return this.betsService.getUserBetStats(user.id);
+  async getStats(@Query('userId') userId: string) {
+    const id = userId || 'default-user';
+    return this.betsService.getUserBetStats(id);
   }
 
   @Get('round/:roundId')
   @ApiOperation({ summary: 'Get user\'s bets for a specific round' })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Bets retrieved successfully' })
   @ApiResponse({ status: 404, description: 'Round not found' })
   async getRoundBets(
     @Param('roundId') roundId: string,
-    @CurrentUser() user: any,
+    @Query('userId') userId: string,
   ) {
+    const id = userId || 'default-user';
     // Verify round exists
     await this.roundsService.getRound(roundId);
 
-    return this.betsService.getUserBets(user.id, roundId);
+    return this.betsService.getUserBets(id, roundId);
   }
 }
