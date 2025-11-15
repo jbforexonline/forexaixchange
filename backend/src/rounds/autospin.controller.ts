@@ -32,7 +32,10 @@ export class AutoSpinController {
   constructor(private readonly autoSpinService: AutoSpinService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create an auto-spin order (Premium only, up to 50)' })
+  @ApiOperation({ 
+    summary: 'Create an auto-spin order (Premium only, up to 50 rounds)', 
+    description: 'Premium feature: Schedule auto-bets up to 2 hours ahead or 24 rounds ahead (for 5-min intervals). Use targetRoundNumber for round-based scheduling or scheduledFor/expiresAt for time-based scheduling.'
+  })
   @ApiResponse({ status: 201, description: 'Auto-spin order created successfully' })
   @ApiResponse({ status: 403, description: 'Premium subscription required' })
   @ApiResponse({ status: 400, description: 'Invalid request or limit reached' })

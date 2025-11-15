@@ -24,6 +24,7 @@ import {
 import { BetsService } from './bets.service';
 import { RoundsService } from './rounds.service';
 import { PlaceBetDto } from './dto/place-bet.dto';
+import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @ApiTags('Bets')
 @Controller('bets')

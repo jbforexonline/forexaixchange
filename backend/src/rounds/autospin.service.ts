@@ -21,8 +21,9 @@ export interface CreateAutoSpinDto {
   selection: string;
   amountUsd: number;
   roundsRemaining: number; // Number of rounds to execute for
-  targetRoundNumber?: number; // Optional: specific round
-  expiresAt?: Date; // Optional expiration
+  targetRoundNumber?: number; // Optional: specific round (auto-bet scheduling)
+  expiresAt?: Date; // Optional expiration (auto-bet scheduling: up to 2 hours ahead)
+  scheduledFor?: Date; // Optional: schedule bet for specific time (auto-bet: up to 2 hours ahead)
 }
 
 @Injectable()
@@ -91,6 +92,55 @@ export class AutoSpinService {
       );
     }
 
+    // Auto-bet scheduling validation (Premium feature: schedule up to 2 hours or 24 rounds ahead)
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000); // 2 hours in ms
+
+    // Validate targetRoundNumber (auto-bet: up to 24 rounds ahead for 5-min intervals)
+    if (dto.targetRoundNumber !== undefined && dto.targetRoundNumber !== null) {
+      const currentRound = await this.getCurrentRoundNumber();
+      const roundsAhead = dto.targetRoundNumber - currentRound;
+      
+      if (roundsAhead < 0) {
+        throw new BadRequestException('Target round number must be in the future');
+      }
+      
+      if (roundsAhead > 24) {
+        throw new BadRequestException(
+          'Auto-bet scheduling: Cannot schedule more than 24 rounds ahead (2 hours at 5-min interval)'
+        );
+      }
+    }
+
+    // Validate expiresAt (auto-bet: up to 2 hours ahead)
+    if (dto.expiresAt) {
+      if (dto.expiresAt < now) {
+        throw new BadRequestException('Expiration time must be in the future');
+      }
+      
+      if (dto.expiresAt > twoHoursFromNow) {
+        throw new BadRequestException(
+          'Auto-bet scheduling: Cannot schedule more than 2 hours ahead'
+        );
+      }
+    }
+
+    // Validate scheduledFor (auto-bet: up to 2 hours ahead)
+    if (dto.scheduledFor) {
+      if (dto.scheduledFor < now) {
+        throw new BadRequestException('Scheduled time must be in the future');
+      }
+      
+      if (dto.scheduledFor > twoHoursFromNow) {
+        throw new BadRequestException(
+          'Auto-bet scheduling: Cannot schedule more than 2 hours ahead'
+        );
+      }
+      
+      // If scheduledFor is provided, set expiresAt to scheduledFor + buffer
+      dto.expiresAt = dto.scheduledFor;
+    }
+
     return this.prisma.autoSpinOrder.create({
       data: {
         userId,
@@ -99,11 +149,22 @@ export class AutoSpinService {
         amountUsd: amount,
         roundsRemaining: dto.roundsRemaining,
         targetRoundNumber: dto.targetRoundNumber,
-        expiresAt: dto.expiresAt,
+        expiresAt: dto.expiresAt || dto.scheduledFor,
         status: AutoSpinStatus.PENDING,
         executedForRounds: [],
       },
     });
+  }
+
+  /**
+   * Get current round number for validation
+   */
+  private async getCurrentRoundNumber(): Promise<number> {
+    const lastRound = await this.prisma.round.findFirst({
+      orderBy: { roundNumber: 'desc' },
+      select: { roundNumber: true },
+    });
+    return lastRound?.roundNumber || 0;
   }
 
   /**
@@ -151,6 +212,9 @@ export class AutoSpinService {
 
   /**
    * Process auto-spin orders for a new round (called by scheduler)
+   * Handles both auto-spin (rounds remaining) and auto-bet scheduling:
+   * - Round-based: targetRoundNumber matches current round
+   * - Time-based: expiresAt (scheduledFor) time has arrived
    */
   async processAutoSpinOrdersForRound(roundId: string, roundNumber: number) {
     const activeOrders = await this.prisma.autoSpinOrder.findMany({
@@ -170,26 +234,41 @@ export class AutoSpinService {
     });
 
     const processed = [];
+    const now = new Date();
+    
     for (const order of activeOrders) {
       try {
-        // Check expiration
-        if (order.expiresAt && new Date(order.expiresAt) < new Date()) {
-          await this.prisma.autoSpinOrder.update({
-            where: { id: order.id },
-            data: {
-              status: AutoSpinStatus.EXPIRED,
-              isActive: false,
-            },
-          });
-          continue;
-        }
-
-        // Check if target round
+        // Check if target round (round-based auto-bet scheduling)
+        // If targetRoundNumber is set and doesn't match, skip this round
         if (
           order.targetRoundNumber !== null &&
           order.targetRoundNumber !== roundNumber
         ) {
           continue;
+        }
+        
+        // For time-based scheduling: Check if scheduled time has arrived
+        // If expiresAt is set (for scheduledFor), check if time has arrived
+        if (order.expiresAt) {
+          const scheduledTime = new Date(order.expiresAt);
+          
+          // If scheduled time is in the future, skip this round
+          if (scheduledTime > now) {
+            continue; // Scheduled time hasn't arrived yet
+          }
+          
+          // If scheduled time has passed and no targetRoundNumber, 
+          // this is an expired order (should have executed already)
+          if (scheduledTime < now && order.targetRoundNumber === null && order.roundsRemaining <= 1) {
+            await this.prisma.autoSpinOrder.update({
+              where: { id: order.id },
+              data: {
+                status: AutoSpinStatus.EXPIRED,
+                isActive: false,
+              },
+            });
+            continue;
+          }
         }
 
         // Check rounds remaining

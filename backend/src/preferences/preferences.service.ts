@@ -16,7 +16,7 @@ import { PrismaService } from '../database/prisma.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 export interface UpdatePreferencesDto {
-  preferredRoundDuration?: number; // 300 (5min), 600 (10min), 1200 (20min)
+  preferredRoundDuration?: number; // 300 (5min), 600 (10min), 900 (15min), 1200 (20min)
   autoSpinEnabled?: boolean;
   maxAutoSpinOrders?: number;
   emailNotifications?: boolean;
@@ -26,7 +26,7 @@ export interface UpdatePreferencesDto {
 @Injectable()
 export class PreferencesService {
   private readonly logger = new Logger(PreferencesService.name);
-  private readonly ALLOWED_DURATIONS = [300, 600, 1200]; // 5min, 10min, 20min
+  private readonly ALLOWED_DURATIONS = [300, 600, 900, 1200]; // 5min, 10min, 15min, 20min
 
   constructor(private prisma: PrismaService) {}
 
@@ -76,7 +76,7 @@ export class PreferencesService {
       // Validate duration
       if (!this.ALLOWED_DURATIONS.includes(dto.preferredRoundDuration)) {
         throw new BadRequestException(
-          `Invalid duration. Allowed: ${this.ALLOWED_DURATIONS.join(', ')} seconds (5, 10, or 20 minutes)`,
+          `Invalid duration. Allowed: ${this.ALLOWED_DURATIONS.join(', ')} seconds (5, 10, 15, or 20 minutes)`,
         );
       }
     }

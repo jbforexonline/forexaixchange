@@ -212,29 +212,23 @@ export class RoundsSettlementService {
         .add(round.innerHighVol)
         .add(round.innerLowVol);
 
-      const winnersPool = round.globalIndecision;
-
+      // Calculate house fee from losers pool (2%)
       const houseFee = losersPool.mul(this.FEE_BPS).div(10000);
-      const distributable = losersPool.sub(houseFee);
-      const payoutPerDollar = winnersPool.gt(0)
-        ? distributable.div(winnersPool)
-        : new Decimal(0);
-
       result.houseFee = houseFee;
 
-      // Calculate payouts
+      // Calculate payouts with fixed 2x multiplier
       for (const bet of bets) {
         if (bet.market === BetMarket.GLOBAL && bet.selection === 'INDECISION') {
-          // INDECISION bets win
-          const payout = bet.amountUsd.add(bet.amountUsd.mul(payoutPerDollar));
-          const profit = bet.amountUsd.mul(payoutPerDollar);
+          // INDECISION bets win: Fixed 2x payout
+          const payoutAmount = bet.amountUsd.mul(2); // Fixed 2x multiplier
+          const profitAmount = bet.amountUsd; // Profit = stake (2x - 1x = 1x)
           result.payouts.set(bet.id, {
             isWinner: true,
-            payoutAmount: payout,
-            profitAmount: profit,
+            payoutAmount: payoutAmount,
+            profitAmount: profitAmount,
           });
         } else {
-          // All layer bets lose
+          // All layer bets lose: Lose 100% of bet
           result.payouts.set(bet.id, {
             isWinner: false,
             payoutAmount: new Decimal(0),
@@ -332,6 +326,7 @@ export class RoundsSettlementService {
 
   /**
    * Settle a single layer using minority rule
+   * Payout Rule: Winner receives exactly 2x their bet amount (fixed multiplier)
    */
   private settleLayer(
     totals: LayerTotals,
@@ -345,24 +340,22 @@ export class RoundsSettlementService {
     const losersPool =
       winner === totals.labelA ? totals.b : totals.a;
 
+    // Calculate house fee from losers pool (2%)
     const houseFee = losersPool.mul(this.FEE_BPS).div(10000);
-    const distributable = losersPool.sub(houseFee);
-    const payoutPerDollar = winnersPool.gt(0)
-      ? distributable.div(winnersPool)
-      : new Decimal(0);
 
+    // Fixed 2x payout: Winner receives exactly 2x their bet amount
     for (const bet of bets) {
       if (bet.selection === winner) {
-        // Winner
-        const payout = bet.amountUsd.add(bet.amountUsd.mul(payoutPerDollar));
-        const profit = bet.amountUsd.mul(payoutPerDollar);
+        // Winner: Fixed 2x payout
+        const payoutAmount = bet.amountUsd.mul(2); // Fixed 2x multiplier
+        const profitAmount = bet.amountUsd; // Profit = stake (2x - 1x = 1x)
         payouts.set(bet.id, {
           isWinner: true,
-          payoutAmount: payout,
-          profitAmount: profit,
+          payoutAmount: payoutAmount,
+          profitAmount: profitAmount,
         });
       } else {
-        // Loser
+        // Loser: Loses 100% of bet
         payouts.set(bet.id, {
           isWinner: false,
           payoutAmount: new Decimal(0),

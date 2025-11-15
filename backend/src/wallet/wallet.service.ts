@@ -185,8 +185,8 @@ export class WalletService {
         }
       }
 
-      // Calculate withdrawal fee
-      const fee = this.calculateWithdrawalFee(amount);
+      // Calculate withdrawal fee: Premium users have NO fee, Regular users pay fee
+      const fee = isPremium ? new Decimal(0) : this.calculateWithdrawalFee(amount);
 
       // Create transaction record
       const transaction = await tx.transaction.create({
