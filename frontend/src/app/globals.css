@@ -1,26 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --expert-bg: #030614;
+  --expert-bg-alt: #060b1d;
+  --expert-card: rgba(9, 13, 28, 0.85);
+  --expert-card-alt: rgba(12, 18, 37, 0.9);
+  --expert-border: rgba(65, 84, 131, 0.35);
+  --expert-border-strong: rgba(0, 213, 255, 0.35);
+  --expert-text: #f6f8ff;
+  --expert-muted: #98a3cd;
+  --expert-accent: #00d5ff;
+  --expert-accent-2: #ff4ebe;
+  --expert-success: #2ef2a3;
+  --expert-warning: #f8c069;
+  --expert-shadow: 0 20px 60px rgba(3, 9, 29, 0.65);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(0, 213, 255, 0.08), transparent 45%),
+    radial-gradient(circle at 80% 10%, rgba(255, 78, 190, 0.08), transparent 40%),
+    linear-gradient(180deg, #04071a 0%, #03030e 100%);
+  color: var(--expert-text);
+  font-family: var(--font-geist-sans), "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.5;
+}
+
+a {
+  color: var(--expert-accent);
 }

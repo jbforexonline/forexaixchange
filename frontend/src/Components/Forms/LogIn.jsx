@@ -8,7 +8,7 @@ const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 export default function LoginPage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
-    email: '',
+    identifier: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
@@ -24,18 +24,31 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      const trimmedIdentifier = formData.identifier.trim()
+      if (!trimmedIdentifier) {
+        throw new Error('Please enter your email address or phone number')
+      }
+
+      const loginPayload = {
+        password: formData.password,
+      }
+
+      const looksLikeEmail = trimmedIdentifier.includes('@')
+      if (looksLikeEmail) {
+        loginPayload.email = trimmedIdentifier.toLowerCase()
+      } else {
+        loginPayload.phone = trimmedIdentifier.replace(/\s+/g, '')
+      }
+
       console.log('Sending login request to:', `${apiUrl}/auth/login`)
-      console.log('Login data:', { email: formData.email })
+      console.log('Login data:', { identifier: trimmedIdentifier })
 
       const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        }),
+        body: JSON.stringify(loginPayload),
       })
 
       console.log('Response status:', response.status)
@@ -49,11 +62,12 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(data.user))
 
         // Redirect based on user role
-        if (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN') {
-          router.push('/dashboard')
-        } else {
-          router.push('/user-dashboard')
-        }
+        const role = data.user.role?.toUpperCase()
+        const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+          ? '/dashboard'
+          : '/spin'
+
+        router.replace(nextRoute)
       } else {
         setError(data.message || 'Invalid credentials. Please try again.')
       }
@@ -89,13 +103,13 @@ export default function LoginPage() {
           )}
 
           <form className="login-form" onSubmit={handleLogin}>
-            <label>Email</label>
+            <label>Email or phone number</label>
             <input
-              type="email"
-              name="email"
-              value={formData.email}
+              type="text"
+              name="identifier"
+              value={formData.identifier}
               onChange={handleChange}
-              placeholder="admin@gmail.com"
+              placeholder="admin@gmail.com / +1234567890"
               required
               disabled={loading}
             />

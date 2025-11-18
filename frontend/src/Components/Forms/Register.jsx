@@ -126,11 +126,12 @@ export default function Register() {
         localStorage.setItem('user', JSON.stringify(data.user))
 
         // Redirect based on user role
-        if (data.user.role === 'ADMIN' || data.user.role === 'SUPER_ADMIN') {
-          router.push('/dashboard')
-        } else {
-          router.push('/user-dashboard')
-        }
+        const role = data.user.role?.toUpperCase()
+        const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+          ? '/dashboard'
+          : '/spin'
+
+        router.replace(nextRoute)
       } else {
         setError(data.message || 'Registration failed. Please try again.')
       }
