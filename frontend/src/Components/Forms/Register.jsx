@@ -117,27 +117,35 @@ export default function Register() {
 
       console.log('Response status:', response.status)
 
-      const data = await response.json()
-      console.log('Response data:', data)
+      const responseBody = await response.json()
+      console.log('Response data:', responseBody)
 
-      if (response.ok) {
-        // Store token and user data in localStorage
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-
-        // Redirect based on user role
-        const role = data.user.role?.toUpperCase()
-        const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-          ? '/dashboard'
-          : '/spin'
-
-        router.replace(nextRoute)
-      } else {
-        setError(data.message || 'Registration failed. Please try again.')
+      if (!response.ok) {
+        setError(responseBody.message || 'Registration failed. Please try again.')
+        return
       }
+
+      const payload = responseBody?.data ?? responseBody
+
+      if (!payload?.token || !payload?.user) {
+        throw new Error('Invalid response from server')
+      }
+
+      // Store token and user data in localStorage
+      localStorage.setItem('token', payload.token)
+      localStorage.setItem('user', JSON.stringify(payload.user))
+
+      // Redirect based on user role (default to USER when missing)
+      const role = (payload.user.role || 'USER').toUpperCase()
+      const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+        ? '/dashboard'
+        : '/spin'
+
+      router.replace(nextRoute)
     } catch (err) {
       console.error('Registration error details:', err)
-      setError(`Network error: ${err.message}. Please check if backend is running on ${apiUrl}`)
+      const message = err instanceof Error ? err.message : 'Unexpected error'
+      setError(`Network error: ${message}. Please check if backend is running on ${apiUrl}`)
     } finally {
       setLoading(false)
     }
