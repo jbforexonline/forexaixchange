@@ -234,13 +234,19 @@ export default function SpinPage() {
             {/* Inserted Spin Wheel SVG (keeps the original design feel) */}
             <div className={`spinwheel-wrapper ${roundState === 'open' ? 'spinning' : ''} ${showOverlays ? '' : 'hide-overlays'}`}>
               {/* background image (place your uploaded image at /public/image/ai-brain.png) */}
-              <img
-                src="/image/ai-brain.png"
-                alt="neural graphic"
-                className="spin-bg"
-                aria-hidden="true"
-                style={{ pointerEvents: 'none' }}
-              />
+              {showOverlays && (
+                <img
+                  src="/image/ai-brain.png"
+                  alt="neural graphic"
+                  className="spin-bg"
+                  aria-hidden="true"
+                  style={{ pointerEvents: 'none' }}
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              )}
               <SpinWheel 
                 state={roundState} 
                 countdownSec={displayCountdown} 

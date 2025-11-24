@@ -19,9 +19,12 @@ import { CreateTransferDto } from './dto/create-transfer.dto';
 import { TransactionType, TransactionStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrentUser } from '../auth/decorators/user.decorator';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { UseGuards } from '@nestjs/common';
 
 @ApiTags('Wallet')
 @Controller('wallet')
+@UseGuards(JwtAuthGuard)
 export class WalletController {
   constructor(
     private readonly walletService: WalletService,
@@ -31,9 +34,8 @@ export class WalletController {
   @Get('balance')
   @ApiOperation({ summary: 'Get wallet balance' })
   @ApiResponse({ status: 200, description: 'Balance retrieved successfully' })
-  async getBalance(@Body() body: any) {
-    const userId = body.userId || 'default-user';
-    return this.walletService.getBalance(userId);
+  async getBalance(@CurrentUser() user: any) {
+    return this.walletService.getBalance(user.id);
   }
 
   @Post('deposit')
