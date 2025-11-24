@@ -1,65 +1,60 @@
-"use client"
+"use client";
 
-import Link from 'next/link'
-import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useState } from "react";
+import { MotionConfig, motion } from "framer-motion";
+import {
+  Home,
+  Wallet,
+  User,
+  AppWindow,
+  BookOpen,
+  HelpCircle,
+  Sword,
+  Settings,
+} from "lucide-react";
+import "../Layout/DashboardLayout.scss";
 
-export default function DashboardLayout({ children }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const pathname = usePathname()
+export default function Sidebar() {
+  const [open, setOpen] = useState(true);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-  }
+  const menuItems = [
+    { icon: Home, label: "Spin" },
+    { icon: Wallet, label: "Finances" },
+    { icon: User, label: "Profile" },
+    { icon: AppWindow, label: "Apps" },
+    { icon: BookOpen, label: "Education" },
+    { icon: HelpCircle, label: "Help" },
+    { icon: Sword, label: "Battles" },
+    { icon: Settings, label: "Settings" },
+  ];
 
   return (
-    <div className={`dashboard-root ${isDarkMode ? 'dark' : 'light'}`}>
-      <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
-        <div className="sidebar-header">
-          <button className="sidebar-toggle" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
-            {isSidebarOpen ? '⟨' : '⟩'}
+    <div className="eo-container">
+      <MotionConfig reducedMotion="user">
+        <motion.aside
+          animate={{ width: open ? 90 : 60 }}
+          transition={{ duration: 0.25 }}
+          className="eo-sidebar"
+        >
+          <button
+            onClick={() => setOpen(!open)}
+            className="eo-toggle-btn"
+          >
+            {open ? "⟨" : "⟩"}
           </button>
-          <span className="brand">ForexAIExchange</span>
-        </div>
 
-        <nav className="sidebar-nav">
-          <Link href="/dashboard" className={`nav-link ${pathname === '/dashboard' ? 'active' : ''}`}>Dashboard</Link>
-          <Link href="/spin" className={`nav-link ${pathname === '/spin' ? 'active' : ''}`}>Spin</Link>
-          <Link href="/withdraw" className={`nav-link ${pathname === '/withdraw' ? 'active' : ''}`}>Withdraw</Link>
-          <Link href="/Affiliate" className={`nav-link ${pathname === '/Affiliate' ? 'active' : ''}`}>Affiliate</Link>
-          {/* <Link href="/deposit" className={`nav-link ${pathname === '/deposit' ? 'active' : ''}`}>Deposit</Link> */}
-          <Link href="/users" className={`nav-link ${pathname === '/users' ? 'active' : ''}`}>Users</Link>
-          <hr />
-          <Link href="/settings" className={`nav-link ${pathname === '/settings' ? 'active' : ''}`}>Settings</Link>
-        </nav>
-        <div className="need-help">
-          <h4>NEED HELP?</h4>
-          <p>Feel free to contact</p>
-          <button>Get Support</button>
-        </div>
-      </aside>
-
-      <div className="dashboard-content">
-        <header className="dashboard-header">
-          <div className="header-left">
-            <h1 className="header-title">Analytics</h1>
+          <div className="eo-menu">
+            {menuItems.map((item, idx) => (
+              <button key={idx} className="eo-menu-item">
+                <item.icon size={22} />
+                {open && <span>{item.label}</span>}
+              </button>
+            ))}
           </div>
-          <div className="header-right">
-            <div className="theme-toggle" onClick={toggleDarkMode}>
-              {isDarkMode ? '🌙' : '🌞'}
-            </div>
-            <div className="profile">
-              <img alt="profile" src="/image/Ellipse 4.png" />
-              <span>VIKKIE JOSHUA</span>
-            </div>
-          </div>
-        </header>
+        </motion.aside>
+      </MotionConfig>
 
-        <main className="dashboard-main">
-          {children}
-        </main>
-      </div>
+      <main className="eo-main">Your Main Page Content</main>
     </div>
-  )
+  );
 }

@@ -1,0 +1,9 @@
+<svg width="180" height="28" viewBox="0 0 180 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g1" x1="0" x2="1">
+      <stop offset="0" stop-color="#00c6ff"/>
+      <stop offset="1" stop-color="#0066ff"/>
+    </linearGradient>
+  </defs>
+  <text x="0" y="20" font-family="Inter, Arial" font-size="18" font-weight="700" fill="url(#g1)">Forexaiexchange</text>
+</svg>

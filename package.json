@@ -11,5 +11,11 @@
     "db:up": "docker compose -f backend/infra/docker-compose.yml up -d",
     "db:down": "docker compose -f backend/infra/docker-compose.yml down -v"
   },
-  "workspaces": ["backend", "frontend"]
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "dependencies": {
+    "framer-motion": "^12.23.24"
+  }
 }
