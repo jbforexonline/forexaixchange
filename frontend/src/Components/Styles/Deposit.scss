@@ -1,0 +1,163 @@
+// premium.scss (Dark Mode)
+.premium-page {
+  background: #0b0f17;
+  color: #e2e8f0;
+  min-height: 100vh;
+  padding: 30px;
+
+  .premium-container {
+    max-width: 1200px;
+    margin: auto;
+  }
+
+  .premium-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #111827;
+    padding: 40px;
+    border-radius: 20px;
+    margin-bottom: 40px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+
+    .hero-text {
+      max-width: 60%;
+      h1 {
+        color: #f3f4f6;
+        font-size: 36px;
+        margin-bottom: 10px;
+      }
+      p {
+        color: #9ca3af;
+        font-size: 18px;
+        margin-bottom: 20px;
+      }
+      .cta {
+        display: inline-block;
+        background: #2563eb;
+        padding: 12px 24px;
+        border-radius: 10px;
+        color: white;
+        font-weight: 600;
+        text-decoration: none;
+      }
+    }
+
+    .hero-badge {
+      text-align: center;
+      .badge {
+        background: #2563eb;
+        padding: 10px 20px;
+        border-radius: 50px;
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .doc-link {
+        color: #93c5fd;
+        font-size: 14px;
+        text-decoration: underline;
+      }
+    }
+  }
+
+  .benefits {
+    background: #1f2937;
+    padding: 30px;
+    border-radius: 15px;
+    margin-bottom: 40px;
+
+    h2 {
+      color: #f3f4f6;
+      margin-bottom: 20px;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+
+      li {
+        margin-bottom: 10px;
+        color: #d1d5db;
+      }
+    }
+  }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 25px;
+
+    .plan {
+      background: #1f2937;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+      text-align: center;
+      transition: 0.3s;
+
+      &:hover {
+        transform: translateY(-5px);
+      }
+
+      &.featured {
+        background: #2563eb;
+        color: white;
+      }
+
+      .plan-header {
+        margin-bottom: 20px;
+
+        h3 {
+          font-size: 22px;
+          margin-bottom: 10px;
+        }
+
+        .price {
+          font-size: 32px;
+          font-weight: bold;
+        }
+      }
+
+      .plan-features {
+        list-style: none;
+        padding: 0;
+        margin-bottom: 20px;
+
+        li {
+          margin-bottom: 8px;
+        }
+      }
+
+      .upgrade {
+        width: 100%;
+        padding: 12px;
+        background: #2563eb;
+        border: none;
+        border-radius: 10px;
+        color: white;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      &.featured .upgrade {
+        background: white;
+        color: #2563eb;
+      }
+    }
+  }
+
+  .premium-footer {
+    margin-top: 40px;
+    text-align: center;
+
+    p {
+      color: #9ca3af;
+
+      a {
+        color: #93c5fd;
+        text-decoration: underline;
+      }
+    }
+  }
+}

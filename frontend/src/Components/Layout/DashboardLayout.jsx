@@ -1,60 +1,74 @@
 "use client";
-
-import { useState } from "react";
+import React, { useState } from "react";
 import { MotionConfig, motion } from "framer-motion";
-import {
-  Home,
-  Wallet,
-  User,
-  AppWindow,
-  BookOpen,
-  HelpCircle,
-  Sword,
-  Settings,
-} from "lucide-react";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import "../Layout/DashboardLayout.scss";
 
-export default function Sidebar() {
+export default function Sidebar({ children }) {
   const [open, setOpen] = useState(true);
+  const router = useRouter();
 
   const menuItems = [
-    { icon: Home, label: "Spin" },
-    { icon: Wallet, label: "Finances" },
-    { icon: User, label: "Profile" },
-    { icon: AppWindow, label: "Apps" },
-    { icon: BookOpen, label: "Education" },
-    { icon: HelpCircle, label: "Help" },
-    { icon: Sword, label: "Battles" },
-    { icon: Settings, label: "Settings" },
+    { icon: Home, label: "Spin", href: "/spin" },
+    { icon: Wallet, label: "Withdraw", href: "/withdraw" },
+    // { icon: User, label: "Profile", href: "/user-dashboard" },
+    { icon: AppWindow, label: "Premium", href: "/deposit" },
+    { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
+    // { icon: HelpCircle, label: "Dashboard", href: "/dashboard" },
+    { icon: Sword, label: "Settings", href: "/settings" },
+    { icon: Settings, label: "Logout", href: "/login" },
   ];
+
+  const goBackToLogin = () => router.push("/login");
 
   return (
     <div className="eo-container">
       <MotionConfig reducedMotion="user">
         <motion.aside
-          animate={{ width: open ? 90 : 60 }}
-          transition={{ duration: 0.25 }}
-          className="eo-sidebar"
+          animate={{ width: open ? 92 : 64 }}
+          transition={{ duration: 0.18 }}
+          className={`eo-sidebar ${open ? "open" : "closed"}`}
         >
-          <button
-            onClick={() => setOpen(!open)}
-            className="eo-toggle-btn"
-          >
-            {open ? "⟨" : "⟩"}
-          </button>
+          <div className="sidebar-top">
+            <button className="back-to-login" onClick={goBackToLogin} title="Back to login">
+              <ArrowLeft size={16} />
+            </button>
 
-          <div className="eo-menu">
-            {menuItems.map((item, idx) => (
-              <button key={idx} className="eo-menu-item">
-                <item.icon size={22} />
-                {open && <span>{item.label}</span>}
-              </button>
-            ))}
+            <button
+              onClick={() => setOpen(!open)}
+              className="eo-toggle-btn"
+              aria-label="Toggle sidebar"
+            >
+              {open ? "⟨" : "⟩"}
+            </button>
           </div>
+
+          <nav className="eo-menu">
+            {menuItems.map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={idx}
+                  className="eo-menu-item"
+                  onClick={() => router.push(item.href)}
+                  title={item.label}
+                >
+                  <Icon size={20} />
+                  {open && <span className="eo-label">{item.label}</span>}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* <div className="eo-footer">
+            <div className="status-dot" />
+            {open && <div className="status-text">Online</div>}
+          </div> */}
         </motion.aside>
       </MotionConfig>
 
-      <main className="eo-main">Your Main Page Content</main>
+      <main className="eo-main">{children}</main>
     </div>
   );
 }
