@@ -1,870 +1,256 @@
-// Neural Interface - Light Mode Version
-.neural-interface {
-  padding: 2rem;
-  background: radial-gradient(circle at 50% 40%, #001018 0%, #001424 20%, #021826 45%, #001018 100%);
-  min-height: 100vh;
-  color: #cfe9f8;
-  font-family: 'Inter', sans-serif;
+.spin-page-container {
   position: relative;
-  overflow: auto;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 40%, #001825 0%, #001220 20%, #000a15 45%, #000510 100%);
+  display: flex;
+  flex-direction: column;
+}
 
-  .interface-container {
-    position: relative;
-  width: 100%;
-  min-height: 100vh;
-  max-width: 1400px;
-  margin: 0 auto;
-  display: grid;
-  /* single-column layout so the wheel can be perfectly centered */
-  grid-template-columns: 1fr;
-  /* header, main wheel, footer/aux */
-  grid-template-rows: 72px auto auto;
-  gap: 16px;
-  justify-items: center;
+.spin-main-area {
+  flex: 1;
+  display: flex;
   align-items: center;
-  }
-
-  /* subtle vignette + outer glow to emulate the image feel */
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(60% 50% at 50% 45%, rgba(6,40,70,0.18), transparent 40%);
-    mix-blend-mode: screen;
-  }
-
-  .spin-header {
-    grid-column: 1 / -1;
-    align-self: center;
-    text-align: center;
-    padding: 0;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    max-width: 1400px;
-    padding: 0 2rem;
-
-    h2 {
-      margin: 0;
-      font-size: 32px;
-      letter-spacing: 1px;
-      color: #f3b67a;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-    }
-
-    .header-controls {
-      display: flex;
-      gap: 12px;
-
-      button {
-        padding: 8px 16px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.05);
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.2s;
-
-        &:hover {
-          background: rgba(255, 255, 255, 0.1);
-          border-color: rgba(255, 255, 255, 0.3);
-        }
-      }
-    }
-  }
+  justify-content: center;
+  position: relative;
+  padding-bottom: 80px;
 
   .error-banner {
-    grid-column: 1 / -1;
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
     background: rgba(234, 57, 67, 0.2);
     border: 1px solid rgba(234, 57, 67, 0.5);
     border-radius: 8px;
     padding: 12px 24px;
     color: #ff6b6b;
     text-align: center;
-    margin: 0 auto;
-    max-width: 1400px;
-    width: 100%;
+    z-index: 100;
   }
 
   .loading-state {
-    grid-column: 1 / -1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     gap: 16px;
-    padding: 4rem;
 
     .spinner {
       width: 48px;
       height: 48px;
-      border: 4px solid rgba(255, 255, 255, 0.1);
-      border-top-color: #3b82f6;
+      border: 4px solid rgba(100, 200, 255, 0.2);
+      border-top-color: #64c8ff;
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
 
     p {
-      color: rgba(255, 255, 255, 0.7);
+      color: rgba(165, 213, 255, 0.7);
       font-size: 14px;
     }
   }
+}
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-
-  // Chart Panels (hidden for the centered wheel layout)
-  .chart-panel {
-    display: none;
-  }
-
-  // Top Left - Vertical Bar Chart with Scale
-  .top-left {
-    .vertical-bars {
-      display: flex;
-      align-items: end;
-      gap: 8px;
-      height: 120px;
-      margin-bottom: 10px;
-
-      .bar {
-        flex: 1;
-        background: linear-gradient(to top, #3b82f6, #60a5fa);
-        border-radius: 2px 2px 0 0;
-        min-height: 10px;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-      }
-    }
-
-    .scale-labels {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 20px;
-      position: absolute;
-      left: -30px;
-      top: 0;
-      height: 120px;
-      font-size: 10px;
-      color: #64748b;
-
-      span {
-        line-height: 1;
-      }
-    }
-
-    .horizontal-bars {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      margin-top: 10px;
-
-      .h-bar {
-        height: 8px;
-        background: linear-gradient(90deg, #3b82f6, #60a5fa);
-        border-radius: 4px;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
-
-        &.h-bar-1 { width: 60%; }
-        &.h-bar-2 { width: 80%; }
-        &.h-bar-3 { width: 45%; }
-        &.h-bar-4 { width: 70%; }
-      }
-    }
-  }
-
-  // Bottom Left - Line Graph
-  .bottom-left {
-    .line-graph {
-      width: 100%;
-      height: 100%;
-
-      .graph-svg {
-        width: 100%;
-        height: 100%;
-
-        .graph-line {
-          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
-        }
-
-        .data-point {
-          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
-        }
-      }
-    }
-  }
-
-  // Top Right - Vertical Bar Chart
-  .top-right {
-    .vertical-bars {
-      display: flex;
-      align-items: end;
-      gap: 8px;
-      height: 150px;
-
-      .bar {
-        flex: 1;
-        background: linear-gradient(to top, #3b82f6, #60a5fa);
-        border-radius: 2px 2px 0 0;
-        min-height: 10px;
-        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
-      }
-    }
-  }
-
-  // Bottom Right - Dual Line Graph with Waveform
-  .bottom-right {
-    .dual-line-graph {
-      width: 100%;
-      height: 60%;
-      margin-bottom: 10px;
-
-      .graph-svg {
-        width: 100%;
-        height: 100%;
-
-        .graph-line-1 {
-          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
-        }
-
-        .graph-line-2 {
-          filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.8));
-        }
-
-        .data-point {
-          filter: drop-shadow(0 0 3px rgba(59, 130, 246, 0.8));
-        }
-      }
-    }
-
-    .waveform {
-      display: flex;
-      align-items: end;
-      gap: 3px;
-      height: 40px;
-
-      .wave-bar {
-        background: linear-gradient(to top, #3b82f6, #60a5fa);
-        border-radius: 1px;
-        width: 4px;
-        box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
-
-        &.wave-1 { height: 60%; }
-        &.wave-2 { height: 80%; }
-        &.wave-3 { height: 40%; }
-        &.wave-4 { height: 90%; }
-        &.wave-5 { height: 30%; }
-        &.wave-6 { height: 70%; }
-        &.wave-7 { height: 50%; }
-        &.wave-8 { height: 85%; }
-      }
-    }
-  }
-
-  // Central Brain Interface
-  .central-brain {
-    position: relative;
-    /* span full width so it sits centered in the page */
-    grid-column: 1 / -1;
-    grid-row: 2 / 3;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: auto;
-    z-index: 10;
-    justify-self: center;
-    align-self: center;
-
-  .brain-container {
-  position: relative;
+.wheel-wrapper {
   width: 100%;
-  height: auto;
+  max-width: 650px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
 
-      // Outer Circular UI
-        .circular-ui {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 560px;
-          height: 560px;
-
-        .ui-ring {
-          position: absolute;
-          border: 2px solid rgba(96, 165, 250, 0.3);
-          border-radius: 50%;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-
-          &.ring-1 { width: 440px; height: 440px; border-style: solid; box-shadow: 0 0 60px rgba(56,160,255,0.08); }
-          &.ring-2 { width: 360px; height: 360px; border-style: dashed; opacity: 0.85; }
-          &.ring-3 { width: 300px; height: 300px; border-style: solid; opacity: 0.95; }
-        }
-
-  .ui-arc {
-          position: absolute;
-          border: 2px solid rgba(96, 165, 250, 0.5);
-          border-radius: 50%;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-
-          &.arc-1 {
-            width: 320px;
-            height: 320px;
-            border-top: none;
-            border-left: none;
-            border-right: none;
-          }
-
-          &.arc-2 {
-            width: 270px;
-            height: 270px;
-            border-bottom: none;
-            border-left: none;
-            border-right: none;
-          }
-
-          &.arc-3 {
-            width: 220px;
-            height: 220px;
-            border-top: none;
-            border-left: none;
-            border-right: none;
-          }
-        }
-
-        .ui-marker {
-          position: absolute;
-          width: 8px;
-          height: 8px;
-          background: #60a5fa;
-          border-radius: 50%;
-          box-shadow: 0 0 10px #60a5fa;
-
-          &.marker-1 { top: 10px; left: 50%; }
-          &.marker-2 { bottom: 10px; left: 50%; }
-          &.marker-3 { top: 50%; left: 10px; }
-          &.marker-4 { top: 50%; right: 10px; }
-        }
-      }
-
-      // Central Brain
-      .brain-core {
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.8));
-        border: 2px solid rgba(59, 130, 246, 0.6);
-        box-shadow: 
-          0 0 50px rgba(59, 130, 246, 0.4),
-          inset 0 0 50px rgba(255, 255, 255, 0.3);
-
-        &.spinning {
-          animation: brainSpin 3s ease-out;
-        }
-
-        .neural-network {
-          position: relative;
-          width: 100%;
-          height: wall;
-
-          .neural-line {
-            position: absolute;
-            background: linear-gradient(90deg, transparent, #60a5fa, transparent);
-            height: 2px;
-            animation: neuralFlow 3s infinite;
-
-            &.line-1 {
-              top: 20%;
-              left: 10%;
-              width: 80%;
-              transform: rotate(0deg);
-            }
-
-            &.line-2 {
-              top: 40%;
-              left: 15%;
-              width: 70%;
-              transform: rotate(15deg);
-            }
-
-            &.line-3 {
-              top: 60%;
-              left: 10%;
-              width: 80%;
-              transform: rotate(-10deg);
-            }
-
-            &.line-4 {
-              top: 80%;
-              left: 15%;
-              width: 70%;
-              transform: rotate(20deg);
-            }
-
-            &.line-5 {
-              top: 30%;
-              left: 5%;
-              width: 90%;
-              transform: rotate(-15deg);
-            }
-
-            &.line-6 {
-              top: 70%;
-              left: 5%;
-              width: 90%;
-              transform: rotate(10deg);
-            }
-          }
-
-          .neural-node {
-            position: absolute;
-            width: 6px;
-            height: 6px;
-            background: #60a5fa;
-            border-radius: 50%;
-            box-shadow: 0 0 15px #60a5fa;
-            animation: nodePulse 2s infinite;
-
-            &.node-1 { top: 15%; left: 20%; }
-            &.node-2 { top: 25%; right: 15%; }
-            &.node-3 { top: 45%; left: 10%; }
-            &.node-4 { top: 55%; right: 10%; }
-            &.node-5 { top: 75%; left: 20%; }
-            &.node-6 { top: 85%; right: 20%; }
-            &.node-7 { top: 35%; left: 50%; }
-            &.node-8 { top: 65%; right: 50%; }
-          }
-        }
-
-        .brain-center-glow {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          width: 80px;
-          height: 80px;
-          border-radius: 50%;
-          background: radial-gradient(circle, rgba(96, 165, 250, 0.4), transparent);
-          animation: centerGlow 2s infinite alternate;
-          filter: blur(10px);
-        }
-      }
-
-      .round-info {
-        margin-top: 24px;
-        padding: 16px;
-        background: rgba(11, 16, 32, 0.6);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 12px;
-        text-align: center;
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 14px;
-
-        .round-state {
-          margin-bottom: 8px;
-          font-weight: 600;
-
-          .state-badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 6px;
-            font-size: 12px;
-            font-weight: 700;
-            margin-left: 8px;
-
-            &.preopen {
-              background: rgba(107, 114, 128, 0.3);
-              color: #9ca3af;
-            }
-
-            &.open {
-              background: rgba(34, 197, 94, 0.3);
-              color: #4ade80;
-            }
-
-            &.frozen {
-              background: rgba(59, 130, 246, 0.3);
-              color: #60a5fa;
-            }
-
-            &.settled {
-              background: rgba(168, 85, 247, 0.3);
-              color: #a78bfa;
-            }
-          }
-        }
-
-        .freeze-warning {
-          color: #fbbf24;
-          font-weight: 600;
-          margin-top: 8px;
-        }
-
-        .totals-preview {
-          margin-top: 12px;
-          padding-top: 12px;
-          border-top: 1px solid rgba(255, 255, 255, 0.1);
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.6);
-          line-height: 1.6;
-        }
-      }
-    }
+  @media (max-width: 1400px) {
+    max-width: 550px;
   }
 
-  .spinwheel-wrapper {
-    width: 600px;
-    height: 600px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* make the wheel visually circular */
-    border-radius: 50%;
-    overflow: hidden;
-    background: radial-gradient(circle at 50% 45%, rgba(11,16,32,0.9), rgba(4,8,16,0.6));
-    position: relative; /* allow absolutely positioned background image */
-    box-shadow: 0 30px 80px rgba(2,8,20,0.7), inset 0 0 80px rgba(8,40,80,0.35);
-    svg {
+  @media (max-width: 1024px) {
+    max-width: 480px;
+  }
+
+  @media (max-width: 768px) {
+    max-width: 90vw;
+  }
+
+  .wheel-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+
+    .spin-wheel-svg {
       width: 100%;
       height: 100%;
       display: block;
-      border-radius: 50% !important; /* ensure SVG corners are rounded */
-      z-index: 2; /* keep wheel above the background image */
-    }
+      filter: drop-shadow(0 20px 60px rgba(100, 200, 255, 0.15));
 
-    .spin-bg {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      opacity: 0.98;
-      mix-blend-mode: screen;
-      filter: contrast(1.05) saturate(1.2) drop-shadow(0 18px 60px rgba(0,0,0,0.7));
-      z-index: 1; /* behind the wheel */
-      pointer-events: none;
-      border-radius: 50%;
-    }
-
-    /* concentric rings overlay to emulate the circular HUD in the image */
-    &::before, &::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(0deg);
-      border-radius: 50%;
-      pointer-events: none;
-      transition: opacity 300ms ease, transform 600ms ease;
-    }
-
-    &::before {
-      width: 94%;
-      height: 94%;
-      border: 6px solid rgba(96,165,250,0.06);
-      box-shadow: 0 0 60px rgba(24,110,255,0.06), inset 0 0 40px rgba(24,110,255,0.06);
-      z-index: 1;
-    }
-
-    &::after {
-      width: 78%;
-      height: 78%;
-      border: 2px dashed rgba(96,165,250,0.08);
-      box-shadow: 0 0 30px rgba(24,110,255,0.04);
-      z-index: 1;
-    }
-
-    /* spinning animation — subtle rotations applied to the decorative rings */
-    &.spinning::before {
-      animation: ringRotateCW 2.2s linear infinite;
-    }
-
-    &.spinning::after {
-      animation: ringRotateCCW 3s linear infinite;
-    }
-
-    /* hide overlays when user toggles them off */
-    &.hide-overlays {
-      &::before, &::after { opacity: 0; transform: translate(-50%, -50%) rotate(0deg); }
-      .spin-bg { opacity: 0 !important; visibility: hidden; }
-      .circular-ui { opacity: 0; visibility: hidden; }
-      .brain-center-glow { opacity: 0; visibility: hidden; }
-    }
-  }
-
-  @keyframes ringRotateCW {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    50% { transform: translate(-50%, -50%) rotate(6deg); }
-    100% { transform: translate(-50%, -50%) rotate(0deg); }
-  }
-
-  @keyframes ringRotateCCW {
-    0% { transform: translate(-50%, -50%) rotate(0deg); }
-    50% { transform: translate(-50%, -50%) rotate(-8deg); }
-    100% { transform: translate(-50%, -50%) rotate(0deg); }
-  }
-
-  /* Bet Form Sidebar */
-  .bet-form-sidebar {
-    grid-column: 1 / -1;
-    grid-row: 3 / 4;
-    display: flex;
-    flex-direction: column;
-    gap: 24px;
-    max-width: 1400px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 0 2rem;
-
-    .user-bets {
-      background: rgba(11, 16, 32, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      padding: 20px;
-      color: #e5eefc;
-
-      h4 {
-        margin: 0 0 16px 0;
-        font-size: 18px;
-        font-weight: 700;
-        color: #f3b67a;
+      /* ONLY spin the outer rings, NOT the center */
+      .spinning-rings {
+        animation: continuousSpin 60s linear infinite;
+        transform-origin: 300px 300px; /* Center of the 600x600 viewBox */
       }
 
-      .bets-list {
-        display: flex;
-        flex-direction: column;
-        gap: 12px;
-
-        .bet-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 12px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-
-          .bet-market {
-            font-weight: 600;
-            color: rgba(255, 255, 255, 0.9);
-          }
-
-          .bet-amount {
-            font-weight: 700;
-            color: #3b82f6;
-          }
-
-          .bet-result {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 700;
-
-            &.win {
-              background: rgba(34, 197, 94, 0.2);
-              color: #4ade80;
-            }
-
-            &.loss {
-              background: rgba(234, 57, 67, 0.2);
-              color: #ff6b6b;
-            }
-          }
-        }
+      /* Fixed center - NO animation */
+      .fixed-center {
+        /* No animation applied */
       }
     }
-  }
 
-  /* Right column layout - move under the wheel in single-column layout */
-  .right-column {
-    grid-column: 1 / -1;
-    grid-row: 4 / 5;
-    padding: 12px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    align-items: center; /* center winners under the wheel */
-    justify-content: flex-start;
-  }
-
-  .indecision-banner {
-    font-size: 28px;
-    color: #76e4f7;
-    font-weight: 700;
-    line-height: 1.1;
-    .sub { display: block; font-size: 14px; color: rgba(255,255,255,0.6); font-weight: 500; }
-  }
-
-  .fireworks { position: relative; width: 100%; height: 120px; }
-  .firework { position: absolute; width: 120px; height: 120px; top: 8px; right: 20px; }
-  .fw-1 { right: 24px; top: 0; background: radial-gradient(circle at 30% 30%, rgba(120,200,255,0.95), transparent 30%); filter: blur(10px); opacity: 0.9; }
-  .fw-2 { right: 100px; top: 20px; background: radial-gradient(circle at 60% 40%, rgba(80,220,240,0.95), transparent 30%); filter: blur(10px); opacity: 0.9; }
-
-  .winners-card {
-    background: rgba(0,0,0,0.35);
-    border: 1px solid rgba(255,255,255,0.06);
-    padding: 14px 18px;
-    border-radius: 12px;
-    width: 360px;
-    color: #fff;
-    h3 { margin: 0 0 8px 0; color: #f3b67a; }
-    ul { list-style: none; margin: 0; padding: 0; li { display:flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.02); span{opacity:0.9;} b{color:#fff;} } }
-  }
-
-  /* Bet slip removed - styles cleaned up */
-
-  // Result Overlay
-  .result-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-
-    .result-popup {
-      background: linear-gradient(135deg, #ffffff, #f8fafc);
-      border: 2px solid #3b82f6;
-      border-radius: 20px;
-      padding: 2rem;
+    .state-indicator {
+      position: absolute;
+      bottom: -40px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(165, 213, 255, 0.8);
+      font-size: 14px;
+      font-weight: 600;
       text-align: center;
-      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+      white-space: nowrap;
 
-      h2 {
-        font-size: 2rem;
-        font-weight: 800;
-        margin: 0 0 1rem 0;
-        text-shadow: 0 0 20px currentColor;
+      @media (max-width: 768px) {
+        font-size: 12px;
+        bottom: -30px;
+      }
+    }
+  }
+}
+
+.round-info-overlay {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(10, 15, 30, 0.9);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  min-width: 200px;
+
+  @media (max-width: 768px) {
+    top: 10px;
+    right: 10px;
+    padding: 12px;
+    min-width: 160px;
+  }
+
+  .round-number {
+    font-size: 14px;
+    color: rgba(165, 213, 255, 0.7);
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .round-state {
+    .state-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+
+      &.preopen {
+        background: rgba(107, 114, 128, 0.3);
+        color: #9ca3af;
       }
 
-      p {
-        font-size: 1.5rem;
+      &.open {
+        background: rgba(34, 197, 94, 0.3);
+        color: #4ade80;
+      }
+
+      &.frozen {
+        background: rgba(59, 130, 246, 0.3);
+        color: #60a5fa;
+      }
+
+      &.settled {
+        background: rgba(168, 85, 247, 0.3);
+        color: #a78bfa;
+      }
+    }
+  }
+
+  .freeze-warning {
+    margin-top: 8px;
+    color: #fbbf24;
+    font-size: 12px;
+    font-weight: 600;
+  }
+}
+
+.user-bets-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(10, 15, 30, 0.9);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(10px);
+  min-width: 220px;
+
+  @media (max-width: 768px) {
+    top: 10px;
+    left: 10px;
+    padding: 12px;
+    min-width: 180px;
+  }
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    color: rgba(165, 213, 255, 0.7);
+    font-weight: 600;
+  }
+
+  .bets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .bet-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(100, 200, 255, 0.05);
+      border-radius: 6px;
+      border: 1px solid rgba(100, 200, 255, 0.1);
+
+      .bet-selection {
+        font-weight: 600;
+        color: #a5d5ff;
+        font-size: 13px;
+      }
+
+      .bet-amount {
         font-weight: 700;
-        color: #1e293b;
-        margin: 0;
+        color: #4ade80;
+        font-size: 13px;
+      }
+
+      &.more {
+        justify-content: center;
+        color: rgba(165, 213, 255, 0.6);
+        font-size: 12px;
+        font-style: italic;
       }
     }
   }
 }
 
-// Animations
-@keyframes brainSpin {
-  from {
-    transform: translate(-50%, -50%) rotate(0deg);
-  }
-  to {
-    transform: translate(-50%, -50%) rotate(360deg);
-  }
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes neuralFlow {
-  0% {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-  50% {
-    opacity: 1;
-    transform: scaleX(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scaleX(0);
-  }
-}
-
-@keyframes nodePulse {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.7;
-    transform: scale(1.3);
-  }
-}
-
-@keyframes centerGlow {
-  0% {
-    opacity: 0.5;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-}
-
-@keyframes buttonPulse {
-  0% {
-    box-shadow: 0 5px 20px rgba(239, 68, 68, 0.4);
-  }
-  100% {
-    box-shadow: 0 5px 30px rgba(239, 68, 68, 0.8);
-  }
-}
-
-// Light Mode Support
-.dashboard-root.light .neural-interface {
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%);
-}
-
-// Responsive Design
-@media (max-width: 1200px) {
-  .neural-interface {
-    .central-brain {
-      width: 100%;
-      height: auto;
-
-      .brain-container {
-        .spinwheel-wrapper {
-          width: 420px;
-          height: 420px;
-        }
-      }
-    }
-
-    .chart-panel {
-      &.top-left, &.top-right { display: none; }
-      &.bottom-left, &.bottom-right { display: none; }
-    }
-  }
+@keyframes continuousSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
-  .neural-interface {
-    padding: 1rem;
-
-    .central-brain {
-      width: 100%;
-      height: auto;
-
-      .brain-container {
-        .spinwheel-wrapper {
-          width: 320px;
-          height: 320px;
-        }
-      }
-    }
-
-    .chart-panel { display: none; }
+  .spin-main-area {
+    padding-bottom: 60px;
   }
 }

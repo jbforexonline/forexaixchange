@@ -12,26 +12,31 @@ type WinnerFlags = {
 
 type Props = {
   state: WheelState;
-  countdownSec: number; // shows in the core
-  winners?: WinnerFlags; // set when settled
-  indecisionAngleDeg?: number; // where the vertical slice is (default -90 = 12 o’clock)
-  currencies?: string[]; // ISO codes to repeat around the currency ring
+  countdownSec: number;
+  winners?: WinnerFlags;
+  indecisionAngleDeg?: number;
 };
 
-const cx = 250, cy = 250; // center
-const R = { // radii (inner/outer) for each ring
-  core: [0, 85],
-  vol: [90, 140],
-  color:[145, 195],
-  curr: [200, 235],
-  dir: [240, 290], // outermost Buy/Sell
+const cx = 300, cy = 300;
+const R = {
+  core: [0, 60],
+  vol: [75, 125],
+  color: [140, 190],
+  curr: [205, 235],
+  dir: [250, 300],
 };
+
+// Top 30 most popular/traded currencies
+const CURRENCIES = [
+  "USD", "EUR", "JPY", "GBP", "AUD", "CAD", "CHF", "CNY", "SEK", "NZD",
+  "MXN", "SGD", "HKD", "NOK", "KRW", "TRY", "INR", "RUB", "BRL", "ZAR",
+  "DKK", "PLN", "THB", "MYR", "IDR", "HUF", "CZK", "ILS", "PHP", "AED"
+];
 
 const PI = Math.PI;
-const deg2rad = (d:number)=> (d-90) * (PI/180); // SVG 0° is at 3 o'clock; we shift so 0° is up
+const deg2rad = (d: number) => (d - 90) * (PI / 180);
 
-// Large-arc path helper for donut arcs
-function arcPath(rInner:number, rOuter:number, startDeg:number, endDeg:number){
+function arcPath(rInner: number, rOuter: number, startDeg: number, endDeg: number) {
   const s = deg2rad(startDeg), e = deg2rad(endDeg);
   const large = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
   const sweep = endDeg > startDeg ? 1 : 0;
@@ -45,152 +50,242 @@ function arcPath(rInner:number, rOuter:number, startDeg:number, endDeg:number){
     `M ${x0} ${y0}`,
     `A ${rOuter} ${rOuter} 0 ${large} ${sweep} ${x1} ${y1}`,
     `L ${x2} ${y2}`,
-    `A ${rInner} ${rInner} 0 ${large} ${sweep^1} ${x3} ${y3}`,
+    `A ${rInner} ${rInner} 0 ${large} ${sweep ^ 1} ${x3} ${y3}`,
     "Z"
   ].join(" ");
 }
 
-export default function SpinWheel({
-  state,
-  countdownSec,
-  winners,
-  indecisionAngleDeg = -90,
-  currencies = ["USD","EUR","GBP","JPY","RWF","KES","NGN","CAD","AUD","ZAR"],
-}: Props){
+// Helper to create curved text path
+function createCurvedTextPath(id: string, radius: number, startAngle: number, endAngle: number) {
+  const start = deg2rad(startAngle);
+  const end = deg2rad(endAngle);
+  const x1 = cx + radius * Math.cos(start);
+  const y1 = cy + radius * Math.sin(start);
+  const x2 = cx + radius * Math.cos(end);
+  const y2 = cy + radius * Math.sin(end);
+  const largeArc = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+  
+  return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
+}
+
+export default function SpinWheel({ state, countdownSec, winners, indecisionAngleDeg = -90 }: Props) {
   const showWinners = state === "settled" && winners;
 
-  // Colors (forex theme)
-  const C = {
-    bg: "#0b1020",
-    grid: "#1c2540",
-    text: "#e5eefc",
-    buy: "#24d17e",
-    sell: "#ea3943",
-    blue: "#3ea7ff",
-    red: "#ff4d4d",
-    high: "#f0c419",
-    low: "#6b7280",
-    curr: "#8ab4f8",
-    indecision: "#a78bfa",
-    ringLine: "rgba(255,255,255,0.08)",
-    winGlow: "rgba(255,255,255,0.35)",
-  };
-
-  // Indecision slice as a small wedge (e.g., 8 degrees)
-  const indecisionWedge = useMemo(()=>{
-    const width = 8;
-    const a0 = indecisionAngleDeg - width/2;
-    const a1 = indecisionAngleDeg + width/2;
+  const indecisionWedge = useMemo(() => {
+    const width = 10;
+    const a0 = indecisionAngleDeg - width / 2;
+    const a1 = indecisionAngleDeg + width / 2;
     return {
       dir: arcPath(R.dir[0], R.dir[1], a0, a1),
       curr: arcPath(R.curr[0], R.curr[1], a0, a1),
-      color:arcPath(R.color[0],R.color[1], a0, a1),
+      color: arcPath(R.color[0], R.color[1], a0, a1),
       vol: arcPath(R.vol[0], R.vol[1], a0, a1),
     };
   }, [indecisionAngleDeg]);
 
-  // Helpers to highlight winners
+  // Calculate position for INDECISION label - positioned better for readability
+  const indecisionLabelPos = useMemo(() => {
+    // Place label between currency and direction rings for best visibility
+    const labelRadius = 240; // Between curr and dir rings
+    const angle = deg2rad(indecisionAngleDeg);
+    const x = cx + labelRadius * Math.cos(angle);
+    const y = cy + labelRadius * Math.sin(angle);
+    // Rotation to align text perpendicular to needle (readable)
+    const rotation = indecisionAngleDeg + 90;
+    return { x, y, rotation };
+  }, [indecisionAngleDeg]);
+
   const win = {
     volLeft: winners?.vol === "LOW",
     volRight: winners?.vol === "HIGH",
-    colorLeft:winners?.color === "RED",
-    colorRight:winners?.color === "BLUE",
+    colorLeft: winners?.color === "RED",
+    colorRight: winners?.color === "BLUE",
     dirLeft: winners?.outer === "SELL",
     dirRight: winners?.outer === "BUY",
     indecision: !!winners?.indecision,
   };
 
   return (
-    <div className="relative w-[620px] mx-auto text-[14px]">
-      {/* Winners panel (right side) */}
-      {showWinners && (
-      <div className="absolute -right-4 top-0 translate-x-full w-64 p-4 rounded-xl bg-white/5 border border-white/10 text-white">
-        <div className="flex items-center gap-2 mb-2">
-          <span className="text-xl">🎆</span>
-          <h3 className="font-semibold">Winners</h3>
-        </div>
-        <ul className="space-y-1 text-sm">
-          {winners?.indecision && <li>Global: <b>INDECISION</b></li>}
-          {winners?.outer && <li>Direction: <b>{winners.outer}</b></li>}
-          {winners?.color && <li>Color: <b>{winners.color}</b></li>}
-          {winners?.vol && <li>Volatility: <b>{winners.vol}</b></li>}
-        </ul>
-        <div className="mt-3 text-xs opacity-80">Congrats! Payouts are being applied.</div>
-      </div>
-      )}
+    <div className="wheel-container">
+      <svg viewBox="0 0 600 600" className="spin-wheel-svg">
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <filter id="strongGlow">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+            <feMerge>
+              <feMergeNode in="coloredBlur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+          <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(100, 200, 255, 0.8)" />
+            <stop offset="100%" stopColor="rgba(50, 150, 220, 0.4)" />
+          </linearGradient>
+          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="rgba(255, 215, 0, 1)" />
+            <stop offset="50%" stopColor="rgba(255, 200, 0, 0.95)" />
+            <stop offset="100%" stopColor="rgba(218, 165, 32, 0.9)" />
+          </linearGradient>
 
-      {/* Wheel */}
-      <svg viewBox="0 0 500 500" className="rounded-2xl shadow-xl bg-[#0b1020] ring-1 ring-white/10">
-        {/* ring separators */}
-        {Object.values(R).map(([ri,ro],i)=>(
-          // eslint-disable-next-line react/no-array-index-key
-          <circle key={i} cx={cx} cy={cy} r={ro} fill="none" stroke={C.ringLine} strokeWidth={1}/>
-        ))}
+          {/* Curved text paths for labels */}
+          <path id="sellPath" d={createCurvedTextPath('sell', (R.dir[0] + R.dir[1]) / 2, -170, -10)} fill="none" />
+          <path id="buyPath" d={createCurvedTextPath('buy', (R.dir[0] + R.dir[1]) / 2, 10, 170)} fill="none" />
+          
+          <path id="redPath" d={createCurvedTextPath('red', (R.color[0] + R.color[1]) / 2, -170, -10)} fill="none" />
+          <path id="bluePath" d={createCurvedTextPath('blue', (R.color[0] + R.color[1]) / 2, 10, 170)} fill="none" />
+          
+          <path id="lowPath" d={createCurvedTextPath('low', (R.vol[0] + R.vol[1]) / 2, -170, -10)} fill="none" />
+          <path id="highPath" d={createCurvedTextPath('high', (R.vol[0] + R.vol[1]) / 2, 10, 170)} fill="none" />
+        </defs>
 
-        {/* OUTERMOST: Buy/Sell (left = SELL, right = BUY) */}
-        <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill={C.sell} opacity={win.dirLeft?1:0.6}/>
-        <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill={C.buy} opacity={win.dirRight?1:0.6}/>
-        {/* labels */}
-        <text x={cx-140} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle" style={{fontWeight:700}}>SELL</text>
-        <text x={cx+140} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle" style={{fontWeight:700}}>BUY</text>
+        {/* SPINNING GROUP - All rings except core */}
+        <g className="spinning-rings">
+          {/* Ring separators */}
+          {Object.values(R).slice(1).map(([_, ro], i) => (
+            <circle key={i} cx={cx} cy={cy} r={ro} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          ))}
 
-        {/* CURRENCIES ring (ticks/text around) */}
-        <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill={C.curr} opacity={0.18}/>
-        {currencies.map((ccy, i) => {
-          const a = -180 + i*(360/currencies.length);
-          const rr = (R.curr[0] + R.curr[1]) / 2;
-          const x = cx + rr * Math.cos(deg2rad(a));
-          const y = cy + rr * Math.sin(deg2rad(a));
-          return <text key={ccy+"-"+i} x={x} y={y} fill={C.text} opacity={0.85}
-            fontSize={10} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
-        })}
+          {/* OUTERMOST: Direction Ring (BUY/SELL) */}
+          <g className="ring-direction">
+            <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
+            <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
+            
+            {/* Curved SELL label */}
+            <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+              <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
+                SELL
+              </textPath>
+            </text>
+            
+            {/* Curved BUY label */}
+            <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+              <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
+                BUY
+              </textPath>
+            </text>
 
-        {/* COLOR ring: left RED | right BLUE */}
-        <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill={C.red} opacity={win.colorLeft?1:0.6}/>
-        <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill={C.blue} opacity={win.colorRight?1:0.6}/>
-        <text x={cx-105} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle">RED</text>
-        <text x={cx+105} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle">BLUE</text>
+            <text x={cx} y={cy - 285} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>DIRECTION</text>
+          </g>
 
-        {/* VOLATILITY ring: left LOW | right HIGH */}
-        <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill={C.low} opacity={win.volLeft?1:0.6}/>
-        <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill={C.high} opacity={win.volRight?1:0.6}/>
-        <text x={cx-75} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle">LOW</text>
-        <text x={cx+75} y={cy} fill={C.text} textAnchor="middle" dominantBaseline="middle">HIGH</text>
+          {/* Currency Ring */}
+          <g className="ring-currency">
+            <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
+            {CURRENCIES.map((ccy, i) => {
+              const angle = -180 + i * (360 / CURRENCIES.length);
+              const rr = (R.curr[0] + R.curr[1]) / 2;
+              const x = cx + rr * Math.cos(deg2rad(angle));
+              const y = cy + rr * Math.sin(deg2rad(angle));
+              return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
+            })}
+            <text x={cx} y={cy - 230} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>ASSETS</text>
+          </g>
 
-        {/* INDECISION wedge (crosses all rings) */}
-        <g opacity={win.indecision ? 1 : 0.9}>
-          <path d={indecisionWedge.dir} fill={C.indecision}/>
-          <path d={indecisionWedge.curr} fill={C.indecision}/>
-          <path d={indecisionWedge.color}fill={C.indecision}/>
-          <path d={indecisionWedge.vol} fill={C.indecision}/>
-          {/* Label along the wedge tip (near core) */}
-          <text x={cx} y={cy - R.core[1] - 6} fill={C.text} textAnchor="middle" fontSize={10}>INDECISION</text>
+          {/* Color Ring (BLUE/RED) */}
+          <g className="ring-color">
+            <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
+            <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
+            
+            {/* Curved RED label */}
+            <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
+              <textPath href="#redPath" startOffset="50%" textAnchor="middle">
+                RED
+              </textPath>
+            </text>
+            
+            {/* Curved BLUE label */}
+            <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
+              <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
+                BLUE
+              </textPath>
+            </text>
+
+            <text x={cx} y={cy - 185} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>COLOR MODE</text>
+          </g>
+
+          {/* Volatility Ring (LOW/HIGH) */}
+          <g className="ring-volatility">
+            <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
+            <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
+            
+            {/* Curved LOW VOLATILE label */}
+            <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+              <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
+                LOW VOLATILE
+              </textPath>
+            </text>
+            
+            {/* Curved HIGH VOLATILE label */}
+            <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+              <textPath href="#highPath" startOffset="50%" textAnchor="middle">
+                HIGH VOLATILE
+              </textPath>
+            </text>
+
+            <text x={cx} y={cy - 140} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>VOLATILITY</text>
+          </g>
+
+          {/* Winner glow (on spinning rings) */}
+          {showWinners && (
+            <g fill="rgba(255, 255, 255, 0.2)" filter="url(#glow)">
+              {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
+              {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
+              {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
+              {win.colorRight && <path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
+              {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
+              {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
+            </g>
+          )}
         </g>
 
-        {/* CORE (countdown + Market Analysis) */}
-        <circle cx={cx} cy={cy} r={R.core[1]} fill="#0f1733" stroke={C.grid} strokeWidth={1}/>
-        <text x={cx} y={cy-8} fill={C.text} textAnchor="middle" fontSize={22} style={{fontWeight:700}}>
-          {state === "settled" ? "Round Settled" : `${countdownSec}s`}
-        </text>
-        <text x={cx} y={cy+16} fill={C.text} textAnchor="middle" fontSize={12} opacity={0.85}>
-          Market Analysis
-        </text>
+        {/* FIXED GROUP - Core and Indecision (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
+        <g className="fixed-center">
+          {/* Core ring separator */}
+          <circle cx={cx} cy={cy} r={R.core[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
 
-        {/* Subtle glow on winners */}
-        {showWinners && (
-        <g fill={C.winGlow}>
-          {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
-          {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
-          {win.colorLeft&& <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
-          {win.colorRight&&<path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
-          {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
-          {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
+          {/* Indecision Needle (FIXED, GOLDEN, CONTINUOUS) - Drawn on top of all rings */}
+          <g opacity={win.indecision ? 1 : 0.9} filter="url(#strongGlow)">
+            {/* Single continuous golden wedge from center to outer edge */}
+            <path d={indecisionWedge.vol} fill="url(#goldGrad)" />
+            <path d={indecisionWedge.color} fill="url(#goldGrad)" />
+            <path d={indecisionWedge.curr} fill="url(#goldGrad)" />
+            <path d={indecisionWedge.dir} fill="url(#goldGrad)" />
+            
+            {/* INDECISION label ON the needle - WHITE, readable position */}
+            <text
+              x={indecisionLabelPos.x}
+              y={indecisionLabelPos.y}
+              fill="#ffffff"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={12}
+              fontWeight={900}
+              letterSpacing={2.5}
+              transform={`rotate(${indecisionLabelPos.rotation}, ${indecisionLabelPos.x}, ${indecisionLabelPos.y})`}
+              filter="url(#strongGlow)"
+            >
+              INDECISION
+            </text>
+          </g>
+
+          {/* Core (countdown + state) - FIXED */}
+          <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
+          <text x={cx} y={cy - 12} fill="#a5d5ff" textAnchor="middle" fontSize={32} fontWeight={800}>
+            {state === "settled" ? "SETTLED" : `${countdownSec}s`}
+          </text>
+          <text x={cx} y={cy + 18} fill="rgba(165, 213, 255, 0.7)" textAnchor="middle" fontSize={11} fontWeight={600}>
+            {state === "open" ? "LIVE" : state === "frozen" ? "FROZEN" : "MARKET"}
+          </text>
         </g>
-        )}
       </svg>
 
-      {/* State banner */}
-      <div className="mt-3 text-center text-white/80">
+      {/* State indicator */}
+      <div className="state-indicator">
         {state === "preopen" && "Waiting to open"}
         {state === "open" && "Betting is open"}
         {state === "frozen" && "Final minute — no new bets"}
