@@ -1,13 +1,13 @@
 .eo-container {
   display: flex;
-  height: 100vh;
+  min-height: 100vh; /* allow page to grow beyond viewport */
   background: #0d1b2a;
   color: white;
 }
 
 .eo-sidebar {
   background: #11253d;
-  height: 100%;
+  min-height: 100vh; /* ensure at least viewport height, but allow extension */
   display: flex;
   flex-direction: column;
   padding: 1rem 0;
@@ -41,6 +41,9 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 10px;
+  flex: 1 1 auto; /* let menu take the remaining vertical space */
+  overflow-y: auto; /* allow scrolling if items grow */
+  padding-bottom: 8px; /* small bottom padding */
 }
 
 /* Each button */
@@ -76,7 +79,12 @@
   flex: 1;
   padding: 2rem;
   color: white;
+  min-height: 100vh; /* allow main to grow with content */
 }
+
+/* Keep sidebar header/footer in view while menu scrolls */
+.sidebar-top { position: relative; z-index: 2; }
+.eo-footer { margin-top: auto; padding: 12px; display: flex; gap: 8px; align-items: center; }
 
 /* Optional: Background diagonal stripes from ExpertOption */
 .eo-container {
@@ -88,3 +96,4 @@
     #0d1826 6px
   );
 }
+  /* end of styles */
