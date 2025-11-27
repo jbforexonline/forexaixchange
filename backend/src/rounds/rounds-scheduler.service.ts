@@ -8,6 +8,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class RoundsSchedulerService {
@@ -17,6 +18,7 @@ export class RoundsSchedulerService {
   constructor(
     private roundsService: RoundsService,
     private settlementService: RoundsSettlementService,
+    private realtimeGateway: RealtimeGateway,
   ) {}
 
   /**
@@ -60,6 +62,17 @@ export class RoundsSchedulerService {
         this.logger.log(
           `❄️  Froze ${frozen.length} round(s): ${frozen.map((r) => r.roundNumber).join(', ')}`,
         );
+        
+        // Broadcast round state change
+        frozen.forEach((round) => {
+          this.realtimeGateway.server.emit('roundStateChanged', {
+            roundId: round.id,
+            roundNumber: round.roundNumber,
+            state: round.state,
+            freezeAt: round.freezeAt,
+            settleAt: round.settleAt,
+          });
+        });
       }
     } catch (error) {
       this.logger.error('Error freezing rounds:', error);
@@ -82,6 +95,16 @@ export class RoundsSchedulerService {
       for (const round of toSettle) {
         try {
           await this.settlementService.settleRound(round.id);
+          
+          // Broadcast round settlement
+          this.realtimeGateway.server.emit('roundSettled', {
+            roundId: round.id,
+            roundNumber: round.roundNumber,
+            state: 'SETTLED',
+            settledAt: new Date(),
+          });
+          
+          this.logger.log(`✅ Round ${round.roundNumber} settled and broadcasted`);
         } catch (error) {
           this.logger.error(`Failed to settle round ${round.roundNumber}:`, error);
         }
@@ -104,6 +127,17 @@ export class RoundsSchedulerService {
         this.logger.log(
           `✅ Round ${newRound.roundNumber} opened - Settles at ${newRound.settleAt.toISOString()}`,
         );
+        
+        // Broadcast new round opened
+        this.realtimeGateway.server.emit('roundStateChanged', {
+          roundId: newRound.id,
+          roundNumber: newRound.roundNumber,
+          state: newRound.state,
+          openedAt: newRound.openedAt,
+          freezeAt: newRound.freezeAt,
+          settleAt: newRound.settleAt,
+          roundDuration: newRound.roundDuration,
+        });
       }
     } catch (error) {
       this.logger.error('Error ensuring active round:', error);

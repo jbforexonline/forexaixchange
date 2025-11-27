@@ -1,8 +1,8 @@
 .spin-page-container {
-  position: relative;
+  position: fixed; // Changed from relative to fixed
   width: 100vw;
   height: 100vh;
-  overflow: hidden;
+  overflow: hidden; // Ensure no scroll
   background: radial-gradient(circle at 50% 40%, #001825 0%, #001220 20%, #000a15 45%, #000510 100%);
   display: flex;
   flex-direction: column;
@@ -14,7 +14,8 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  padding-bottom: 80px;
+  padding-bottom: 100px; // Space for bet bar
+  overflow: hidden; // Ensure no scroll
 
   .error-banner {
     position: absolute;
@@ -54,7 +55,7 @@
 
 .wheel-wrapper {
   width: 100%;
-  max-width: 650px;
+  max-width: 600px; // Reduced from 650px
   aspect-ratio: 1;
   display: flex;
   align-items: center;
@@ -62,15 +63,15 @@
   position: relative;
 
   @media (max-width: 1400px) {
-    max-width: 550px;
+    max-width: 500px;
   }
 
   @media (max-width: 1024px) {
-    max-width: 480px;
+    max-width: 450px;
   }
 
   @media (max-width: 768px) {
-    max-width: 90vw;
+    max-width: 85vw; // Reduced from 90vw
   }
 
   .wheel-container {
@@ -189,6 +190,8 @@
   padding: 16px;
   backdrop-filter: blur(10px);
   min-width: 220px;
+  max-height: calc(100vh - 200px); // Prevent overflow
+  overflow-y: auto;
 
   @media (max-width: 768px) {
     top: 10px;
@@ -251,6 +254,6 @@
 
 @media (max-width: 768px) {
   .spin-main-area {
-    padding-bottom: 60px;
+    padding-bottom: 80px;
   }
 }

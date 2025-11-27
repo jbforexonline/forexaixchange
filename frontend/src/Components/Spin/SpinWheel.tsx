@@ -14,7 +14,6 @@ type Props = {
   state: WheelState;
   countdownSec: number;
   winners?: WinnerFlags;
-  indecisionAngleDeg?: number;
 };
 
 const cx = 300, cy = 300;
@@ -68,32 +67,29 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-export default function SpinWheel({ state, countdownSec, winners, indecisionAngleDeg = -90 }: Props) {
+export default function SpinWheel({ state, countdownSec, winners }: Props) {
   const showWinners = state === "settled" && winners;
 
-  const indecisionWedge = useMemo(() => {
-    const width = 10;
-    const a0 = indecisionAngleDeg - width / 2;
-    const a1 = indecisionAngleDeg + width / 2;
+  // Two vertical needles: one pointing up (90°), one pointing down (270°)
+  const indecisionNeedles = useMemo(() => {
+    const width = 8; // Needle width in degrees
+    
+    // Top needle (pointing up - 90° in standard coords, which is 0° in our system)
+    const topAngle = 0;
+    const topA0 = topAngle - width / 2;
+    const topA1 = topAngle + width / 2;
+    
+    // Bottom needle (pointing down - 270° in standard coords, which is 180° in our system)
+    const bottomAngle = 180;
+    const bottomA0 = bottomAngle - width / 2;
+    const bottomA1 = bottomAngle + width / 2;
+    
+    // Create continuous needle from innermost to outermost ring
     return {
-      dir: arcPath(R.dir[0], R.dir[1], a0, a1),
-      curr: arcPath(R.curr[0], R.curr[1], a0, a1),
-      color: arcPath(R.color[0], R.color[1], a0, a1),
-      vol: arcPath(R.vol[0], R.vol[1], a0, a1),
+      top: arcPath(R.vol[0], R.dir[1], topA0, topA1),
+      bottom: arcPath(R.vol[0], R.dir[1], bottomA0, bottomA1),
     };
-  }, [indecisionAngleDeg]);
-
-  // Calculate position for INDECISION label - positioned better for readability
-  const indecisionLabelPos = useMemo(() => {
-    // Place label between currency and direction rings for best visibility
-    const labelRadius = 240; // Between curr and dir rings
-    const angle = deg2rad(indecisionAngleDeg);
-    const x = cx + labelRadius * Math.cos(angle);
-    const y = cy + labelRadius * Math.sin(angle);
-    // Rotation to align text perpendicular to needle (readable)
-    const rotation = indecisionAngleDeg + 90;
-    return { x, y, rotation };
-  }, [indecisionAngleDeg]);
+  }, []);
 
   const win = {
     volLeft: winners?.vol === "LOW",
@@ -117,7 +113,7 @@ export default function SpinWheel({ state, countdownSec, winners, indecisionAngl
             </feMerge>
           </filter>
           <filter id="strongGlow">
-            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -146,10 +142,15 @@ export default function SpinWheel({ state, countdownSec, winners, indecisionAngl
 
         {/* SPINNING GROUP - All rings except core */}
         <g className="spinning-rings">
-          {/* Ring separators */}
-          {Object.values(R).slice(1).map(([_, ro], i) => (
-            <circle key={i} cx={cx} cy={cy} r={ro} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          ))}
+          {/* Ring separators - MOVED HERE so they don't cut through needles */}
+          <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.curr[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.color[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
 
           {/* OUTERMOST: Direction Ring (BUY/SELL) */}
           <g className="ring-direction">
@@ -243,37 +244,50 @@ export default function SpinWheel({ state, countdownSec, winners, indecisionAngl
           )}
         </g>
 
-        {/* FIXED GROUP - Core and Indecision (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
+        {/* FIXED GROUP - Core and Indecision Needles (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
         <g className="fixed-center">
-          {/* Core ring separator */}
-          <circle cx={cx} cy={cy} r={R.core[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-
-          {/* Indecision Needle (FIXED, GOLDEN, CONTINUOUS) - Drawn on top of all rings */}
-          <g opacity={win.indecision ? 1 : 0.9} filter="url(#strongGlow)">
-            {/* Single continuous golden wedge from center to outer edge */}
-            <path d={indecisionWedge.vol} fill="url(#goldGrad)" />
-            <path d={indecisionWedge.color} fill="url(#goldGrad)" />
-            <path d={indecisionWedge.curr} fill="url(#goldGrad)" />
-            <path d={indecisionWedge.dir} fill="url(#goldGrad)" />
+          {/* TWO VERTICAL INDECISION NEEDLES - FIXED, GOLDEN, ON TOP OF EVERYTHING */}
+          <g opacity={win.indecision ? 1 : 0.9}>
+            {/* Top needle (pointing up) - single continuous golden path */}
+            <path d={indecisionNeedles.top} fill="url(#goldGrad)" filter="url(#strongGlow)" />
             
-            {/* INDECISION label ON the needle - WHITE, readable position */}
+            {/* INDECISION label - VERTICAL text along top needle, perfectly centered */}
             <text
-              x={indecisionLabelPos.x}
-              y={indecisionLabelPos.y}
+              x={cx}
+              y={cy - 150}
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={12}
+              fontSize={11}
               fontWeight={900}
-              letterSpacing={2.5}
-              transform={`rotate(${indecisionLabelPos.rotation}, ${indecisionLabelPos.x}, ${indecisionLabelPos.y})`}
+              letterSpacing={3}
+              transform={`rotate(-90, ${cx}, ${cy - 150})`}
+              filter="url(#strongGlow)"
+            >
+              INDECISION
+            </text>
+
+            {/* Bottom needle (pointing down) - single continuous golden path */}
+            <path d={indecisionNeedles.bottom} fill="url(#goldGrad)" filter="url(#strongGlow)" />
+            
+            {/* INDECISION label - VERTICAL text along bottom needle, perfectly centered */}
+            <text
+              x={cx}
+              y={cy + 150}
+              fill="#ffffff"
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={11}
+              fontWeight={900}
+              letterSpacing={3}
+              transform={`rotate(-90, ${cx}, ${cy + 150})`}
               filter="url(#strongGlow)"
             >
               INDECISION
             </text>
           </g>
 
-          {/* Core (countdown + state) - FIXED */}
+          {/* Core (countdown + state) - FIXED, no separator circle here */}
           <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
           <text x={cx} y={cy - 12} fill="#a5d5ff" textAnchor="middle" fontSize={32} fontWeight={800}>
             {state === "settled" ? "SETTLED" : `${countdownSec}s`}

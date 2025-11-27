@@ -18,26 +18,25 @@ export class RoundsService {
 
   /**
    * Open a new round with cryptographic commitment
-   * Demo Mode: 5 seconds (development), 20 minutes (production)
-   * Live Mode: User's preferred duration (premium) or 20 minutes (free)
+   * Development: 1 minute rounds for testing
+   * Production: 20 minute rounds
    */
   async openNewRound(
     roundDuration?: number, // User's preferred duration or default
-    freezeOffset = 60,    // 1 minute freeze
+    freezeOffset?: number,  // Freeze period before settlement
   ) {
-    const isDemoMode = process.env.DEMO_MODE === 'true';
     const isProduction = process.env.NODE_ENV === 'production';
     
-    // Demo mode timer logic
-    if (isDemoMode) {
-      // Development demo: 5 seconds
-      // Production demo: 20 minutes (1200 seconds)
-      roundDuration = isProduction ? 1200 : 5;
-      freezeOffset = isProduction ? 60 : 1; // 1 second freeze for dev demo
-      this.logger.log(`🎮 DEMO MODE: ${isProduction ? 'Production (20min)' : 'Development (5s)'}`);
-    } else {
-      // Live mode: Use provided duration or default to 20 minutes
-      roundDuration = roundDuration || 1200;
+    // Development: 1 minute rounds (60 seconds)
+    // Production: 20 minute rounds (1200 seconds)
+    if (!roundDuration) {
+      roundDuration = isProduction ? 1200 : 60;
+      this.logger.log(`⏰ Round Duration: ${isProduction ? '20 minutes' : '1 minute (dev)'}`);
+    }
+    
+    // Freeze offset: 5 seconds for dev, 60 seconds for production
+    if (!freezeOffset) {
+      freezeOffset = isProduction ? 60 : 5;
     }
     
     const openedAt = new Date();

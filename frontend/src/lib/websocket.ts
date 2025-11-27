@@ -1,12 +1,11 @@
 /**
  * WebSocket Client for Real-time Updates
- * Connects to the backend WebSocket gateway for live round/bet/wallet updates
+ * Uses Socket.IO for real-time connection to backend
  */
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 
-  (process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000')
-    .replace('http://', 'ws://')
-    .replace('https://', 'wss://');
+import { io, Socket } from 'socket.io-client';
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 export type WebSocketEvent = 
   | 'roundSettled'
@@ -14,6 +13,7 @@ export type WebSocketEvent =
   | 'totalsUpdated'
   | 'walletUpdated'
   | 'roundStateChanged'
+  | 'heartbeat'
   | 'connected'
   | 'disconnected'
   | 'error';
@@ -21,13 +21,11 @@ export type WebSocketEvent =
 export type WebSocketEventHandler = (data: any) => void;
 
 class WebSocketClient {
-  private ws: WebSocket | null = null;
+  private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private reconnectDelay = 3000;
   private listeners: Map<WebSocketEvent, Set<WebSocketEventHandler>> = new Map();
   private isConnecting = false;
-  private shouldReconnect = true;
 
   constructor() {
     // Initialize listener maps
@@ -37,6 +35,7 @@ class WebSocketClient {
       'totalsUpdated',
       'walletUpdated',
       'roundStateChanged',
+      'heartbeat',
       'connected',
       'disconnected',
       'error',
@@ -47,10 +46,10 @@ class WebSocketClient {
   }
 
   /**
-   * Connect to WebSocket server
+   * Connect to Socket.IO server
    */
   connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN || this.isConnecting) {
+    if (this.socket?.connected || this.isConnecting) {
       return;
     }
 
@@ -62,75 +61,66 @@ class WebSocketClient {
     this.isConnecting = true;
     const token = localStorage.getItem('token');
     
-    // Check if WebSocket is supported
-    if (typeof WebSocket === 'undefined') {
-      this.isConnecting = false;
-      return;
-    }
-
-    const url = token ? `${WS_URL}?token=${token}` : WS_URL;
-
     try {
-      this.ws = new WebSocket(url);
+      // Create Socket.IO connection with auth token
+      this.socket = io(SOCKET_URL, {
+        auth: {
+          token: token || undefined,
+        },
+        transports: ['websocket', 'polling'],
+        reconnectionAttempts: this.maxReconnectAttempts,
+        reconnectionDelay: 3000,
+      });
 
-      this.ws.onopen = () => {
+      // Connection successful
+      this.socket.on('connect', () => {
         this.isConnecting = false;
         this.reconnectAttempts = 0;
+        console.log('✅ Socket.IO connected');
         this.emit('connected', {});
-        // WebSocket connected successfully
-      };
+      });
 
-      this.ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const { event: eventType, ...payload } = data;
-          
-          if (eventType) {
-            this.emit(eventType as WebSocketEvent, payload);
-          }
-        } catch (error) {
-          // Silently handle parse errors
-        }
-      };
+      // Listen for all custom events
+      this.socket.on('roundSettled', (data) => this.emit('roundSettled', data));
+      this.socket.on('betPlaced', (data) => this.emit('betPlaced', data));
+      this.socket.on('totalsUpdated', (data) => this.emit('totalsUpdated', data));
+      this.socket.on('walletUpdated', (data) => this.emit('walletUpdated', data));
+      this.socket.on('roundStateChanged', (data) => this.emit('roundStateChanged', data));
+      this.socket.on('heartbeat', (data) => this.emit('heartbeat', data));
 
-      this.ws.onerror = (error) => {
+      // Error handling
+      this.socket.on('connect_error', (error) => {
         this.isConnecting = false;
-        // Suppress error logging - WebSocket may not be available
-        // Only emit to listeners, don't spam console
+        console.error('Socket.IO connection error:', error.message);
         this.emit('error', { error });
-      };
+      });
 
-      this.ws.onclose = () => {
+      // Disconnection
+      this.socket.on('disconnect', (reason) => {
         this.isConnecting = false;
-        this.emit('disconnected', {});
-        
-        if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-          this.reconnectAttempts++;
-          setTimeout(() => {
-            this.connect();
-          }, this.reconnectDelay);
-        }
-      };
+        console.log('Socket.IO disconnected:', reason);
+        this.emit('disconnected', { reason });
+      });
+
     } catch (error) {
       this.isConnecting = false;
-      // Silently handle WebSocket creation errors
+      console.error('Socket.IO setup error:', error);
       this.emit('error', { error });
     }
   }
 
   /**
-   * Disconnect from WebSocket server
+   * Disconnect from Socket.IO server
    */
   disconnect(): void {
-    this.shouldReconnect = false;
-    if (this.ws) {
-      this.ws.close();
-      this.ws = null;
+    if (this.socket) {
+      this.socket.disconnect();
+      this.socket = null;
     }
   }
 
   /**
-   * Subscribe to a WebSocket event
+   * Subscribe to a Socket.IO event
    */
   on(event: WebSocketEvent, handler: WebSocketEventHandler): () => void {
     const handlers = this.listeners.get(event);
@@ -148,7 +138,7 @@ class WebSocketClient {
   }
 
   /**
-   * Unsubscribe from a WebSocket event
+   * Unsubscribe from a Socket.IO event
    */
   off(event: WebSocketEvent, handler: WebSocketEventHandler): void {
     const handlers = this.listeners.get(event);
@@ -167,7 +157,7 @@ class WebSocketClient {
         try {
           handler(data);
         } catch (error) {
-          console.error(`Error in WebSocket handler for ${event}:`, error);
+          console.error(`Error in Socket.IO handler for ${event}:`, error);
         }
       });
     }
@@ -177,27 +167,17 @@ class WebSocketClient {
    * Get connection state
    */
   getState(): 'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' {
-    if (!this.ws) return 'CLOSED';
-    switch (this.ws.readyState) {
-      case WebSocket.CONNECTING:
-        return 'CONNECTING';
-      case WebSocket.OPEN:
-        return 'OPEN';
-      case WebSocket.CLOSING:
-        return 'CLOSING';
-      default:
-        return 'CLOSED';
-    }
+    if (!this.socket) return 'CLOSED';
+    if (this.isConnecting) return 'CONNECTING';
+    return this.socket.connected ? 'OPEN' : 'CLOSED';
   }
 
   /**
    * Send message to server (if needed)
    */
-  send(data: any): void {
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(data));
-    } else {
-      // Silently ignore if WebSocket is not open
+  send(event: string, data: any): void {
+    if (this.socket?.connected) {
+      this.socket.emit(event, data);
     }
   }
 }
