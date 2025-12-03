@@ -123,7 +123,12 @@ export function useRound() {
     // Listen for round updates
     const unsubscribeRoundSettled = client.on('roundSettled', (data) => {
       console.log('Round settled:', data);
-      fetchRound(); // Refresh round data
+      fetchRound(); // Refresh round data to get next round
+    });
+
+    const unsubscribeRoundStateChanged = client.on('roundStateChanged', (data) => {
+      console.log('Round state changed:', data);
+      fetchRound(); // Refresh when state changes (e.g., OPEN → FROZEN)
     });
 
     const unsubscribeTotalsUpdated = client.on('totalsUpdated', (data) => {
@@ -151,6 +156,7 @@ export function useRound() {
 
     return () => {
       unsubscribeRoundSettled();
+      unsubscribeRoundStateChanged();
       unsubscribeTotalsUpdated();
       unsubscribeBetPlaced();
     };
@@ -176,16 +182,10 @@ export function useRound() {
     }
   }, [roundState.round, updateCountdown]);
 
-  // Refresh round data periodically (every 5 seconds)
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      if (!roundState.loading) {
-        fetchRound();
-      }
-    }, 5000);
-
-    return () => clearInterval(refreshInterval);
-  }, [fetchRound, roundState.loading]);
+  // Removed periodic polling — now relies on Socket.IO events:
+  // - roundSettled: triggers fetchRound() to get new round
+  // - totalsUpdated / betPlaced: updates totals in real-time
+  // This reduces server load and bandwidth consumption.
 
   return {
     ...roundState,

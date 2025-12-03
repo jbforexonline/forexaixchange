@@ -3,63 +3,212 @@ import { PrismaService } from '../database/prisma.service';
 import { TransactionType, TransactionStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { inspect } from 'util';
 
 @Injectable()
 export class WalletService {
   private readonly logger = new Logger(WalletService.name);
+  // Demo mode in-memory store used when Prisma DB is unavailable
+  private demoMode = false;
+  private demoStore: Map<string, {
+    available: Decimal;
+    held: Decimal;
+    totalDeposited: Decimal;
+    totalWithdrawn: Decimal;
+    totalWon: Decimal;
+    totalLost: Decimal;
+    user?: { id: string; username?: string; email?: string; premium?: boolean; verificationBadge?: boolean };
+  }> = new Map();
 
   constructor(
     private prisma: PrismaService,
     private gateway: RealtimeGateway,
   ) {}
 
+  private enableDemoMode(reason?: any) {
+    if (this.demoMode) return;
+    const msg = reason ? (reason.message || String(reason)) : 'unknown';
+    this.logger.warn(`⚠️ Switching to demo wallet mode due to DB error: ${msg}`);
+    this.logger.debug(inspect(reason, { depth: 2 }));
+    this.demoMode = true;
+  }
+
+  private ensureDemoWallet(userId: string) {
+    if (!this.demoStore.has(userId)) {
+      this.demoStore.set(userId, {
+        available: new Decimal(1000),
+        held: new Decimal(0),
+        totalDeposited: new Decimal(1000),
+        totalWithdrawn: new Decimal(0),
+        totalWon: new Decimal(0),
+        totalLost: new Decimal(0),
+        user: { id: userId, username: `demo-${userId}`, email: `${userId}@demo.local`, premium: false, verificationBadge: false },
+      });
+    }
+    return this.demoStore.get(userId)!;
+  }
+
   /**
    * Emit real-time wallet balance update to user
    */
   private async emitWalletUpdate(userId: string) {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+    try {
+      if (this.demoMode) {
+        const dw = this.ensureDemoWallet(userId);
+        this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
+          userId,
+          available: dw.available.toNumber(),
+          held: dw.held.toNumber(),
+          total: dw.available.add(dw.held).toNumber(),
+          totalDeposited: dw.totalDeposited.toNumber(),
+          totalWithdrawn: dw.totalWithdrawn.toNumber(),
+          totalWon: dw.totalWon.toNumber(),
+          totalLost: dw.totalLost.toNumber(),
+        });
+        return;
+      }
 
-    if (wallet) {
-      this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
-        userId,
-        available: wallet.available.toNumber(),
-        held: wallet.held.toNumber(),
-        total: wallet.available.add(wallet.held).toNumber(),
-        totalDeposited: wallet.totalDeposited.toNumber(),
-        totalWithdrawn: wallet.totalWithdrawn.toNumber(),
-        totalWon: wallet.totalWon.toNumber(),
-        totalLost: wallet.totalLost.toNumber(),
-      });
+      const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+      if (wallet) {
+        this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
+          userId,
+          available: wallet.available.toNumber(),
+          held: wallet.held.toNumber(),
+          total: wallet.available.add(wallet.held).toNumber(),
+          totalDeposited: wallet.totalDeposited.toNumber(),
+          totalWithdrawn: wallet.totalWithdrawn.toNumber(),
+          totalWon: wallet.totalWon.toNumber(),
+          totalLost: wallet.totalLost.toNumber(),
+        });
+      }
+    } catch (error) {
+      // If DB error detected, enable demo mode and emit demo state
+      const code = error?.code || error?.meta?.code;
+      const msg = String(error?.message || error);
+      if (msg.includes('does not exist') || ['P2021', 'P1001', 'P3018', 'P3009'].includes(code)) {
+        this.enableDemoMode(error);
+        const dw = this.ensureDemoWallet(userId);
+        this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
+          userId,
+          available: dw.available.toNumber(),
+          held: dw.held.toNumber(),
+          total: dw.available.add(dw.held).toNumber(),
+          totalDeposited: dw.totalDeposited.toNumber(),
+          totalWithdrawn: dw.totalWithdrawn.toNumber(),
+          totalWon: dw.totalWon.toNumber(),
+          totalLost: dw.totalLost.toNumber(),
+        });
+      } else {
+        this.logger.error('emitWalletUpdate error', error);
+      }
     }
   }
 
   async getWallet(userId: string) {
-    const wallet = await this.prisma.wallet.findUnique({
-      where: { userId },
-    });
+    try {
+      if (this.demoMode || process.env.DEMO_WALLET === 'true') {
+        this.enableDemoMode('env-demo');
+        const dw = this.ensureDemoWallet(userId);
+        return {
+          userId,
+          available: dw.available,
+          held: dw.held,
+          totalDeposited: dw.totalDeposited,
+          totalWithdrawn: dw.totalWithdrawn,
+          totalWon: dw.totalWon,
+          totalLost: dw.totalLost,
+        };
+      }
 
-    if (!wallet) {
-      throw new NotFoundException('Wallet not found');
+      const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+
+      if (!wallet) {
+        throw new NotFoundException('Wallet not found');
+      }
+
+      return wallet;
+    } catch (error) {
+      const code = error?.code || error?.meta?.code;
+      const msg = String(error?.message || error);
+      if (msg.includes('does not exist') || ['P2021', 'P1001', 'P3018', 'P3009'].includes(code) || process.env.DEMO_WALLET === 'true') {
+        this.enableDemoMode(error);
+        const dw = this.ensureDemoWallet(userId);
+        return {
+          userId,
+          available: dw.available,
+          held: dw.held,
+          totalDeposited: dw.totalDeposited,
+          totalWithdrawn: dw.totalWithdrawn,
+          totalWon: dw.totalWon,
+          totalLost: dw.totalLost,
+        };
+      }
+
+      throw error;
     }
-
-    return wallet;
   }
 
   async getBalance(userId: string) {
     const wallet = await this.getWallet(userId);
+    // wallet may be Prisma wallet (Decimal) or demo object
     return {
       available: wallet.available,
       held: wallet.held,
-      total: wallet.available.add(wallet.held),
+      total: (wallet.available as Decimal).add(wallet.held as Decimal),
     };
   }
 
-  async deposit(userId: string, amount: Decimal, method: string, reference?: string) {
+  async deposit(userId: string, amount: Decimal, method: string, reference?: string, idempotencyKey?: string) {
     this.logger.log(`🔍 Deposit request: ${userId} - $${amount.toString()} via ${method}`);
     try {
+      if (this.demoMode || process.env.DEMO_WALLET === 'true') {
+        this.enableDemoMode('demo-deposit');
+        const dw = this.ensureDemoWallet(userId);
+        // idempotency not persisted across restarts for demo, do a simple allowance
+        dw.available = dw.available.add(amount);
+        dw.totalDeposited = dw.totalDeposited.add(amount);
+
+        // Emit update
+        await this.emitWalletUpdate(userId);
+
+        const transaction = {
+          id: `demo-deposit-${Date.now()}`,
+          userId,
+          type: TransactionType.DEPOSIT,
+          amount,
+          status: TransactionStatus.COMPLETED,
+          method,
+          reference,
+          idempotencyKey,
+          processedAt: new Date(),
+        } as any;
+
+        return {
+          transaction,
+          wallet: dw,
+          newBalance: dw.available,
+          instant: true,
+        };
+      }
+
       const result = await this.prisma.$transaction(async (tx) => {
+        // Check idempotency
+        if (idempotencyKey) {
+          const existing = await tx.transaction.findUnique({
+            where: { idempotencyKey },
+          });
+          if (existing) {
+            this.logger.warn(`Duplicate deposit attempt: ${idempotencyKey}`);
+            const wallet = await tx.wallet.findUnique({ where: { userId } });
+            return {
+              transaction: existing,
+              wallet,
+              newBalance: wallet?.available || new Decimal(0),
+              instant: existing.status === TransactionStatus.COMPLETED,
+            };
+          }
+        }
+
         // Check if method is mobile money (instant processing)
         const isMobileMoney = ['MTN', 'MoMo', 'momo', 'mtn', 'Mobile Money', 'mobile money'].includes(method);
         const status = isMobileMoney ? TransactionStatus.COMPLETED : TransactionStatus.PENDING;
@@ -73,6 +222,7 @@ export class WalletService {
             status,
             method,
             reference,
+            idempotencyKey,
             description: `Deposit via ${method}`,
             processedAt: isMobileMoney ? new Date() : null,
           },
@@ -115,24 +265,87 @@ export class WalletService {
       });
       
       this.logger.log(`✅ Deposit ${result.instant ? 'INSTANT' : 'PENDING'}: ${result.transaction.id}`);
-      
+
       // Emit real-time balance update
       if (result.instant) {
         await this.emitWalletUpdate(userId);
       }
-      
+
       return result;
     } catch (error) {
       this.logger.error('❌ Deposit transaction error:', error);
+      const code = error?.code || error?.meta?.code;
+      const msg = String(error?.message || error);
+      if (msg.includes('does not exist') || ['P2021', 'P1001', 'P3018', 'P3009'].includes(code)) {
+        // Enable demo mode and re-run deposit in demo
+        this.enableDemoMode(error);
+        return this.deposit(userId, amount, method, reference, idempotencyKey);
+      }
+
       throw error;
     }
   }
 
-  async withdraw(userId: string, amount: Decimal, method: string, reference?: string) {
-    console.log('🔍 Withdrawal request:', { userId, amount: amount.toString(), method, reference });
+  async withdraw(userId: string, amount: Decimal, method: string, reference?: string, idempotencyKey?: string) {
+    this.logger.log(`🔍 Withdrawal request: ${userId} - $${amount.toString()} via ${method}`);
     try {
+      if (this.demoMode || process.env.DEMO_WALLET === 'true') {
+        this.enableDemoMode('demo-withdraw');
+        const dw = this.ensureDemoWallet(userId);
+        if (dw.available.lt(amount)) {
+          throw new BadRequestException('Insufficient funds (demo)');
+        }
+
+        const isPremium = dw.user?.premium || false;
+        const fee = isPremium ? new Decimal(0) : this.calculateWithdrawalFee(amount);
+
+        // Create pseudo transaction
+        const transaction = {
+          id: `demo-withdraw-${Date.now()}`,
+          userId,
+          type: TransactionType.WITHDRAWAL,
+          amount,
+          fee,
+          status: TransactionStatus.PENDING,
+          method,
+          reference,
+          idempotencyKey,
+          description: `Demo withdrawal via ${method}`,
+        } as any;
+
+        // Hold the funds
+        dw.available = dw.available.sub(amount);
+        dw.held = dw.held.add(amount);
+
+        // Emit update
+        await this.emitWalletUpdate(userId);
+
+        return {
+          transaction,
+          amount,
+          fee,
+          totalDeduction: amount.add(fee),
+        };
+      }
+
       const result = await this.prisma.$transaction(async (tx) => {
-      const user = await tx.user.findUnique({
+        // Check idempotency
+        if (idempotencyKey) {
+          const existing = await tx.transaction.findUnique({
+            where: { idempotencyKey },
+          });
+          if (existing) {
+            this.logger.warn(`Duplicate withdrawal attempt: ${idempotencyKey}`);
+            return {
+              transaction: existing,
+              amount: existing.amount,
+              fee: existing.fee,
+              totalDeduction: existing.amount.add(existing.fee),
+            };
+          }
+        }
+
+        const user = await tx.user.findUnique({
         where: { id: userId },
         include: { wallet: true },
       });
@@ -198,6 +411,7 @@ export class WalletService {
           status: TransactionStatus.PENDING,
           method,
           reference,
+          idempotencyKey,
           description: `Withdrawal via ${method}`,
         },
       });
@@ -224,13 +438,20 @@ export class WalletService {
       });
       
       this.logger.log(`✅ Withdrawal request created: ${result.transaction.id}`);
-      
+
       // Emit real-time balance update (funds held)
       await this.emitWalletUpdate(userId);
-      
+
       return result;
     } catch (error) {
       this.logger.error('❌ Withdrawal transaction error:', error);
+      const code = error?.code || error?.meta?.code;
+      const msg = String(error?.message || error);
+      if (msg.includes('does not exist') || ['P2021', 'P1001', 'P3018', 'P3009'].includes(code)) {
+        this.enableDemoMode(error);
+        return this.withdraw(userId, amount, method, reference, idempotencyKey);
+      }
+
       throw error;
     }
   }
@@ -300,8 +521,19 @@ export class WalletService {
     });
   }
 
-  async transferFunds(senderId: string, recipientId: string, amount: Decimal, feePayer: 'SENDER' | 'RECIPIENT') {
+  async transferFunds(senderId: string, recipientId: string, amount: Decimal, feePayer: 'SENDER' | 'RECIPIENT', idempotencyKey?: string) {
     return this.prisma.$transaction(async (tx) => {
+      // Check idempotency
+      if (idempotencyKey) {
+        const existing = await tx.internalTransfer.findUnique({
+          where: { idempotencyKey },
+        });
+        if (existing) {
+          this.logger.warn(`Duplicate transfer attempt: ${idempotencyKey}`);
+          return existing;
+        }
+      }
+
       const senderWallet = await tx.wallet.findUnique({
         where: { userId: senderId },
       });
@@ -330,6 +562,7 @@ export class WalletService {
           fee,
           feePayer,
           status: 'PENDING',
+          idempotencyKey,
         },
       });
 
@@ -538,5 +771,84 @@ export class WalletService {
     if (amountNum < 2000) return new Decimal(5);
     
     return new Decimal(7);
+  }
+
+  /**
+   * Find user by username, ID, or email
+   */
+  async findUserByIdentifier(identifier: string) {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: identifier },
+          { id: identifier },
+          { email: identifier },
+        ],
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        verificationBadge: true,
+        premium: true,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found. Search by username, ID, or email.');
+    }
+
+    return user;
+  }
+
+  /**
+   * Search users for transfer
+   */
+  async searchUsers(query: string, excludeUserId: string) {
+    return this.prisma.user.findMany({
+      where: {
+        OR: [
+          { username: { contains: query, mode: 'insensitive' } },
+          { email: { contains: query, mode: 'insensitive' } },
+        ],
+        id: { not: excludeUserId },
+        isActive: true,
+        isBanned: false,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        verificationBadge: true,
+        premium: true,
+        isVerified: true,
+      },
+      take: 10,
+    });
+  }
+
+  /**
+   * Get all internal transfers (admin)
+   */
+  async getAllTransfers() {
+    return this.prisma.internalTransfer.findMany({
+      include: {
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
+        recipient: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 }

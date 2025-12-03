@@ -29,4 +29,13 @@ export class CreateWithdrawalDto {
   @IsOptional()
   @IsString()
   reference?: string;
+
+  @ApiProperty({
+    description: 'Idempotency key to prevent duplicate withdrawals',
+    example: 'withdraw-123e4567-e89b-12d3-a456-426614174000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }

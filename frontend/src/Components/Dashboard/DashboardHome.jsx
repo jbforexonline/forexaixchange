@@ -1,76 +1,132 @@
 'use client';
-// import '../Styles/DashboardHome.scss';
-import React from 'react';
-import { FaSun, FaMoon, FaBell, FaDownload, FaPlus } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { getDashboardStats, getRecentActivity, getAllUsers, getSystemConfig } from '@/lib/api/admin';
+import { useWallet } from '@/hooks/useWallet';
+import '../Styles/DashboardHome.scss';
 
 export default function Dashboard() {
+  const [stats, setStats] = useState(null);
+  const [activity, setActivity] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const { wallet } = useWallet();
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [statsData, activityData, usersData] = await Promise.all([
+          getDashboardStats(),
+          getRecentActivity(10),
+          getAllUsers(1, 10)
+        ]);
+        setStats(statsData);
+        setActivity(activityData);
+        setUsers(usersData.data || []);
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="dashboard-container" style={{ padding: '2rem', textAlign: 'center' }}>
+        <div>Loading dashboard...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-topbar">
-        <h2>Hi, Welcome Back</h2>
+        <h2>Admin Dashboard</h2>
         <div className="actions">
-          <button className="btn download"><FaDownload /> Download</button>
-          {/* <button className="btn add"><FaPlus /> Add Dashlist</button> */}
-         
+          {wallet && (
+            <div style={{ marginRight: '1rem', color: '#666' }}>
+              Balance: ${wallet.available?.toFixed(2) || '0.00'}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Dashboard Summary Cards */}
       <div className="stats-grid">
         <div className="stat-card primary">
-          <h4>Total Earning</h4>
-          <h2>$22,800.50</h2>
+          <h4>Total Users</h4>
+          <h2>{stats?.users?.total || 0}</h2>
+          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+            Active: {stats?.users?.active || 0} | Premium: {stats?.users?.premium || 0}
+          </p>
         </div>
         <div className="stat-card">
-          <h4>Total losse</h4>
-          <h2>$1,096.00</h2>
+          <h4>Total Deposits</h4>
+          <h2>${parseFloat(stats?.financial?.totalDeposits || 0).toLocaleString()}</h2>
+          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+            Withdrawals: ${parseFloat(stats?.financial?.totalWithdrawals || 0).toLocaleString()}
+          </p>
         </div>
         <div className="stat-card">
-          <h4>Total User</h4>
-          <h2>78.93%</h2>
+          <h4>Pending Approvals</h4>
+          <h2>{stats?.financial?.pendingWithdrawals || 0}</h2>
+          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+            Transfers: {stats?.financial?.pendingTransfers || 0}
+          </p>
         </div>
         <div className="stat-card">
-          <h4>Total Amount this Month</h4>
-          <h2>$2,200.00</h2>
+          <h4>Total Activity</h4>
+          <h2>{stats?.activity?.totalSpins || 0}</h2>
+          <p style={{ fontSize: '0.85rem', color: '#666', marginTop: '0.5rem' }}>
+            Transactions: {stats?.activity?.totalTransactions || 0}
+          </p>
         </div>
       </div>
 
-      {/* Charts and Tables */}
+      {/* Quick Actions */}
       <div className="dashboard-content">
-        {/* Overall Sales */}
         <div className="sales-card">
           <div className="card-header">
-            <h4>Overall Sales</h4>
-            <span>Sept 07 - Sept 12</span>
+            <h4>Quick Actions</h4>
           </div>
-          <h2>$80,842.52</h2>
-          <div className="bar-chart">
-            <div className="bar" style={{ height: '40%' }}></div>
-            <div className="bar active" style={{ height: '90%' }}></div>
-            <div className="bar" style={{ height: '55%' }}></div>
-            <div className="bar" style={{ height: '65%' }}></div>
-            <div className="bar" style={{ height: '45%' }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+            <a href="/users" style={{ padding: '0.75rem', background: '#007bff', color: '#fff', borderRadius: '4px', textDecoration: 'none', textAlign: 'center' }}>
+              Manage Users
+            </a>
+            <a href="/withdraw" style={{ padding: '0.75rem', background: '#28a745', color: '#fff', borderRadius: '4px', textDecoration: 'none', textAlign: 'center' }}>
+              Approve Transactions
+            </a>
+            <a href="/admin/config" style={{ padding: '0.75rem', background: '#6c757d', color: '#fff', borderRadius: '4px', textDecoration: 'none', textAlign: 'center' }}>
+              System Settings
+            </a>
           </div>
         </div>
 
-        {/* Total Earnings */}
         <div className="earning-card">
           <div className="card-header">
-            <h4>Total Earnings</h4>
-            <span>Month</span>
+            <h4>Financial Summary</h4>
           </div>
-          <div className="donut-chart">
-            <div className="donut"></div>
-            <div className="center-text">
-              <h3>88%</h3>
-              <p>Earnings</p>
+          <div style={{ marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #eee' }}>
+              <span>Total Deposits:</span>
+              <strong>${parseFloat(stats?.financial?.totalDeposits || 0).toLocaleString()}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #eee' }}>
+              <span>Total Withdrawals:</span>
+              <strong>${parseFloat(stats?.financial?.totalWithdrawals || 0).toLocaleString()}</strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid #eee' }}>
+              <span>Net Revenue:</span>
+              <strong style={{ color: '#28a745' }}>
+                ${(parseFloat(stats?.financial?.totalDeposits || 0) - parseFloat(stats?.financial?.totalWithdrawals || 0)).toLocaleString()}
+              </strong>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0' }}>
+              <span>Pending Withdrawals:</span>
+              <strong style={{ color: '#ffc107' }}>{stats?.financial?.pendingWithdrawals || 0}</strong>
             </div>
           </div>
-          <ul>
-            <li><span className="color server"></span> Server - 58%</li>
-            <li><span className="color website"></span> Website - 24%</li>
-            <li><span className="color others"></span> Others - 6%</li>
-          </ul>
         </div>
       </div>
 

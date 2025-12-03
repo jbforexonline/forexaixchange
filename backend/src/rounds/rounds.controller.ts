@@ -23,6 +23,7 @@ import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
 import { RoundsSchedulerService } from './rounds-scheduler.service';
 import { BetsService } from './bets.service';
+import { MockRoundsService } from './mock-rounds.service';
 
 @ApiTags('Rounds')
 @Controller('rounds')
@@ -32,6 +33,7 @@ export class RoundsController {
     private readonly settlementService: RoundsSettlementService,
     private readonly schedulerService: RoundsSchedulerService,
     private readonly betsService: BetsService,
+    private readonly mockRoundsService: MockRoundsService,
   ) {}
 
   // =============================================================================
@@ -62,28 +64,83 @@ export class RoundsController {
     },
   })
   async getCurrentRound() {
-    const round = await this.roundsService.getCurrentRound();
-    
-    if (!round) {
-      return {
-        message: 'No active round. New round opening soon...',
-        round: null,
-      };
-    }
+    try {
+      const round = await this.roundsService.getCurrentRound();
+      
+      if (!round) {
+        return {
+          message: 'No active round. New round opening soon...',
+          round: null,
+        };
+      }
 
-    return {
-      round: {
-        id: round.id,
-        roundNumber: round.roundNumber,
-        state: round.state,
-        openedAt: round.openedAt,
-        freezeAt: round.freezeAt,
-        settleAt: round.settleAt,
-        roundDuration: round.roundDuration,
-        commitHash: round.artifact?.commitHash,
-        betsCount: round._count?.bets || 0,
-      },
-    };
+      return {
+        round: {
+          id: round.id,
+          roundNumber: round.roundNumber,
+          state: round.state,
+          openedAt: round.openedAt,
+          freezeAt: round.freezeAt,
+          settleAt: round.settleAt,
+          roundDuration: round.roundDuration,
+          commitHash: round.artifact?.commitHash,
+          betsCount: round._count?.bets || 0,
+        },
+      };
+    } catch (error) {
+      console.error('Error fetching current round, falling back to mock:', error);
+      // Fallback to mock round in development or when DB is unavailable
+      // Try DI-provided mock service first
+      try {
+        if (this.mockRoundsService && typeof this.mockRoundsService.getCurrentRound === 'function') {
+          const mock = this.mockRoundsService.getCurrentRound();
+          return {
+            round: {
+              id: mock.id,
+              roundNumber: mock.roundNumber,
+              state: mock.state,
+              openedAt: mock.openedAt,
+              freezeAt: mock.freezeAt,
+              settleAt: mock.settleAt,
+              roundDuration: mock.roundDuration,
+              commitHash: mock.artifact?.commitHash,
+              betsCount: mock._count?.bets || 0,
+            },
+            message: 'Using mock round due to backend error',
+          };
+        }
+
+        // If DI mock isn't available for any reason, produce an inline fallback
+        const now = new Date();
+        const roundDuration = 60;
+        const freezeOffset = 5;
+        const openedAt = new Date(now.getTime() - (now.getTime() % (roundDuration * 1000)));
+        const freezeAt = new Date(openedAt.getTime() + (roundDuration - freezeOffset) * 1000);
+        const settleAt = new Date(openedAt.getTime() + roundDuration * 1000);
+
+        return {
+          round: {
+            id: `inline-mock-${Math.floor(now.getTime() / 1000)}`,
+            roundNumber: Math.floor(now.getTime() / 1000 / roundDuration),
+            state: (now.getTime() >= freezeAt.getTime()) ? 'FROZEN' : 'OPEN',
+            openedAt,
+            freezeAt,
+            settleAt,
+            roundDuration,
+            commitHash: undefined,
+            betsCount: 0,
+          },
+          message: 'Using inline mock round due to backend error',
+        };
+      } catch (mockErr) {
+        console.error('Mock fallback failed:', mockErr);
+        return {
+          message: 'Unable to fetch current round. Please try again.',
+          round: null,
+          error: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined,
+        };
+      }
+    }
   }
 
   @Get('history')

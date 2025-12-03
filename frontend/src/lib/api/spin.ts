@@ -199,6 +199,150 @@ export async function getWallet(): Promise<Wallet> {
     method: 'GET',
     headers: getHeaders(),
   });
+  // Parse and coerce numeric fields to ensure UI always receives numbers
+  const data = await handleResponse<any>(response);
+  // Support envelope responses like { data: { available: '2500', ... } }
+  const payload = data?.data ?? data;
+  const wallet: Wallet = {
+    available: Number(payload?.available) || 0,
+    held: Number(payload?.held) || 0,
+    totalDeposited: Number(payload?.totalDeposited) || 0,
+    totalWithdrawn: Number(payload?.totalWithdrawn) || 0,
+    totalWon: Number(payload?.totalWon) || 0,
+    totalLost: Number(payload?.totalLost) || 0,
+  };
+
+  return wallet;
+}
+
+export interface CreateDepositDto {
+  amount: number;
+  method: string;
+  reference?: string;
+  idempotencyKey?: string;
+}
+
+export interface CreateWithdrawalDto {
+  amount: number;
+  method: string;
+  reference?: string;
+  idempotencyKey?: string;
+}
+
+export interface CreateTransferDto {
+  recipient: string;
+  amount: number;
+  feePayer: 'SENDER' | 'RECIPIENT';
+  idempotencyKey?: string;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  type: string;
+  amount: number;
+  fee: number;
+  status: string;
+  method?: string;
+  reference?: string;
+  description?: string;
+  processedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TransactionResponse {
+  data: Transaction[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+/**
+ * Create a deposit request
+ */
+export async function createDeposit(dto: CreateDepositDto): Promise<{ transaction: Transaction; wallet: Wallet; newBalance: number; instant: boolean }> {
+  const response = await fetch(`${API_URL}/wallet/deposit`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      ...dto,
+      idempotencyKey: dto.idempotencyKey || `deposit-${Date.now()}-${Math.random()}`,
+    }),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Create a withdrawal request
+ */
+export async function createWithdrawal(dto: CreateWithdrawalDto): Promise<{ transaction: Transaction; amount: number; fee: number; totalDeduction: number }> {
+  const response = await fetch(`${API_URL}/wallet/withdraw`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      ...dto,
+      idempotencyKey: dto.idempotencyKey || `withdraw-${Date.now()}-${Math.random()}`,
+    }),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Create an internal transfer (Premium only)
+ */
+export async function createTransfer(dto: CreateTransferDto): Promise<any> {
+  const response = await fetch(`${API_URL}/wallet/transfer`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({
+      ...dto,
+      idempotencyKey: dto.idempotencyKey || `transfer-${Date.now()}-${Math.random()}`,
+    }),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Search users for transfer (Premium only)
+ */
+export async function searchUsersForTransfer(query: string): Promise<User[]> {
+  const response = await fetch(`${API_URL}/wallet/transfer/search?q=${encodeURIComponent(query)}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Get transfer details with recipient info (Premium only)
+ */
+export async function getTransfer(transferId: string): Promise<any> {
+  const response = await fetch(`${API_URL}/wallet/transfer/${transferId}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
+ * Get user transactions
+ */
+export async function getTransactions(page = 1, limit = 10, type?: string): Promise<TransactionResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  });
+  if (type) {
+    params.append('type', type);
+  }
+  const response = await fetch(`${API_URL}/wallet/transactions?${params.toString()}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
   return handleResponse(response);
 }
 

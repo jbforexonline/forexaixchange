@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsEnum, Min } from 'class-validator';
+import { IsNumber, IsString, IsEnum, IsOptional, Min } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { FeePayer } from '@prisma/client';
@@ -28,4 +28,13 @@ export class CreateTransferDto {
   })
   @IsEnum(FeePayer)
   feePayer: FeePayer;
+
+  @ApiProperty({
+    description: 'Idempotency key to prevent duplicate transfers',
+    example: 'transfer-123e4567-e89b-12d3-a456-426614174000',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  idempotencyKey?: string;
 }
