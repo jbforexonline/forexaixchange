@@ -1,12 +1,11 @@
-import DashboardLayout from '@/Components/Layout/DashboardLayout'
 import SpinPage from '@/Components/Dashboard/SpinPage'
-import '@/Components/Layout/DashboardLayout.scss'
+import ProtectedRoute from '@/Components/Auth/ProtectedRoute'
 import '@/Components/Styles/SpinPage.scss'
 
 export default function Spin() {
     return (
-        <DashboardLayout>
+        <ProtectedRoute>
             <SpinPage />
-        </DashboardLayout>
+        </ProtectedRoute>
     )
 }

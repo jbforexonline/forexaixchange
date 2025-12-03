@@ -1,0 +1,370 @@
+/* User Dashboard Layout Styles */
+.dashboard-root {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f5f5;
+}
+
+.dashboard-sidebar {
+  width: 250px;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  transition: width 0.3s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 100;
+  
+  /* Smooth scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f1f5f9;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #f1f5f9;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #94a3b8;
+    }
+  }
+}
+
+.dashboard-sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0.5rem;
+  color: #666;
+}
+
+.brand {
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: #333;
+}
+
+.sidebar-user-info {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.user-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #007bff, #0056b3);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.user-details {
+  flex: 1;
+  overflow: hidden;
+}
+
+.user-name {
+  margin: 0;
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  margin-top: 0.25rem;
+  white-space: nowrap;
+
+  &.premium {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.standard {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+}
+
+.wallet-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  padding: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summary-item .label {
+  font-size: 0.75rem;
+  color: #999;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.summary-item .value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #007bff;
+}
+
+.refresh-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.25rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 1rem 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0; /* Allows flex child to shrink */
+}
+
+.nav-section {
+  padding: 0.5rem 0;
+  margin-bottom: 0.5rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.nav-section-title {
+  display: block;
+  padding: 0.5rem 1.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0.5rem 0;
+}
+
+.nav-link {
+  display: block;
+  padding: 0.75rem 1.5rem;
+  color: #666;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  border-left: 3px solid transparent;
+  font-size: 0.95rem;
+}
+
+.nav-link:hover {
+  background: #f9fafb;
+  color: #333;
+}
+
+.nav-link.active {
+  background: #f0f9ff;
+  color: #007bff;
+  border-left-color: #007bff;
+  font-weight: 500;
+}
+
+.need-help {
+  padding: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  background: #f9fafb;
+  flex-shrink: 0; /* Prevent help section from shrinking */
+}
+
+.need-help h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.need-help p {
+  margin: 0 0 1rem 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.need-help button {
+  width: 100%;
+  padding: 0.75rem;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease;
+}
+
+.need-help button:hover {
+  background: #0056b3;
+}
+
+.dashboard-content {
+  flex: 1;
+  margin-left: 250px;
+  transition: margin-left 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-sidebar.collapsed ~ .dashboard-content {
+  margin-left: 64px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.dashboard-main {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .dashboard-sidebar {
+    width: 100%;
+    max-width: 280px;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .dashboard-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .dashboard-sidebar.collapsed {
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .dashboard-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .dashboard-sidebar.collapsed ~ .dashboard-content {
+    margin-left: 0;
+  }
+
+  .dashboard-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .header-title {
+    font-size: 1.1rem;
+  }
+
+  .dashboard-main {
+    padding: 1rem;
+  }
+
+  .mobile-menu-toggle {
+    display: block !important;
+  }
+
+  .profile span {
+    display: none;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-toggle {
+    display: none !important;
+  }
+
+  .sidebar-overlay {
+    display: none !important;
+  }
+}
+
+.sidebar-overlay {
+  @media (max-width: 768px) {
+    display: block;
+  }
+}

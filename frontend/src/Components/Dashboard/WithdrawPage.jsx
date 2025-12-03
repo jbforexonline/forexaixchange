@@ -1,10 +1,17 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../Styles/withdraw.scss";
+import { useWallet } from "../../hooks/useWallet";
+import { createDeposit, createWithdrawal, getTransactions } from "../../lib/api/spin";
 
 export default function WithdrawPage() {
+  const { wallet, loading: walletLoading, error: walletError } = useWallet();
   const [withdrawMethod, setWithdrawMethod] = useState("bank");
   const [amount, setAmount] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
+  const [transactions, setTransactions] = useState([]);
   const [bankDetails, setBankDetails] = useState({
     accountNumber: "",
     bankName: "",
@@ -17,30 +24,86 @@ export default function WithdrawPage() {
   });
   const [transactionType, setTransactionType] = useState("withdraw");
 
-  const handleRequest = () => {
-    if (!amount) {
-      alert("Please enter an amount");
+  // Fetch transactions on mount
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        const response = await getTransactions(1, 10);
+        setTransactions(response.data || []);
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
+      }
+    };
+    fetchTransactions();
+  }, []);
+
+  const handleRequest = async () => {
+    setError(null);
+    setSuccess(null);
+
+    if (!amount || parseFloat(amount) <= 0) {
+      setError("Please enter a valid amount");
       return;
     }
 
-    if (withdrawMethod === "bank" && !bankDetails.accountNumber) {
-      alert("Please fill in your bank details");
+    const amountNum = parseFloat(amount);
+    if (transactionType === "withdraw" && wallet && wallet.available < amountNum) {
+      setError("Insufficient funds");
       return;
     }
 
-    if (withdrawMethod === "mobile" && !mobileMoneyDetails.phoneNumber) {
-      alert("Please enter your mobile money details");
-      return;
-    }
+    // For withdrawals, bank details are optional (stored in metadata)
+    // For deposits, mobile money is instant, bank requires admin approval
 
-    if (transactionType === "withdraw") {
-      alert(
-        `Withdrawal of $${amount} via ${
-          withdrawMethod === "bank" ? "Bank Transfer" : "Mobile Money"
-        } submitted successfully.`
-      );
-    } else {
-      alert(`Deposit of $${amount} submitted successfully.`);
+    setLoading(true);
+    try {
+      const method = withdrawMethod === "bank" ? "Bank" : mobileMoneyDetails.provider || "MTN";
+      const reference = withdrawMethod === "bank" 
+        ? `BANK-${bankDetails.accountNumber}-${Date.now()}`
+        : `MOBILE-${mobileMoneyDetails.phoneNumber}-${Date.now()}`;
+
+      if (transactionType === "withdraw") {
+        const result = await createWithdrawal({
+          amount: amountNum,
+          method,
+          reference,
+        });
+        setSuccess(
+          `Withdrawal request submitted successfully! $${result.amount} will be processed. Fee: $${result.fee.toFixed(2)}`
+        );
+        // Refresh wallet and transactions
+        window.location.reload();
+      } else {
+        const result = await createDeposit({
+          amount: amountNum,
+          method,
+          reference,
+        });
+        if (result.instant) {
+          setSuccess(`Deposit completed instantly! $${amountNum} added to your wallet.`);
+        } else {
+          setSuccess(`Deposit request submitted! $${amountNum} will be added after admin approval.`);
+        }
+        // Refresh wallet and transactions
+        window.location.reload();
+      }
+
+      // Reset form
+      setAmount("");
+      setBankDetails({
+        accountNumber: "",
+        bankName: "",
+        accountName: "",
+        routingNumber: "",
+      });
+      setMobileMoneyDetails({
+        phoneNumber: "",
+        provider: "",
+      });
+    } catch (err) {
+      setError(err?.message || "Failed to process request. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -65,9 +128,23 @@ export default function WithdrawPage() {
             {/* Balance */}
             <div className="balance-card">
               <h3>Available Balance</h3>
-              <div className="balance-amount">$22,800.50</div>
-              <p>Ready for withdrawal</p>
+              <div className="balance-amount">
+                ${walletLoading ? "Loading..." : wallet?.available?.toFixed(2) || "0.00"}
+              </div>
+              <p>Ready for {transactionType === "withdraw" ? "withdrawal" : "deposit"}</p>
             </div>
+
+            {/* Error/Success Messages */}
+            {error && (
+              <div className="alert alert-error" style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#fee", color: "#c33", borderRadius: "4px" }}>
+                {error}
+              </div>
+            )}
+            {success && (
+              <div className="alert alert-success" style={{ padding: "1rem", marginBottom: "1rem", backgroundColor: "#efe", color: "#3c3", borderRadius: "4px" }}>
+                {success}
+              </div>
+            )}
 
             {/* Form */}
             <div className="withdraw-form">
@@ -218,35 +295,50 @@ export default function WithdrawPage() {
                 </div>
               )}
 
-              <button className="withdraw-btn" onClick={handleRequest}>
-                Request
+              <button 
+                className="withdraw-btn" 
+                onClick={handleRequest}
+                disabled={loading || walletLoading}
+              >
+                {loading ? "Processing..." : transactionType === "withdraw" ? "Request Withdrawal" : "Make Deposit"}
               </button>
             </div>
           </div>
 
           {/* Right Section */}
           <div className="transaction-section">
-            <h3>Recent Withdrawals</h3>
+            <h3>Recent Transactions</h3>
             <div className="transaction-list">
-              {[
-                { type: "Mobile Money", date: "Dec 15, 2024", amount: -1500, status: "completed" },
-                { type: "Bank Transfer", date: "Dec 10, 2024", amount: -2200, status: "completed" },
-                { type: "Mobile Money", date: "Dec 8, 2024", amount: -850, status: "pending" },
-                { type: "Bank Transfer", date: "Dec 5, 2024", amount: -3100, status: "completed" },
-              ].map((tx, index) => (
-                <div key={index} className="transaction-item">
-                  <div className="transaction-info">
-                    <div className="transaction-type">{tx.type}</div>
-                    <div className="transaction-date">{tx.date}</div>
-                  </div>
-                  <div className="transaction-amount">
-                    ${Math.abs(tx.amount).toFixed(2)}
-                  </div>
-                  <div className={`transaction-status ${tx.status}`}>
-                    {tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
-                  </div>
+              {transactions.length === 0 ? (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
+                  No transactions yet
                 </div>
-              ))}
+              ) : (
+                transactions.map((tx) => {
+                  const isDeposit = tx.type === "DEPOSIT" || tx.type === "INTERNAL_TRANSFER_RECEIVED";
+                  const isWithdrawal = tx.type === "WITHDRAWAL" || tx.type === "INTERNAL_TRANSFER_SENT";
+                  const date = new Date(tx.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  
+                  return (
+                    <div key={tx.id} className="transaction-item">
+                      <div className="transaction-info">
+                        <div className="transaction-type">{tx.method || tx.type}</div>
+                        <div className="transaction-date">{date}</div>
+                      </div>
+                      <div className="transaction-amount" style={{ color: isDeposit ? "#3c3" : "#c33" }}>
+                        {isDeposit ? "+" : "-"}${Math.abs(parseFloat(tx.amount)).toFixed(2)}
+                      </div>
+                      <div className={`transaction-status ${tx.status.toLowerCase()}`}>
+                        {tx.status.charAt(0) + tx.status.slice(1).toLowerCase()}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
         </div>

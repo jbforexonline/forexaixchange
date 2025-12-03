@@ -20,6 +20,7 @@ import { SuggestionsController } from './suggestions.controller';
 import { PrismaService } from '../database/prisma.service';
 import { RedisModule } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { MockRoundsService } from './mock-rounds.service';
 
 @Module({
   imports: [ScheduleModule.forRoot(), RedisModule],
@@ -34,6 +35,7 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
     SuggestionsService,
     PrismaService,
     RealtimeGateway,
+    MockRoundsService,
   ],
   exports: [RoundsService, BetsService, AutoSpinService, SuggestionsService],
 })
