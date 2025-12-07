@@ -1,18 +1,73 @@
 "use client"
 
-import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { isAuthenticated, verifyToken } from '../../lib/auth'
+import ForgotPasswordModal from '../Modals/ForgotPasswordModal'
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [formData, setFormData] = useState({
     identifier: '',
     password: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // Check if user is already authenticated and redirect
+  useEffect(() => {
+    const checkAuth = async () => {
+      if (isAuthenticated()) {
+        const isValid = await verifyToken()
+        if (isValid) {
+          // User is already authenticated, redirect to appropriate page
+          const user = JSON.parse(localStorage.getItem('user') || '{}')
+          const role = (user.role || 'USER').toUpperCase()
+          const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+            ? '/dashboard'
+            : '/spin'
+          router.replace(nextRoute)
+          return
+        }
+      }
+      setCheckingAuth(false)
+    }
+    checkAuth()
+  }, [router])
+
+  // Read error from query parameters (e.g., from OAuth callback failures)
+  useEffect(() => {
+    const errorParam = searchParams.get('error')
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam))
+      // Clean up URL by removing error parameter
+      const newUrl = window.location.pathname
+      router.replace(newUrl, { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Prevent back navigation to authenticated pages
+  useEffect(() => {
+    const handlePopState = () => {
+      // If user tries to go back, check if they're authenticated
+      if (isAuthenticated()) {
+        const user = JSON.parse(localStorage.getItem('user') || '{}')
+        const role = (user.role || 'USER').toUpperCase()
+        const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+          ? '/dashboard'
+          : '/spin'
+        router.replace(nextRoute)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [router])
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -77,7 +132,10 @@ export default function LoginPage() {
         ? '/dashboard'
         : '/spin'
 
+      // Use replace to prevent back navigation
       router.replace(nextRoute)
+      // Clear browser history to prevent back navigation after login
+      window.history.replaceState(null, '', nextRoute)
     } catch (err) {
       console.error('Login error details:', err)
       const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -86,6 +144,35 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
+
+  if (checkingAuth) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        flexDirection: 'column',
+        gap: '1rem',
+      }}>
+        <div style={{
+          width: '50px',
+          height: '50px',
+          border: '4px solid #f3f3f3',
+          borderTop: '4px solid #2400ff',
+          borderRadius: '50%',
+          animation: 'spin 1s linear infinite',
+        }} />
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    )
+  }
+
   return (
     <div className="login-container">
       {/* Left side background */}
@@ -134,7 +221,15 @@ export default function LoginPage() {
             />
 
             <div className="login-forgot">
-              <a href="/forgetpassword">Forgot Password</a>
+              <a 
+                href="#" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  setShowForgotPassword(true);
+                }}
+              >
+                Forgot Password
+              </a>
             </div>
 
             <button type="submit" className="login-btn" disabled={loading}>
@@ -146,16 +241,78 @@ export default function LoginPage() {
             <span>OR</span>
           </div>
 
-          <button className="google-btn">
+          <button 
+            type="button"
+            className="google-btn" 
+            onClick={() => {
+              const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+              const width = 500;
+              const height = 600;
+              const left = (window.screen.width - width) / 2;
+              const top = (window.screen.height - height) / 2;
+              
+              const popup = window.open(
+                `${apiUrl}/auth/google`,
+                'Google OAuth',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+              );
+              
+              if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                setError('Popup was blocked. Please allow popups for this site.');
+                return;
+              }
+              
+              // Listen for messages from the popup
+              const messageListener = (event) => {
+                if (event.origin !== window.location.origin) return;
+                
+                if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
+                  window.removeEventListener('message', messageListener);
+                  popup.close();
+                  
+                  const { token } = event.data;
+                  localStorage.setItem('token', token);
+                  
+                  fetch(`${apiUrl}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      const user = (data.data || data).user || (data.data || data);
+                      if (user?.id) {
+                        localStorage.setItem('user', JSON.stringify(user));
+                        const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
+                          ? '/dashboard'
+                          : '/spin';
+                        router.replace(nextRoute);
+                      }
+                    })
+                    .catch(() => setError('Failed to authenticate. Please try again.'));
+                } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
+                  window.removeEventListener('message', messageListener);
+                  popup.close();
+                  setError(event.data.message || 'Google authentication failed');
+                }
+              };
+              
+              window.addEventListener('message', messageListener);
+            }}
+            disabled={loading}
+          >
             <img src="/image/google.png" alt="Google" className="google-icon" />
-                Continue with Google
+            Continue with Google
           </button>
 
           <p className="login-signup">
-            Didn’t have an Account? <a href="/register">Sign-up</a>
+            Didn't have an Account? <a href="/register">Sign-up</a>
           </p>
         </div>
       </div>
+      
+      <ForgotPasswordModal 
+        isOpen={showForgotPassword} 
+        onClose={() => setShowForgotPassword(false)} 
+      />
     </div>
   )
 }

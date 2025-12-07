@@ -22,7 +22,7 @@ export default function ForgotPasswordStep1() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
 
       const data = await response.json();
@@ -53,7 +53,7 @@ export default function ForgotPasswordStep1() {
         <div className="form-wrapper">
           <h2>Forgot Password</h2>
           <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem' }}>
-            Enter your email address and we'll send you an OTP to reset your password.
+            Enter your registered email address and we'll send you an OTP to reset your password.
           </p>
 
           {error && (
@@ -70,13 +70,13 @@ export default function ForgotPasswordStep1() {
           )}
 
           <form onSubmit={handleSubmit}>
-            <label>Email</label>
+            <label>Email Address</label>
             <input
               type="email"
               name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@gmail.com"
+              placeholder="your-email@gmail.com"
               required
               disabled={loading}
             />
