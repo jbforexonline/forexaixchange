@@ -11,22 +11,24 @@ model User {
   id                        String                @id @default(cuid())
   email                     String?               @unique
   phone                     String?               @unique
-  premium                   Boolean               @default(false)
-  createdAt                 DateTime              @default(now())
-  updatedAt                 DateTime              @updatedAt
-  affiliateCode             String                @unique @default(cuid())
+  password                  String?               // Optional for OAuth users
+  googleId                  String?               @unique // For Google OAuth
+  provider                  String?               @default("local") // "local" or "google"
+  username                  String                @unique
   firstName                 String?
+  lastName                  String?
+  premium                   Boolean               @default(false)
+  premiumExpiresAt          DateTime?
+  role                      UserRole              @default(USER)
   isActive                  Boolean               @default(true)
   isBanned                  Boolean               @default(false)
   isVerified                Boolean               @default(false)
-  lastName                  String?
-  password                  String
-  premiumExpiresAt          DateTime?
-  referredBy                String?
-  role                      UserRole              @default(USER)
-  username                  String                @unique
   verificationBadge         Boolean               @default(false)
   kycStatus                 KycStatus             @default(PENDING)
+  affiliateCode             String                @unique @default(cuid())
+  referredBy                String?
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
   referredEarnings          AffiliateEarning[]    @relation("ReferredBy")
   affiliateEarnings         AffiliateEarning[]    @relation("AffiliateEarnings")
   autoSpinOrders            AutoSpinOrder[]

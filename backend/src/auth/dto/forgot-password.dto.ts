@@ -1,22 +1,11 @@
-import { IsEmail, IsPhoneNumber, ValidateIf, IsString } from 'class-validator';
+import { IsEmail } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ForgotPasswordDto {
   @ApiProperty({
-    description: 'User email address (required if phone not provided)',
+    description: 'User email address registered with the account',
     example: 'user@example.com',
-    required: false,
   })
-  @ValidateIf((o) => !o.phone)
-  @IsEmail({}, { message: 'Please provide a valid email address or phone number' })
-  email?: string;
-
-  @ApiProperty({
-    description: 'User phone number (required if email not provided)',
-    example: '+1234567890',
-    required: false,
-  })
-  @ValidateIf((o) => !o.email)
-  @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number or email address' })
-  phone?: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
 }

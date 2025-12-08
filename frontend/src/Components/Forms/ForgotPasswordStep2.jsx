@@ -45,13 +45,14 @@ export default function ForgotPasswordStep2() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.toLowerCase().trim() }),
       });
 
       if (response.ok) {
         alert('OTP resent successfully! Please check your email.');
       } else {
-        setError('Failed to resend OTP. Please try again.');
+        const data = await response.json();
+        setError(data.message || 'Failed to resend OTP. Please try again.');
       }
     } catch (err) {
       setError('Network error. Please try again.');

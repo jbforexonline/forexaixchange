@@ -267,7 +267,64 @@ export default function Register() {
             <span>OR</span>
           </div>
 
-          <button className="google-btn">
+          <button 
+            type="button"
+            className="google-btn"
+            onClick={() => {
+              const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+              const width = 500;
+              const height = 600;
+              const left = (window.screen.width - width) / 2;
+              const top = (window.screen.height - height) / 2;
+              
+              const popup = window.open(
+                `${apiUrl}/auth/google`,
+                'Google OAuth',
+                `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
+              );
+              
+              if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+                setError('Popup was blocked. Please allow popups for this site.');
+                return;
+              }
+              
+              // Listen for messages from the popup
+              const messageListener = (event) => {
+                if (event.origin !== window.location.origin) return;
+                
+                if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
+                  window.removeEventListener('message', messageListener);
+                  popup.close();
+                  
+                  const { token } = event.data;
+                  localStorage.setItem('token', token);
+                  
+                  fetch(`${apiUrl}/auth/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                  })
+                    .then(res => res.json())
+                    .then(data => {
+                      const user = (data.data || data).user || (data.data || data);
+                      if (user?.id) {
+                        localStorage.setItem('user', JSON.stringify(user));
+                        const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
+                          ? '/dashboard'
+                          : '/spin';
+                        router.replace(nextRoute);
+                      }
+                    })
+                    .catch(() => setError('Failed to authenticate. Please try again.'));
+                } else if (event.data.type === 'GOOGLE_OAUTH_ERROR') {
+                  window.removeEventListener('message', messageListener);
+                  popup.close();
+                  setError(event.data.message || 'Google authentication failed');
+                }
+              };
+              
+              window.addEventListener('message', messageListener);
+            }}
+            disabled={loading}
+          >
             <img src="/image/google.png" alt="Google" className="google-icon" />
             Continue with Google
           </button>

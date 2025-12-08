@@ -44,9 +44,24 @@ export default function ForgotPasswordStep3() {
       return;
     }
 
-    // Validate password length
-    if (formData.newPassword.length < 6) {
-      setError("Password must be at least 6 characters long");
+    // Validate password strength (matching backend requirements)
+    if (formData.newPassword.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+    
+    if (!/[A-Z]/.test(formData.newPassword)) {
+      setError("Password must contain at least one uppercase letter");
+      return;
+    }
+    
+    if (!/[a-z]/.test(formData.newPassword)) {
+      setError("Password must contain at least one lowercase letter");
+      return;
+    }
+    
+    if (!/[0-9]/.test(formData.newPassword)) {
+      setError("Password must contain at least one number");
       return;
     }
 
@@ -59,7 +74,7 @@ export default function ForgotPasswordStep3() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          email: email,
+          email: email.toLowerCase().trim(),
           otp: otp,
           newPassword: formData.newPassword,
         }),
@@ -120,7 +135,7 @@ export default function ForgotPasswordStep3() {
               placeholder="********"
               required
               disabled={loading}
-              minLength="6"
+              minLength="8"
             />
 
             <label>Confirm New Password</label>
@@ -132,8 +147,12 @@ export default function ForgotPasswordStep3() {
               placeholder="********"
               required
               disabled={loading}
-              minLength="6"
+              minLength="8"
             />
+            
+            <div style={{ fontSize: '0.85rem', color: '#666', marginTop: '-0.5rem', marginBottom: '1rem' }}>
+              Password must be at least 8 characters with uppercase, lowercase, and number
+            </div>
 
             <button type="submit" disabled={loading}>
               {loading ? 'Resetting...' : 'Reset Password'}

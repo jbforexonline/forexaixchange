@@ -1,27 +1,16 @@
-import { IsEmail, IsPhoneNumber, ValidateIf, IsString, MinLength, Length } from 'class-validator';
+import { IsEmail, IsString, MinLength, Length } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ResetPasswordDto {
   @ApiProperty({
-    description: 'User email address (required if phone not provided)',
+    description: 'User email address registered with the account',
     example: 'user@example.com',
-    required: false,
   })
-  @ValidateIf((o) => !o.phone)
-  @IsEmail({}, { message: 'Please provide a valid email address or phone number' })
-  email?: string;
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  email: string;
 
   @ApiProperty({
-    description: 'User phone number (required if email not provided)',
-    example: '+1234567890',
-    required: false,
-  })
-  @ValidateIf((o) => !o.email)
-  @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number or email address' })
-  phone?: string;
-
-  @ApiProperty({
-    description: 'OTP code received via email or SMS',
+    description: 'OTP code received via email',
     example: '123456',
     minLength: 6,
     maxLength: 6,
@@ -31,11 +20,11 @@ export class ResetPasswordDto {
   otp: string;
 
   @ApiProperty({
-    description: 'New password (minimum 6 characters)',
-    example: 'newpassword123',
-    minLength: 6,
+    description: 'New password (minimum 8 characters, must contain uppercase, lowercase, and number)',
+    example: 'NewPassword123',
+    minLength: 8,
   })
   @IsString()
-  @MinLength(6, { message: 'Password must be at least 6 characters long' })
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
   newPassword: string;
 }

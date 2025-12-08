@@ -21,12 +21,12 @@ export class RegisterDto {
   phone?: string;
 
   @ApiProperty({
-    description: 'User password (minimum 6 characters)',
-    example: 'password123',
-    minLength: 6,
+    description: 'User password (minimum 8 characters, must contain uppercase, lowercase, and number)',
+    example: 'Password123',
+    minLength: 8,
   })
   @IsString()
-  @MinLength(6)
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
   password: string;
 
   @ApiProperty({

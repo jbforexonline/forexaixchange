@@ -3,7 +3,11 @@ import React, { useState, useEffect } from "react";
 import { MotionConfig, motion } from "framer-motion";
 import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+<<<<<<< HEAD
 import { logout, getCurrentUser } from "@/lib/auth";
+=======
+import { logout } from "../../lib/auth";
+>>>>>>> 15ed022ff0ce88803295715dcc9cf2f95bb428dd
 import "../Layout/DashboardLayout.scss";
 
 export default function Sidebar({ children }) {
@@ -29,6 +33,7 @@ export default function Sidebar({ children }) {
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
     // { icon: HelpCircle, label: "Dashboard", href: "/dashboard" },
     { icon: Sword, label: "Settings", href: "/settings" },
+<<<<<<< HEAD
   ];
 
   const handleLogout = () => {
@@ -38,6 +43,20 @@ export default function Sidebar({ children }) {
   };
 
   const goBackToLogin = () => router.push("/login");
+=======
+    { icon: Settings, label: "Logout", href: null, isLogout: true },
+  ];
+
+  const handleMenuClick = (item) => {
+    if (item.isLogout) {
+      logout();
+    } else {
+      router.push(item.href);
+    }
+  };
+
+  const goBackToLogin = () => logout();
+>>>>>>> 15ed022ff0ce88803295715dcc9cf2f95bb428dd
 
   return (
     <div className="eo-container">
@@ -68,7 +87,7 @@ export default function Sidebar({ children }) {
                 <button
                   key={idx}
                   className="eo-menu-item"
-                  onClick={() => router.push(item.href)}
+                  onClick={() => handleMenuClick(item)}
                   title={item.label}
                 >
                   <Icon size={20} />
