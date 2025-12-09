@@ -49,7 +49,7 @@ export default function UserLayout({
 
   const handleLogout = () => {
     logout();
-    router.replace('/login');
+    router.replace("/login");
   };
 
   const getSubscriptionBadgeClass = () => {

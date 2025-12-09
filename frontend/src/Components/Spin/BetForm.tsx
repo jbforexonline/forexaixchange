@@ -44,10 +44,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
 
   // Allow betting when: round exists, not frozen, and has balance
   const canPlaceBet =
-    !isFrozen &&
-    round &&
-    availableBalance >= minBet &&
-    !loading;
+    !isFrozen && round && availableBalance >= minBet && !loading;
   const isButtonDisabled =
     loading ||
     !canPlaceBet ||
