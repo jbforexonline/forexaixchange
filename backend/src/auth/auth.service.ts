@@ -5,12 +5,15 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import * as bcrypt from 'bcryptjs';
+import { OtpService } from './services/otp.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private otpService: OtpService,
   ) {}
 
   async register(registerDto: RegisterDto) {
@@ -59,16 +62,23 @@ export class AuthService {
         }
       }
 
-      // Create user with wallet (NO PASSWORD HASHING)
+      // Validate password strength
+      this.validatePasswordStrength(password);
+
+      // Hash password before storing
+      const hashedPassword = await this.hashPassword(password);
+
+      // Create user with wallet
       const user = await this.prisma.user.create({
         data: {
           email,
           phone,
-          password: password || 'nopass',
+          password: hashedPassword,
           username,
           firstName,
           lastName,
           referredBy: validReferredBy,
+          provider: 'local',
           wallet: {
             create: {
               available: 0,
@@ -104,7 +114,7 @@ export class AuthService {
       throw new UnauthorizedException('Either email or phone number is required');
     }
 
-    // Find user by email or phone (NO PASSWORD VALIDATION)
+    // Find user by email or phone
     const user = await this.prisma.user.findFirst({
       where: {
         OR: [
@@ -118,11 +128,22 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     if (!user.isActive || user.isBanned) {
       throw new UnauthorizedException('Account is inactive or banned');
+    }
+
+    // Check if user has a password (OAuth users don't have passwords)
+    if (!user.password) {
+      throw new UnauthorizedException('This account uses social login. Please use Google to sign in.');
+    }
+
+    // Validate password
+    const isPasswordValid = await this.comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
     }
 
     // Remove password from response
@@ -158,80 +179,117 @@ export class AuthService {
   }
 
   async hashPassword(password: string): Promise<string> {
-    return password; // NO HASHING
+    const saltRounds = 12;
+    return await bcrypt.hash(password, saltRounds);
   }
 
   async comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-    return password === hashedPassword; // DIRECT COMPARISON
+    if (!hashedPassword) {
+      return false;
+    }
+    return await bcrypt.compare(password, hashedPassword);
+  }
+
+  /**
+   * Validate password strength
+   * Requirements:
+   * - Minimum 8 characters
+   * - At least one uppercase letter
+   * - At least one lowercase letter
+   * - At least one number
+   */
+  private validatePasswordStrength(password: string): void {
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one uppercase letter');
+    }
+
+    if (!/[a-z]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one lowercase letter');
+    }
+
+    if (!/[0-9]/.test(password)) {
+      throw new BadRequestException('Password must contain at least one number');
+    }
   }
 
   async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
-    const { email, phone } = forgotPasswordDto;
+    const { email } = forgotPasswordDto;
 
-    // Validate that either email or phone is provided
-    if (!email && !phone) {
-      throw new BadRequestException('Either email or phone number is required');
+    if (!email) {
+      throw new BadRequestException('Email is required');
     }
 
-    // Find user by email or phone
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(email ? [{ email }] : []),
-          ...(phone ? [{ phone }] : []),
-        ],
-      },
+    // Find user by email - MUST match their account email
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
     });
 
     if (!user) {
-      throw new NotFoundException('User not found with the provided email or phone number');
+      throw new NotFoundException('No account found with this email address');
     }
 
     if (!user.isActive || user.isBanned) {
       throw new BadRequestException('Account is inactive or banned');
     }
 
-    // NO OTP SENT - just return success message
-    const identifier = email || phone!;
-    const isEmail = !!email;
+    // Allow all users (including Google OAuth users) to set/reset password
+    // Send OTP to user's registered email
+    const otpSent = await this.otpService.sendOtp(email);
+    
+    if (!otpSent) {
+      throw new BadRequestException('Failed to send OTP. Please try again later.');
+    }
 
     return {
-      message: `Password reset requested for ${isEmail ? 'email' : 'phone number'}`,
-      identifier: isEmail ? email : phone?.replace(/(\d{3})(\d{3})(\d{4})/, '$1***$3'), // Mask phone number
+      message: 'OTP sent successfully to your email',
+      email: email,
     };
   }
 
   async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { email, phone, otp, newPassword } = resetPasswordDto;
+    const { email, otp, newPassword } = resetPasswordDto;
 
-    // Validate that either email or phone is provided
-    if (!email && !phone) {
-      throw new BadRequestException('Either email or phone number is required');
+    if (!email) {
+      throw new BadRequestException('Email is required');
     }
 
-    // Find user by email or phone
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(email ? [{ email }] : []),
-          ...(phone ? [{ phone }] : []),
-        ],
-      },
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
     });
 
     if (!user) {
-      throw new NotFoundException('User not found with the provided email or phone number');
+      throw new NotFoundException('No account found with this email address');
     }
 
     if (!user.isActive || user.isBanned) {
       throw new BadRequestException('Account is inactive or banned');
     }
 
-    // NO OTP VERIFICATION - just update password directly
-    // Update password (NO HASHING)
+    // Allow all users (including Google OAuth users) to set/reset password
+    // Verify OTP
+    const isOtpValid = this.otpService.verifyOtp(email, otp);
+    
+    if (!isOtpValid) {
+      throw new BadRequestException('Invalid or expired OTP. Please request a new one.');
+    }
+
+    // Validate password strength
+    this.validatePasswordStrength(newPassword);
+
+    // Hash and update password
+    // Keep the original provider (google or local) - users can use either login method
+    const hashedPassword = await this.hashPassword(newPassword);
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { password: newPassword },
+      data: { 
+        password: hashedPassword,
+        // Don't change provider - allow users to use both Google and email/password login
+      },
     });
 
     return {
@@ -239,9 +297,109 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
-        phone: user.phone,
         username: user.username,
       },
+    };
+  }
+
+  /**
+   * Handle Google OAuth authentication
+   * Creates new user or logs in existing user
+   */
+  async handleGoogleAuth(googleUser: any) {
+    const { googleId, email, firstName, lastName, photo } = googleUser;
+
+    if (!email) {
+      throw new BadRequestException('Google account email is required');
+    }
+
+    // Check if user exists with this Google ID
+    let user = await this.prisma.user.findUnique({
+      where: { googleId },
+      include: { wallet: true },
+    });
+
+    if (user) {
+      // User exists with Google ID - log them in
+      if (!user.isActive || user.isBanned) {
+        throw new UnauthorizedException('Account is inactive or banned');
+      }
+
+      const { password: _, ...userWithoutPassword } = user;
+      return {
+        user: userWithoutPassword,
+        token: this.generateToken(user.id, user.role),
+      };
+    }
+
+    // Check if user exists with this email (might be local user)
+    const existingUserByEmail = await this.prisma.user.findUnique({
+      where: { email },
+      include: { wallet: true },
+    });
+
+    if (existingUserByEmail) {
+      // Email exists but with different provider
+      if (existingUserByEmail.provider === 'local') {
+        // Link Google account to existing local account
+        user = await this.prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: {
+            googleId,
+            provider: 'google', // Switch to Google provider
+            // Optionally keep password for local login fallback
+          },
+          include: { wallet: true },
+        });
+      } else {
+        // Already a Google user but different googleId (shouldn't happen)
+        throw new ConflictException('Account with this email already exists');
+      }
+    } else {
+      // Create new user with Google OAuth
+      // Generate username from email if not provided
+      const baseUsername = email.split('@')[0];
+      let username = baseUsername;
+      let usernameExists = await this.prisma.user.findUnique({
+        where: { username },
+      });
+
+      // If username exists, append random suffix
+      let counter = 1;
+      while (usernameExists) {
+        username = `${baseUsername}${counter}`;
+        usernameExists = await this.prisma.user.findUnique({
+          where: { username },
+        });
+        counter++;
+      }
+
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          googleId,
+          provider: 'google',
+          username,
+          firstName,
+          lastName,
+          password: null, // No password for OAuth users
+          wallet: {
+            create: {
+              available: 0,
+              held: 0,
+            },
+          },
+        },
+        include: {
+          wallet: true,
+        },
+      });
+    }
+
+    const { password: _, ...userWithoutPassword } = user;
+    return {
+      user: userWithoutPassword,
+      token: this.generateToken(user.id, user.role),
     };
   }
 }

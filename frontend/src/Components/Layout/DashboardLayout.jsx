@@ -3,7 +3,9 @@ import React, { useState, useEffect } from "react";
 import { MotionConfig, motion } from "framer-motion";
 import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
+
 import { logout, getCurrentUser } from "@/lib/auth";
+
 import "../Layout/DashboardLayout.scss";
 
 export default function Sidebar({ children }) {
@@ -29,6 +31,7 @@ export default function Sidebar({ children }) {
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
     // { icon: HelpCircle, label: "Dashboard", href: "/dashboard" },
     { icon: Sword, label: "Settings", href: "/settings" },
+
   ];
 
   const handleLogout = () => {
@@ -38,6 +41,7 @@ export default function Sidebar({ children }) {
   };
 
   const goBackToLogin = () => router.push("/login");
+
 
   return (
     <div className="eo-container">
@@ -68,7 +72,7 @@ export default function Sidebar({ children }) {
                 <button
                   key={idx}
                   className="eo-menu-item"
-                  onClick={() => router.push(item.href)}
+                  onClick={() => handleMenuClick(item)}
                   title={item.label}
                 >
                   <Icon size={20} />
