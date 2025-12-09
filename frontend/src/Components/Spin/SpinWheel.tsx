@@ -301,7 +301,7 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
       {/* State indicator */}
       <div className="state-indicator">
         {state === "preopen" && "Waiting to open"}
-        {state === "open" && "Betting is open"}
+        {state === "open" && null}
         {state === "frozen" && "Final minute — no new bets"}
         {state === "settled" && "Winners announced"}
       </div>
