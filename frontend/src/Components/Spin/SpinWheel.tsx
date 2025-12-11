@@ -140,9 +140,8 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           <path id="highPath" d={createCurvedTextPath('high', (R.vol[0] + R.vol[1]) / 2, 10, 170)} fill="none" />
         </defs>
 
-        {/* SPINNING GROUP - All rings except core */}
-        <g className="spinning-rings">
-          {/* Ring separators - MOVED HERE so they don't cut through needles */}
+        {/* Ring separators - Fixed, don't spin */}
+        <g className="ring-separators">
           <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
           <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
           <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
@@ -151,98 +150,98 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
           <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
           <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-
-          {/* OUTERMOST: Direction Ring (BUY/SELL) */}
-          <g className="ring-direction">
-            <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
-            <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
-            
-            {/* Curved SELL label */}
-            <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
-              <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
-                SELL
-              </textPath>
-            </text>
-            
-            {/* Curved BUY label */}
-            <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
-              <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
-                BUY
-              </textPath>
-            </text>
-
-            <text x={cx} y={cy - 285} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>DIRECTION</text>
-          </g>
-
-          {/* Currency Ring */}
-          <g className="ring-currency">
-            <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
-            {CURRENCIES.map((ccy, i) => {
-              const angle = -180 + i * (360 / CURRENCIES.length);
-              const rr = (R.curr[0] + R.curr[1]) / 2;
-              const x = cx + rr * Math.cos(deg2rad(angle));
-              const y = cy + rr * Math.sin(deg2rad(angle));
-              return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
-            })}
-            <text x={cx} y={cy - 230} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>ASSETS</text>
-          </g>
-
-          {/* Color Ring (BLUE/RED) */}
-          <g className="ring-color">
-            <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
-            <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
-            
-            {/* Curved RED label */}
-            <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
-              <textPath href="#redPath" startOffset="50%" textAnchor="middle">
-                RED
-              </textPath>
-            </text>
-            
-            {/* Curved BLUE label */}
-            <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
-              <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
-                BLUE
-              </textPath>
-            </text>
-
-            <text x={cx} y={cy - 185} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>COLOR MODE</text>
-          </g>
-
-          {/* Volatility Ring (LOW/HIGH) */}
-          <g className="ring-volatility">
-            <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
-            <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
-            
-            {/* Curved LOW VOLATILE label */}
-            <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
-              <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
-                LOW VOLATILE
-              </textPath>
-            </text>
-            
-            {/* Curved HIGH VOLATILE label */}
-            <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
-              <textPath href="#highPath" startOffset="50%" textAnchor="middle">
-                HIGH VOLATILE
-              </textPath>
-            </text>
-
-            <text x={cx} y={cy - 140} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>VOLATILITY</text>
-          </g>
-
-          {/* Winner glow (on spinning rings) */}
-          {showWinners && (
-            <g fill="rgba(255, 255, 255, 0.2)" filter="url(#glow)">
-              {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
-              {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
-              {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
-              {win.colorRight && <path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
-              {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
-              {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
-            </g>
-          )}
         </g>
+
+        {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
+        <g className="ring-direction spin-cw">
+          <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
+          <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
+          
+          {/* Curved SELL label */}
+          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+            <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
+              SELL
+            </textPath>
+          </text>
+          
+          {/* Curved BUY label */}
+          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+            <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
+              BUY
+            </textPath>
+          </text>
+
+          <text x={cx} y={cy - 285} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>DIRECTION</text>
+        </g>
+
+        {/* Currency Ring - 2nd Circle: Counter-clockwise */}
+        <g className="ring-currency spin-ccw">
+          <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
+          {CURRENCIES.map((ccy, i) => {
+            const angle = -180 + i * (360 / CURRENCIES.length);
+            const rr = (R.curr[0] + R.curr[1]) / 2;
+            const x = cx + rr * Math.cos(deg2rad(angle));
+            const y = cy + rr * Math.sin(deg2rad(angle));
+            return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
+          })}
+          <text x={cx} y={cy - 230} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>ASSETS</text>
+        </g>
+
+        {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
+        <g className="ring-color spin-cw">
+          <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
+          <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
+          
+          {/* Curved RED label */}
+          <text fill="red" fontSize={16} fontWeight={700} letterSpacing={2} color='red'>
+            <textPath href="#redPath" startOffset="50%" textAnchor="middle">
+              RED
+            </textPath>
+          </text>
+          
+          {/* Curved BLUE label */}
+          <text fill="blue" fontSize={16} fontWeight={700} letterSpacing={2} color='blue'>
+            <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
+              BLUE
+            </textPath>
+          </text>
+
+          <text x={cx} y={cy - 185} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>COLOR MODE</text>
+        </g>
+
+        {/* Volatility Ring (LOW/HIGH) - 4th Circle: Counter-clockwise */}
+        <g className="ring-volatility spin-ccw">
+          <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
+          <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
+          
+          {/* Curved LOW VOLATILE label */}
+          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+            <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
+              LOW VOLATILE
+            </textPath>
+          </text>
+          
+          {/* Curved HIGH VOLATILE label */}
+          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+            <textPath href="#highPath" startOffset="50%" textAnchor="middle">
+              HIGH VOLATILE
+            </textPath>
+          </text>
+
+          <text x={cx} y={cy - 140} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>VOLATILITY</text>
+        </g>
+
+        {/* Winner glow (on spinning rings) */}
+        {showWinners && (
+          <g fill="rgba(255, 255, 255, 0.2)" filter="url(#glow)">
+            {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
+            {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
+            {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
+            {win.colorRight && <path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
+            {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
+            {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
+          </g>
+        )}
 
         {/* FIXED GROUP - Core and Indecision Needles (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
         <g className="fixed-center">

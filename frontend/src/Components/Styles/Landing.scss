@@ -106,14 +106,22 @@
       position: relative;
       z-index: 2; // Above video background
       width: 100%;
-      max-width: 1200px;
+      max-width: 1280px;
       display: grid;
-      grid-template-columns: 1fr 1.1fr 1fr;
-      gap: 16px;
-      align-items: center;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "spinner spinner"
+        "premium table";
+      gap: 24px 20px;
+      align-items: start;
+      justify-items: center;
 
       @media (max-width: 1024px) {
         grid-template-columns: 1fr;
+        grid-template-areas:
+          "spinner"
+          "premium"
+          "table";
       }
 
       .premium-card,
@@ -129,9 +137,11 @@
       }
 
       .premium-card {
+        grid-area: premium;
+        max-width: 360px;
         h1 {
           margin: 0 0 12px;
-          font-size: 24px;
+          font-size: 22px;
           color: #b8f3ff;
         }
 
@@ -139,26 +149,25 @@
           padding-left: 16px;
           margin: 0;
           display: grid;
-          gap: 8px;
+          gap: 6px;
           list-style: none;
+          font-size: 14px;
+          line-height: 1.45;
         }
 
         li {
-          // background: rgba(255, 255, 255, 0.03);
-          // padding: 8px 10px;
-          // border-radius: 10px;
-          // border: 1px solid rgba(100, 200, 255, 0.08);
           color: #d7f4ff;
         }
       }
 
       .spinner-container {
+        grid-area: spinner;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        max-width: 680px;
+        max-width: 850px;
         margin: 0 auto;
         padding: 26px;
 
@@ -172,7 +181,7 @@
         // Ensure spinner wheel styles are applied
         .wheel-container {
           width: 100%;
-          max-width: 760px;
+          max-width: 800px;
           aspect-ratio: 1;
           display: flex;
           align-items: center;
@@ -185,16 +194,29 @@
             display: block;
             filter: drop-shadow(0 20px 60px rgba(100, 200, 255, 0.15));
 
-            // Make the spinning rings actually spin
-            .spinning-rings {
-              animation: continuousSpin 60s linear infinite;
-              transform-origin: 300px 300px; /* Center of the 600x600 viewBox */
+            .ring-separators {
+              /* Fixed separators, don't spin */
+            }
+
+            .spin-cw {
+              animation: spinClockwise 30s linear infinite;
+              transform-origin: 300px 300px;
+              will-change: transform;
+              backface-visibility: hidden;
+            }
+
+            .spin-ccw {
+              animation: spinCounterClockwise 28s linear infinite;
+              transform-origin: 300px 300px;
+              will-change: transform;
+              backface-visibility: hidden;
             }
           }
         }
       }
 
       .strategy-table {
+        grid-area: table;
         h2 {
           margin: 0 0 12px;
           font-size: 20px;
@@ -309,9 +331,14 @@
   }
 
   // Spinner animation keyframes
-  @keyframes continuousSpin {
+  @keyframes spinClockwise {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+
+  @keyframes spinCounterClockwise {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(-360deg); }
   }
   
     /* =======================

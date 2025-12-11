@@ -93,16 +93,22 @@
       display: block;
       filter: drop-shadow(0 20px 60px rgba(100, 200, 255, 0.15));
 
-      .spinning-rings {
-        animation: continuousSpin 15s linear infinite;
+      .ring-separators {
+        /* Fixed separators, don't spin */
+      }
+
+      .spin-cw {
+        animation: spinClockwise 20s linear infinite;
         transform-origin: 300px 300px;
         will-change: transform;
-        animation-timing-function: linear;
-        animation-iteration-count: infinite;
-        animation-play-state: running;
         backface-visibility: hidden;
-        perspective: 1000px;
-        transform-style: preserve-3d;
+      }
+
+      .spin-ccw {
+        animation: spinCounterClockwise 18s linear infinite;
+        transform-origin: 300px 300px;
+        will-change: transform;
+        backface-visibility: hidden;
       }
 
       .fixed-center {
@@ -292,12 +298,21 @@
   to { transform: rotate(360deg); }
 }
 
-@keyframes continuousSpin {
+@keyframes spinClockwise {
   0% { 
     transform: rotate(0deg);
   }
   100% { 
     transform: rotate(360deg);
+  }
+}
+
+@keyframes spinCounterClockwise {
+  0% { 
+    transform: rotate(0deg);
+  }
+  100% { 
+    transform: rotate(-360deg);
   }
 }
 

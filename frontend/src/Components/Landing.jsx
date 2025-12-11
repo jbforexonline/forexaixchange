@@ -182,6 +182,11 @@ export default function Landing() {
               <li>✅ Free ads account upon yearly subscription</li>
               <li>✅ Early access to new features and promotions</li>
             </ul>
+            <Link href="/login">
+              <button className="btn register" style={{ marginTop: '12px', width: '100%' }}>
+                Upgrade to Premium
+              </button>
+            </Link>
           </section>
 
           <div className="spinner-container">
@@ -200,12 +205,12 @@ export default function Landing() {
                 <tr>
                   <th>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Buy (*2) stock</button>
+                      <button type="button">Buy (*2) order</button>
                     </Link>
                   </th>
                   <th>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Sell (*2) stock</button>
+                      <button type="button">Sell (*2) order</button>
                     </Link>
                   </th>
                 </tr>
@@ -219,19 +224,19 @@ export default function Landing() {
                   </td>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Red (*2) stock</button>
+                      <button type="button">Red (*2) order</button>
                     </Link>
                   </td>
                 </tr>
                 <tr>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">High Volatility</button>
+                      <button type="button">High Volatility order</button>
                     </Link>
                   </td>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Low Volatility</button>
+                      <button type="button">Low Volatility order</button>
                     </Link>
                   </td>
                 </tr>
