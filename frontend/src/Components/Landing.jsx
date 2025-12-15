@@ -2,6 +2,8 @@
 import React, { useRef, useEffect } from "react";
 import Link from "next/link";
 import SpinWheel from "../Components/Spin/SpinWheel";
+import Historigram from "./Historigram";
+import TradingViewWidget from "./TradingViewWidget";
 import "./Styles/Landing.scss";
 
 export default function Landing() {
@@ -167,6 +169,11 @@ export default function Landing() {
           </video>
         </div>
 
+        {/* TradingView Widget - Live Market Data */}
+        <section className="tradingview-section" style={{ marginBottom: '2rem', zIndex: 10, position: 'relative' }}>
+          <TradingViewWidget />
+        </section>
+
         <div className="main-grid">
           <section className="premium-card">
             <h1>Forexaiexchange Premium</h1>
@@ -257,6 +264,11 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
+          </section>
+
+          {/* Historigram - Trading History Chart */}
+          <section className="historigram-section" style={{ gridColumn: '1 / -1', marginTop: '2rem' }}>
+            <Historigram title="Trading History & Analytics" />
           </section>
         </div>
       </main>
