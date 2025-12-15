@@ -48,7 +48,7 @@ export function isAuthenticated(): boolean {
 /**
  * Verify token with backend
  */
-export async function verifyToken(): Promise<boolean> {
+export const verifyToken = async (): Promise<boolean> => {
   const token = getAuthToken();
   if (!token) return false;
 
@@ -77,7 +77,7 @@ export async function verifyToken(): Promise<boolean> {
   } catch {
     return false;
   }
-}
+};
 
 /**
  * Logout - Clear all auth data and redirect to login
@@ -113,4 +113,5 @@ export function isAdmin(): boolean {
   const role = (user.role || 'USER').toUpperCase();
   return role === 'ADMIN' || role === 'SUPER_ADMIN';
 }
+
 

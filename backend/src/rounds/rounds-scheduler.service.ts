@@ -14,6 +14,8 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 export class RoundsSchedulerService {
   private readonly logger = new Logger(RoundsSchedulerService.name);
   private isProcessing = false;
+  private dbMissing = false;
+  private dbMissingNotifiedAt = 0;
 
   constructor(
     private roundsService: RoundsService,
@@ -26,8 +28,17 @@ export class RoundsSchedulerService {
    */
   @Cron('*/10 * * * * *')
   async checkRoundTransitions() {
-    if (this.isProcessing) {
-      return; // Skip if already processing
+    if (this.isProcessing) return; // Skip if already processing
+
+    // If we've previously detected the Round table is missing, skip heavy work
+    if (this.dbMissing) {
+      const nowTs = Date.now();
+      // Log a short notice at most once per minute to avoid noise
+      if (nowTs - this.dbMissingNotifiedAt > 60 * 1000) {
+        this.logger.warn('Scheduler paused: Round table appears missing. Waiting for DB to become available.');
+        this.dbMissingNotifiedAt = nowTs;
+      }
+      return;
     }
 
     this.isProcessing = true;
@@ -45,6 +56,21 @@ export class RoundsSchedulerService {
       // 3. Ensure there's always an active round
       await this.ensureActiveRound();
     } catch (error) {
+      // Detect Prisma errors that indicate a missing table and flip a guard to stop noisy logs
+      try {
+        const code = error?.code || error?.meta?.code;
+        const model = error?.meta?.modelName || error?.meta?.model;
+        const message = String(error?.message || error);
+        if (message.includes('does not exist') || model === 'Round' || code === 'P2021' || code === 'P1010') {
+          this.dbMissing = true;
+          this.dbMissingNotifiedAt = Date.now();
+          this.logger.warn('Detected missing Round table in DB — scheduler will pause until DB is available.');
+          return;
+        }
+      } catch (inner) {
+        // fall through to generic error handling
+      }
+
       this.logger.error('Error in round transition check:', error);
     } finally {
       this.isProcessing = false;
@@ -75,7 +101,7 @@ export class RoundsSchedulerService {
         });
       }
     } catch (error) {
-      this.logger.error('Error freezing rounds:', error);
+      this.handlePrismaError(error, 'Error freezing rounds:');
     }
   }
 
@@ -110,7 +136,7 @@ export class RoundsSchedulerService {
         }
       }
     } catch (error) {
-      this.logger.error('Error settling rounds:', error);
+      this.handlePrismaError(error, 'Error settling rounds:');
     }
   }
 
@@ -140,7 +166,7 @@ export class RoundsSchedulerService {
         });
       }
     } catch (error) {
-      this.logger.error('Error ensuring active round:', error);
+      this.handlePrismaError(error, 'Error ensuring active round:');
     }
   }
 
@@ -157,8 +183,30 @@ export class RoundsSchedulerService {
           `Total Bets: ${stats.totalBets}`,
       );
     } catch (error) {
-      this.logger.error('Health check failed:', error);
+      this.handlePrismaError(error, 'Health check failed:');
     }
+  }
+
+  /**
+   * Centralized Prisma error handler — detect missing Round table and pause scheduler
+   */
+  private handlePrismaError(error: any, prefix?: string) {
+    try {
+      const message = String(error?.message || error || '');
+      const code = error?.code || error?.meta?.code;
+      const model = error?.meta?.modelName || error?.meta?.model;
+
+      if (message.includes('does not exist') || model === 'Round' || code === 'P2021') {
+        this.dbMissing = true;
+        this.dbMissingNotifiedAt = Date.now();
+        this.logger.warn(`${prefix || ''} Detected missing Round table — scheduler paused.`);
+        return;
+      }
+    } catch (inner) {
+      // ignore
+    }
+
+    this.logger.error(prefix || 'Scheduler error:', error);
   }
 
   /**

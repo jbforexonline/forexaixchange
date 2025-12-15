@@ -16,6 +16,12 @@
     "frontend"
   ],
   "dependencies": {
-    "framer-motion": "^12.23.24"
+    "framer-motion": "^12.23.24",
+    "nodemailer": "^7.0.11",
+    "passport-google-oauth20": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/nodemailer": "^7.0.4",
+    "@types/passport-google-oauth20": "^2.0.17"
   }
 }

@@ -70,6 +70,71 @@ async function main() {
     },
   });
 
+  // Create Test Users with Money
+  const testUsers = [
+    {
+      email: 'user1@test.com',
+      phone: '+1234567892',
+      username: 'testuser1',
+      firstName: 'Test',
+      lastName: 'User 1',
+      password: await bcrypt.hash('password123', 12),
+      available: 2500,
+      premium: true,
+    },
+    {
+      email: 'user2@test.com',
+      phone: '+1234567893',
+      username: 'testuser2',
+      firstName: 'Test',
+      lastName: 'User 2',
+      password: await bcrypt.hash('password123', 12),
+      available: 1500,
+      premium: false,
+    },
+    {
+      email: 'premium@test.com',
+      phone: '+1234567894',
+      username: 'premiumuser',
+      firstName: 'Premium',
+      lastName: 'User',
+      password: await bcrypt.hash('password123', 12),
+      available: 10000,
+      premium: true,
+    },
+  ];
+
+  for (const userData of testUsers) {
+    await prisma.user.upsert({
+      where: { email: userData.email },
+      update: {},
+      create: {
+        email: userData.email,
+        phone: userData.phone,
+        password: userData.password,
+        username: userData.username,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: UserRole.USER,
+        isActive: true,
+        isVerified: true,
+        verificationBadge: userData.premium,
+        kycStatus: KycStatus.APPROVED,
+        premium: userData.premium,
+        wallet: {
+          create: {
+            available: userData.available,
+            held: 0,
+            totalDeposited: userData.available,
+            totalWithdrawn: 0,
+            totalWon: 0,
+            totalLost: 0,
+          },
+        },
+      },
+    });
+  }
+
   // Create Premium Plans
   const premiumPlans = [
     {
@@ -209,12 +274,22 @@ async function main() {
   }
 
   console.log('✅ Database seeding completed!');
+  console.log('');
+  console.log('👑 ADMIN ACCOUNTS:');
   console.log('📧 Super Admin Email: superadmin@forexaixchange.com');
   console.log('📱 Super Admin Phone: +1234567890');
   console.log('🔑 Super Admin Password: admin123');
+  console.log('💰 Super Admin Balance: $10,000');
+  console.log('');
   console.log('📧 Admin Email: admin@forexaixchange.com');
   console.log('📱 Admin Phone: +1234567891');
   console.log('🔑 Admin Password: admin123');
+  console.log('💰 Admin Balance: $5,000');
+  console.log('');
+  console.log('👤 TEST USER ACCOUNTS:');
+  console.log('📧 User 1 Email: user1@test.com | Phone: +1234567892 | Password: password123 | Balance: $2,500 (Premium)');
+  console.log('📧 User 2 Email: user2@test.com | Phone: +1234567893 | Password: password123 | Balance: $1,500 (Regular)');
+  console.log('📧 Premium User Email: premium@test.com | Phone: +1234567894 | Password: password123 | Balance: $10,000 (Premium)');
   console.log('');
   console.log('🔐 You can now login with either email OR phone number!');
 }

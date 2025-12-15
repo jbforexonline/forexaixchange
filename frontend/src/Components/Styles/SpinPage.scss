@@ -1,8 +1,8 @@
 .spin-page-container {
-  position: fixed; // Changed from relative to fixed
+  position: fixed;
   width: 100vw;
   height: 100vh;
-  overflow: hidden; // Ensure no scroll
+  overflow: hidden;
   background: radial-gradient(circle at 50% 40%, #001825 0%, #001220 20%, #000a15 45%, #000510 100%);
   display: flex;
   flex-direction: column;
@@ -14,64 +14,72 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  padding-bottom: 100px; // Space for bet bar
-  overflow: hidden; // Ensure no scroll
+  padding-bottom: 0;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
 
-  .error-banner {
-    position: absolute;
-    top: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(234, 57, 67, 0.2);
-    border: 1px solid rgba(234, 57, 67, 0.5);
-    border-radius: 8px;
-    padding: 12px 24px;
-    color: #ff6b6b;
-    text-align: center;
-    z-index: 100;
+.error-banner {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(234, 57, 67, 0.2);
+  border: 1px solid rgba(234, 57, 67, 0.5);
+  border-radius: 8px;
+  padding: 12px 24px;
+  color: #ff6b6b;
+  text-align: center;
+  z-index: 100;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+
+  .spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid rgba(100, 200, 255, 0.2);
+    border-top-color: #64c8ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
   }
 
-  .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-
-    .spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid rgba(100, 200, 255, 0.2);
-      border-top-color: #64c8ff;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    p {
-      color: rgba(165, 213, 255, 0.7);
-      font-size: 14px;
-    }
+  p {
+    color: rgba(165, 213, 255, 0.7);
+    font-size: 14px;
   }
 }
 
 .wheel-wrapper {
   width: 100%;
-  max-width: 600px; // Reduced from 650px
+  max-width: min(90vh, 90vw, 600px);
   aspect-ratio: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
+  z-index: 10;
 
   @media (max-width: 1400px) {
-    max-width: 500px;
+    max-width: min(85vh, 85vw, 500px);
   }
 
   @media (max-width: 1024px) {
-    max-width: 450px;
+    max-width: min(80vh, 80vw, 450px);
   }
 
   @media (max-width: 768px) {
-    max-width: 85vw; // Reduced from 90vw
+    max-width: min(75vh, 75vw, 400px);
   }
 
   .wheel-container {
@@ -85,13 +93,24 @@
       display: block;
       filter: drop-shadow(0 20px 60px rgba(100, 200, 255, 0.15));
 
-      /* ONLY spin the outer rings, NOT the center */
-      .spinning-rings {
-        animation: continuousSpin 60s linear infinite;
-        transform-origin: 300px 300px; /* Center of the 600x600 viewBox */
+      .ring-separators {
+        /* Fixed separators, don't spin */
       }
 
-      /* Fixed center - NO animation */
+      .spin-cw {
+        animation: spinClockwise 20s linear infinite;
+        transform-origin: 300px 300px;
+        will-change: transform;
+        backface-visibility: hidden;
+      }
+
+      .spin-ccw {
+        animation: spinCounterClockwise 18s linear infinite;
+        transform-origin: 300px 300px;
+        will-change: transform;
+        backface-visibility: hidden;
+      }
+
       .fixed-center {
         /* No animation applied */
       }
@@ -126,12 +145,15 @@
   padding: 16px;
   backdrop-filter: blur(10px);
   min-width: 200px;
+  z-index: 20;
+  pointer-events: auto;
 
   @media (max-width: 768px) {
     top: 10px;
     right: 10px;
     padding: 12px;
     min-width: 160px;
+    font-size: 0.85rem;
   }
 
   .round-number {
@@ -178,6 +200,13 @@
     font-size: 12px;
     font-weight: 600;
   }
+
+  .totals-preview {
+    margin-top: 12px;
+    font-size: 11px;
+    color: rgba(165, 213, 255, 0.8);
+    line-height: 1.6;
+  }
 }
 
 .user-bets-overlay {
@@ -190,14 +219,17 @@
   padding: 16px;
   backdrop-filter: blur(10px);
   min-width: 220px;
-  max-height: calc(100vh - 200px); // Prevent overflow
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
+  z-index: 20;
+  pointer-events: auto;
 
   @media (max-width: 768px) {
     top: 10px;
     left: 10px;
     padding: 12px;
     min-width: 180px;
+    max-height: calc(100vh - 150px);
   }
 
   h4 {
@@ -243,17 +275,49 @@
   }
 }
 
+.bet-form-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 15, 30, 0.95);
+  border-top: 1px solid rgba(100, 200, 255, 0.2);
+  padding: 1rem;
+  z-index: 30;
+  backdrop-filter: blur(10px);
+  max-height: 40vh;
+  overflow-y: auto;
+
+  @media (max-width: 768px) {
+    max-height: 50vh;
+    padding: 0.75rem;
+  }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes continuousSpin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+@keyframes spinClockwise {
+  0% { 
+    transform: rotate(0deg);
+  }
+  100% { 
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinCounterClockwise {
+  0% { 
+    transform: rotate(0deg);
+  }
+  100% { 
+    transform: rotate(-360deg);
+  }
 }
 
 @media (max-width: 768px) {
   .spin-main-area {
-    padding-bottom: 80px;
+    padding-bottom: 0;
   }
 }

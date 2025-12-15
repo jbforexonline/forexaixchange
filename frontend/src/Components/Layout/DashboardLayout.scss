@@ -1,21 +1,25 @@
 .eo-container {
   display: flex;
-  min-height: 100vh; /* allow page to grow beyond viewport */
+  min-height: 100vh;
+  /* allow page to grow beyond viewport */
   background: #0d1b2a;
   color: white;
 }
 
 .eo-sidebar {
   background: #11253d;
-  min-height: 100vh; /* ensure at least viewport height, but allow extension */
   display: flex;
   flex-direction: column;
   padding: 1rem 0;
   box-shadow: 0 0 15px rgba(0, 0, 0, 0.4);
   border-right: 1px solid rgba(255, 255, 255, 0.05);
-
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  z-index: 1000;
   /* Smooth slide width */
-  transition: width 0.25s ease;
+  transition: width 0.25s ease, transform 0.25s ease;
 }
 
 .eo-toggle-btn {
@@ -41,9 +45,12 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 10px;
-  flex: 1 1 auto; /* let menu take the remaining vertical space */
-  overflow-y: auto; /* allow scrolling if items grow */
-  padding-bottom: 8px; /* small bottom padding */
+  flex: 1 1 auto;
+  /* let menu take the remaining vertical space */
+  overflow-y: auto;
+  /* allow scrolling if items grow */
+  padding-bottom: 8px;
+  /* small bottom padding */
 }
 
 /* Each button */
@@ -74,26 +81,122 @@
   opacity: 0.9;
 }
 
+/* Content wrapper */
+.eo-content-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.18s ease;
+}
+
+/* Content offsets when sidebar is open/closed */
+.eo-content-wrapper.sidebar-open {
+  margin-left: 92px;
+}
+
+.eo-content-wrapper.sidebar-closed {
+  margin-left: 64px;
+}
+
 /* Main area */
 .eo-main {
   flex: 1;
   padding: 2rem;
   color: white;
-  min-height: 100vh; /* allow main to grow with content */
+  min-height: calc(100vh - 60px);
+  /* subtract header height */
+  overflow-y: auto;
+}
+
+/* Header */
+.eo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  background: #11253d;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  flex-wrap: wrap;
+  gap: 1rem;
 }
 
 /* Keep sidebar header/footer in view while menu scrolls */
-.sidebar-top { position: relative; z-index: 2; }
-.eo-footer { margin-top: auto; padding: 12px; display: flex; gap: 8px; align-items: center; }
+.sidebar-top {
+  position: relative;
+  z-index: 2;
+}
+
+.eo-footer {
+  margin-top: auto;
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 
 /* Optional: Background diagonal stripes from ExpertOption */
 .eo-container {
-  background-image: repeating-linear-gradient(
-    135deg,
-    #0e1a2a 0px,
-    #0e1a2a 3px,
-    #0d1826 3px,
-    #0d1826 6px
-  );
+  background-image: repeating-linear-gradient(135deg,
+      #0e1a2a 0px,
+      #0e1a2a 3px,
+      #0d1826 3px,
+      #0d1826 6px);
 }
-  /* end of styles */
+
+/* end of styles */
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .eo-container {
+    flex-direction: column;
+  }
+
+  .eo-sidebar {
+    min-height: auto;
+    width: 100% !important;
+    max-width: 280px;
+    overflow-y: auto;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    z-index: 1000;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+
+  .eo-sidebar.open {
+    transform: translateX(0);
+  }
+
+  .eo-content-wrapper {
+    width: 100%;
+    margin-left: 0 !important;
+  }
+
+  .eo-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .eo-header .profile span {
+    display: none;
+  }
+
+  .eo-main {
+    padding: 1rem;
+  }
+
+  .mobile-menu-toggle {
+    display: block !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu-toggle {
+    display: none !important;
+  }
+}

@@ -9,8 +9,11 @@ import {
   ForbiddenException,
   NotFoundException,
   BadRequestException,
+  UseGuards,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBearerAuth } from '@nestjs/swagger';
 import { WalletService } from './wallet.service';
 import { TransactionsService } from './transactions.service';
 import { CreateDepositDto } from './dto/create-deposit.dto';
@@ -20,16 +23,25 @@ import { TransactionType, TransactionStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UseGuards } from '@nestjs/common';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('Wallet')
 @Controller('wallet')
 @UseGuards(JwtAuthGuard)
+@ApiBearerAuth('JWT-auth')
 export class WalletController {
   constructor(
     private readonly walletService: WalletService,
     private readonly transactionsService: TransactionsService,
   ) {}
+
+  @Get()
+  @ApiOperation({ summary: 'Get full wallet details' })
+  @ApiResponse({ status: 200, description: 'Wallet retrieved successfully' })
+  async getWallet(@CurrentUser() user: any) {
+    return this.walletService.getWallet(user.id);
+  }
 
   @Get('balance')
   @ApiOperation({ summary: 'Get wallet balance' })
@@ -41,14 +53,28 @@ export class WalletController {
   @Post('deposit')
   @ApiOperation({ summary: 'Create deposit request' })
   @ApiResponse({ status: 201, description: 'Deposit request created successfully' })
-  async createDeposit(@Body() createDepositDto: CreateDepositDto) {
+  async createDeposit(@Body() createDepositDto: CreateDepositDto, @CurrentUser() user: any) {
     try {
-      const userId = createDepositDto['userId'] || 'default-user';
-      console.log('🔍 Controller deposit request:', { user: userId, dto: createDepositDto });
       const amount = new Decimal(createDepositDto.amount);
-      return this.walletService.deposit(userId, amount, createDepositDto.method, createDepositDto.reference);
+      return this.walletService.deposit(
+        user.id,
+        amount,
+        createDepositDto.method,
+        createDepositDto.reference,
+        createDepositDto.idempotencyKey,
+      );
     } catch (error) {
       console.error('❌ Deposit error:', error);
+      // Detect missing DB/tables (Prisma) and return friendly 503 in demo mode
+      const msg = String(error?.message || error);
+      const code = error?.code || error?.meta?.code;
+      if (msg.includes('does not exist') || code === 'P2021' || code === 'P1001') {
+        throw new HttpException({
+          message: 'Wallet service unavailable: database not ready (demo mode).',
+          detail: process.env.NODE_ENV === 'development' ? msg : undefined,
+        }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+
       throw error;
     }
   }
@@ -56,14 +82,27 @@ export class WalletController {
   @Post('withdraw')
   @ApiOperation({ summary: 'Create withdrawal request' })
   @ApiResponse({ status: 201, description: 'Withdrawal request created successfully' })
-  async createWithdrawal(@Body() createWithdrawalDto: CreateWithdrawalDto) {
+  async createWithdrawal(@Body() createWithdrawalDto: CreateWithdrawalDto, @CurrentUser() user: any) {
     try {
-      const userId = createWithdrawalDto['userId'] || 'default-user';
-      console.log('🔍 Controller withdrawal request:', { user: userId, dto: createWithdrawalDto });
       const amount = new Decimal(createWithdrawalDto.amount);
-      return this.walletService.withdraw(userId, amount, createWithdrawalDto.method, createWithdrawalDto.reference);
+      return this.walletService.withdraw(
+        user.id,
+        amount,
+        createWithdrawalDto.method,
+        createWithdrawalDto.reference,
+        createWithdrawalDto.idempotencyKey,
+      );
     } catch (error) {
       console.error('❌ Withdrawal error:', error);
+      const msg = String(error?.message || error);
+      const code = error?.code || error?.meta?.code;
+      if (msg.includes('does not exist') || code === 'P2021' || code === 'P1001') {
+        throw new HttpException({
+          message: 'Withdrawal service unavailable: database not ready (demo mode).',
+          detail: process.env.NODE_ENV === 'development' ? msg : undefined,
+        }, HttpStatus.SERVICE_UNAVAILABLE);
+      }
+
       throw error;
     }
   }
@@ -81,22 +120,7 @@ export class WalletController {
     const amount = new Decimal(createTransferDto.amount);
     
     // Find recipient by username, ID, or email (for contact purposes)
-    const recipient = await this.walletService['prisma'].user.findFirst({
-      where: {
-        OR: [
-          { username: createTransferDto.recipient },
-          { id: createTransferDto.recipient },
-          { email: createTransferDto.recipient },
-        ],
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        verificationBadge: true,
-        premium: true,
-      },
-    });
+    const recipient = await this.walletService.findUserByIdentifier(createTransferDto.recipient);
 
     if (!recipient) {
       throw new NotFoundException('Recipient not found. Search by username, ID, or email.');
@@ -108,6 +132,7 @@ export class WalletController {
       recipient.id,
       amount,
       createTransferDto.feePayer,
+      createTransferDto.idempotencyKey,
     );
 
     // Return transfer with recipient email for contact
@@ -140,28 +165,25 @@ export class WalletController {
       throw new BadRequestException('Search query must be at least 2 characters');
     }
 
-    const users = await this.walletService['prisma'].user.findMany({
-      where: {
-        OR: [
-          { username: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
-        id: { not: user.id }, // Exclude current user
-        isActive: true,
-        isBanned: false,
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        verificationBadge: true,
-        premium: true,
-        isVerified: true,
-      },
-      take: 10, // Limit results
-    });
+    const users = await this.walletService.searchUsers(query, user.id);
 
     return users;
+  }
+
+  @Get('transfer/:transferId')
+  @ApiOperation({ summary: 'Get transfer details with recipient info (Premium only)' })
+  @ApiResponse({ status: 200, description: 'Transfer retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Transfer not found' })
+  async getTransfer(
+    @Param('transferId') transferId: string,
+    @CurrentUser() user: any,
+  ) {
+    // Premium-only feature
+    if (!user.premium || (user.premiumExpiresAt && new Date(user.premiumExpiresAt) < new Date())) {
+      throw new ForbiddenException('This feature is available to premium users only');
+    }
+
+    return this.walletService.getTransferWithRecipient(transferId, user.id);
   }
 
   @Get('transactions')
@@ -171,18 +193,19 @@ export class WalletController {
   @ApiQuery({ name: 'type', required: false, enum: TransactionType })
   @ApiResponse({ status: 200, description: 'Transactions retrieved successfully' })
   async getUserTransactions(
-    @Query('userId') userId: string,
+    @CurrentUser() user: any,
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
     @Query('type') type?: TransactionType,
   ) {
-    const id = userId || 'default-user';
-    return this.transactionsService.getUserTransactions(id, page, limit, type);
+    return this.transactionsService.getUserTransactions(user.id, page, limit, type);
   }
 
-  // Admin endpoints (NO AUTH)
+  // Admin endpoints
   @Get('admin/transactions')
-  @ApiOperation({ summary: 'Get all transactions' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get all transactions (Admin only)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, enum: TransactionStatus })
@@ -198,14 +221,18 @@ export class WalletController {
   }
 
   @Get('admin/transactions/pending')
-  @ApiOperation({ summary: 'Get pending transactions' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get pending transactions (Admin only)' })
   @ApiResponse({ status: 200, description: 'Pending transactions retrieved successfully' })
   async getPendingTransactions() {
     return this.transactionsService.getPendingTransactions();
   }
 
   @Post('admin/transactions/:id/approve')
-  @ApiOperation({ summary: 'Approve transaction' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Approve transaction (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transaction approved successfully' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async approveTransaction(@Param('id') id: string, @CurrentUser() user: any) {
@@ -213,7 +240,9 @@ export class WalletController {
   }
 
   @Post('admin/transactions/:id/reject')
-  @ApiOperation({ summary: 'Reject transaction' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Reject transaction (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transaction rejected successfully' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
   async rejectTransaction(@Param('id') id: string, @CurrentUser() user: any) {
@@ -221,45 +250,31 @@ export class WalletController {
   }
 
   @Get('admin/transfers')
-  @ApiOperation({ summary: 'Get internal transfers' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Get internal transfers (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transfers retrieved successfully' })
   async getInternalTransfers() {
-    return this.walletService['prisma'].internalTransfer.findMany({
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        recipient: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    return this.walletService.getAllTransfers();
   }
 
   @Post('admin/transfers/:id/approve')
-  @ApiOperation({ summary: 'Approve internal transfer' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Approve internal transfer (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transfer approved successfully' })
   @ApiResponse({ status: 404, description: 'Transfer not found' })
-  async approveTransfer(@Param('id') id: string, @Body() body: any) {
-    const userId = body.userId || 'default-admin';
-    return this.walletService.processTransfer(id, true, userId);
+  async approveTransfer(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.walletService.processTransfer(id, true, user.id);
   }
 
   @Post('admin/transfers/:id/reject')
-  @ApiOperation({ summary: 'Reject internal transfer' })
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'SUPER_ADMIN')
+  @ApiOperation({ summary: 'Reject internal transfer (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transfer rejected successfully' })
   @ApiResponse({ status: 404, description: 'Transfer not found' })
-  async rejectTransfer(@Param('id') id: string, @Body() body: any) {
-    const userId = body.userId || 'default-admin';
-    return this.walletService.processTransfer(id, false, userId);
+  async rejectTransfer(@Param('id') id: string, @CurrentUser() user: any) {
+    return this.walletService.processTransfer(id, false, user.id);
   }
 }

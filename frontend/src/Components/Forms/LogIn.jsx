@@ -126,13 +126,32 @@ export default function LoginPage() {
       localStorage.setItem('token', payload.token)
       localStorage.setItem('user', JSON.stringify(payload.user))
 
-      // Redirect based on user role. Default to USER if role missing.
-      const role = (payload.user.role || 'USER').toUpperCase()
-      const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-        ? '/dashboard'
-        : '/spin'
+      console.log('✅ Login successful!')
+      console.log('📋 User role:', payload.user.role)
+      console.log('💾 Stored user data:', payload.user)
 
-      // Use replace to prevent back navigation
+      // Get user role from response
+      const role = (payload.user.role || 'USER').toUpperCase()
+
+      // Determine redirect route based on role
+      let nextRoute = '/spin'  // Default for regular users
+      
+      if (role === 'SUPER_ADMIN') {
+        console.log('🔴 Super Admin detected - redirecting to admin dashboard')
+        nextRoute = '/admin/dashboard'
+      } else if (role === 'ADMIN') {
+        console.log('🔵 Admin detected - redirecting to admin dashboard')
+        nextRoute = '/admin/dashboard'
+      } else if (role === 'MODERATOR') {
+        console.log('🟣 Moderator detected - redirecting to dashboard')
+        nextRoute = '/dashboard'
+      } else {
+        console.log('🔷 Regular user - redirecting to spin page')
+        nextRoute = '/spin'
+      }
+
+      console.log('🚀 Redirecting to:', nextRoute)
+
       router.replace(nextRoute)
       // Clear browser history to prevent back navigation after login
       window.history.replaceState(null, '', nextRoute)

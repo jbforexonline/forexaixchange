@@ -75,16 +75,9 @@ export function useWallet() {
     fetchWallet();
   }, [fetchWallet]);
 
-  // Refresh wallet periodically (every 10 seconds)
-  useEffect(() => {
-    const refreshInterval = setInterval(() => {
-      if (!walletState.loading) {
-        fetchWallet();
-      }
-    }, 10000);
-
-    return () => clearInterval(refreshInterval);
-  }, [fetchWallet, walletState.loading]);
+  // Removed periodic polling — now relies on Socket.IO events:
+  // - walletUpdated: updates wallet balance in real-time
+  // This reduces server load and bandwidth consumption.
 
   return {
     ...walletState,

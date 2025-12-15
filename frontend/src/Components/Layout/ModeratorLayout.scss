@@ -1,0 +1,301 @@
+// Moderator Layout Styles
+$moderator-primary: #7c3aed;
+$moderator-secondary: #6d28d9;
+$moderator-accent: #d8b4fe;
+$moderator-bg: #3f0f63;
+$dark-bg: #1f2937;
+$darker-bg: #111827;
+$text-primary: #f3f4f6;
+$text-secondary: #d1d5db;
+$border-color: #374151;
+
+.moderator-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: $darker-bg;
+  color: $text-primary;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
+
+  // Header Styles
+  .moderator-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(135deg, $moderator-secondary 0%, $moderator-bg 100%);
+    border-bottom: 2px solid $moderator-primary;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .sidebar-toggle {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: $text-primary;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.2);
+          transform: translateY(-2px);
+        }
+      }
+
+      .system-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin: 0;
+        color: $moderator-accent;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .user-badge {
+          .role-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+
+            &.moderator {
+              background: $moderator-primary;
+              color: white;
+            }
+          }
+        }
+
+        .user-details {
+          margin: 0;
+
+          .username {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: $text-primary;
+            margin: 0;
+          }
+
+          .email {
+            font-size: 0.85rem;
+            color: $text-secondary;
+            margin: 0;
+          }
+        }
+      }
+
+      .logout-btn {
+        background: $moderator-primary;
+        border: none;
+        color: white;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: #6d28d9;
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+
+  // Container
+  .moderator-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  // Sidebar Styles
+  .moderator-sidebar {
+    width: 260px;
+    background-color: $dark-bg;
+    border-right: 1px solid $border-color;
+    overflow-y: auto;
+    transition: all 0.3s ease;
+    padding: 1.5rem 0;
+
+    &.closed {
+      width: 80px;
+
+      .nav-label,
+      .submenu {
+        display: none;
+      }
+    }
+
+    .moderator-nav {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 0 0.75rem;
+
+      .nav-item-wrapper {
+        display: flex;
+        flex-direction: column;
+
+        .nav-item {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 0.75rem 1rem;
+          background: transparent;
+          border: none;
+          color: $text-secondary;
+          cursor: pointer;
+          border-radius: 8px;
+          font-weight: 500;
+          transition: all 0.3s ease;
+          white-space: nowrap;
+
+          &:hover {
+            background-color: rgba($moderator-primary, 0.1);
+            color: $moderator-accent;
+
+            .chevron {
+              color: $moderator-primary;
+            }
+          }
+
+          .chevron {
+            margin-left: auto;
+            transition: transform 0.3s ease;
+
+            &.expanded {
+              transform: rotate(180deg);
+            }
+          }
+        }
+
+        .submenu {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+          padding: 0.5rem 0 0.5rem 2.5rem;
+          animation: slideDown 0.3s ease;
+
+          .submenu-item {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: $text-secondary;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+
+            &:hover {
+              background-color: rgba($moderator-primary, 0.15);
+              color: $moderator-accent;
+              padding-left: 1.25rem;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Content Styles
+  .moderator-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    background-color: $darker-bg;
+
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: $moderator-primary;
+      border-radius: 4px;
+
+      &:hover {
+        background: $moderator-secondary;
+      }
+    }
+  }
+
+  // Footer Styles
+  .moderator-footer {
+    padding: 1.5rem 2rem;
+    background-color: $dark-bg;
+    border-top: 1px solid $border-color;
+    text-align: center;
+    color: $text-secondary;
+    font-size: 0.9rem;
+
+    p {
+      margin: 0;
+    }
+  }
+}
+
+// Animations
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Responsive
+@media (max-width: 768px) {
+  .moderator-layout {
+    .moderator-header {
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+
+      .header-right {
+        gap: 1rem;
+      }
+    }
+
+    .moderator-container {
+      flex-direction: column;
+    }
+
+    .moderator-sidebar {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid $border-color;
+
+      &.closed {
+        display: none;
+      }
+    }
+  }
+}
