@@ -1,0 +1,49 @@
+.tradingview-wrapper {
+  width: 100%;
+  overflow: hidden;
+  background: #001825;
+  border-bottom: 1px solid rgba(100, 200, 255, 0.12);
+  position: relative;
+}
+
+/* Track that moves */
+.tradingview-track {
+  display: flex;
+  width: max-content;
+  animation: tickerScroll 45s linear infinite;
+}
+
+/* Each TradingView widget */
+.tradingview-item {
+  min-width: 100vw;
+  padding: 8px 0;
+}
+
+/* Clone should look identical */
+.tradingview-clone {
+  pointer-events: none;
+}
+
+/* Optional: pause when hovering */
+.tradingview-wrapper:hover .tradingview-track {
+  animation-play-state: paused;
+}
+
+/* Caption (optional) */
+.tradingview-caption {
+  position: absolute;
+  right: 12px;
+  bottom: 4px;
+  font-size: 11px;
+  opacity: 0.5;
+}
+
+/* Keyframes */
+@keyframes tickerScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
