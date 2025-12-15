@@ -193,14 +193,14 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
           
           {/* Curved RED label */}
-          <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
+          <text fill="#ef4444" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#redPath" startOffset="50%" textAnchor="middle">
               RED
             </textPath>
           </text>
           
           {/* Curved BLUE label */}
-          <text fill="#e5f2ff" fontSize={16} fontWeight={700} letterSpacing={2}>
+          <text fill="#3b82f6" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
               BLUE
             </textPath>

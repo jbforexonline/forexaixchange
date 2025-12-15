@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import SpinWheel from "../Components/Spin/SpinWheel";
 import Historigram from "./Historigram";
@@ -8,6 +8,21 @@ import "./Styles/Landing.scss";
 
 export default function Landing() {
   const videoRef = useRef(null);
+  const [premiumSlideIndex, setPremiumSlideIndex] = useState(0);
+  const premiumFeatures = [
+    "✅ Verification Badge",
+    "✅ Internal Transfers between users",
+    "✅ Flexible Spin Timing & Auto-Press Orders",
+    "✅ High Order Limits (up to $200 per order)",
+    "✅ Unlimited Withdrawals",
+    "✅ Members' Chart Room Access & VIP support",
+    "✅ No limits on daily withdraw (basic daily withdraw is $1000)",
+    "✅ Access to all crypto and stock spins",
+    "✅ Free ads account upon yearly subscription",
+    "✅ Early access to new features and promotions"
+  ];
+  const itemsPerSlide = 3;
+  const totalSlides = Math.ceil(premiumFeatures.length / itemsPerSlide);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -115,6 +130,25 @@ export default function Landing() {
     };
   }, []);
 
+  // Premium features carousel auto-rotate
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPremiumSlideIndex((prev) => (prev + 1) % totalSlides);
+    }, 4000); // 4 seconds per slide
+
+    return () => clearInterval(interval);
+  }, [totalSlides]);
+
+  const goToSlide = (index) => {
+    if (index < 0) {
+      setPremiumSlideIndex(totalSlides - 1);
+    } else if (index >= totalSlides) {
+      setPremiumSlideIndex(0);
+    } else {
+      setPremiumSlideIndex(index);
+    }
+  };
+
   return (
     <div className="home">
       {/* HEADER */}
@@ -169,27 +203,38 @@ export default function Landing() {
           </video>
         </div>
 
-        {/* TradingView Widget - Live Market Data */}
-        <section className="tradingview-section" style={{ marginBottom: '2rem', zIndex: 10, position: 'relative' }}>
+        {/* TradingView Widget - Live Market Data - Attached to header */}
+        <section className="tradingview-section">
           <TradingViewWidget />
         </section>
 
         <div className="main-grid">
-          {/* Left Column: Premium Card */}
+          {/* Left Column: Premium Card with Carousel */}
           <section className="premium-card">
             <h1>Forexaiexchange Premium</h1>
-            <ul>
-              <li>✅ Verification Badge</li>
-              <li>✅ Internal Transfers between users</li>
-              <li>✅ Flexible Spin Timing & Auto-Press Orders</li>
-              <li>✅ High Order Limits (up to $200 per order)</li>
-              <li>✅ Unlimited Withdrawals</li>
-              <li>✅ Members' Chart Room Access & VIP support</li>
-              <li>✅ No limits on daily withdraw (basic daily withdraw is $1000)</li>
-              <li>✅ Access to all crypto and stock spins</li>
-              <li>✅ Free ads account upon yearly subscription</li>
-              <li>✅ Early access to new features and promotions</li>
-            </ul>
+            <div className="premium-carousel">
+              <button 
+                className="carousel-arrow carousel-prev" 
+                aria-label="Previous features"
+                onClick={() => goToSlide(premiumSlideIndex - 1)}
+              >
+                ←
+              </button>
+              <div className="premium-features-wrapper">
+                <ul className="premium-features-list" style={{ transform: `translateY(-${premiumSlideIndex * (100 / totalSlides)}%)` }}>
+                  {premiumFeatures.map((feature, index) => (
+                    <li key={index}>{feature}</li>
+                  ))}
+                </ul>
+              </div>
+              <button 
+                className="carousel-arrow carousel-next" 
+                aria-label="Next features"
+                onClick={() => goToSlide(premiumSlideIndex + 1)}
+              >
+                →
+              </button>
+            </div>
             <Link href="/login">
               <button className="btn register" style={{ marginTop: '12px', width: '100%' }}>
                 Upgrade to Premium
@@ -197,8 +242,8 @@ export default function Landing() {
             </Link>
           </section>
 
-          {/* Center: Spin Wheel with Graph Overlay */}
-          <div className="spinner-with-graph">
+          {/* Center: Spin Wheel and Graph Side by Side */}
+          <div className="spinner-graph-container">
             <div className="spinner-container">
               <SpinWheel
                 state="open"
@@ -207,13 +252,13 @@ export default function Landing() {
               />
             </div>
             
-            {/* Small Graph in Upper Right Corner */}
-            <div className="graph-overlay">
+            {/* Graph beside spin (middle parallel) */}
+            <div className="graph-beside">
               <Historigram title="Analytics" showChartOnly={true} />
             </div>
           </div>
 
-          {/* Right Column: Betting Table */}
+          {/* Betting Table Below Spin */}
           <section className="strategy-table">
             <h2>Place Order</h2>
             <h2>Balance: $1000</h2>
@@ -276,7 +321,7 @@ export default function Landing() {
             </div>
           </section>
 
-          {/* History Table Below Graph */}
+          {/* History Table Below Premium Features */}
           <section className="history-section">
             <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
           </section>

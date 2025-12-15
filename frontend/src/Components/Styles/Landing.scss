@@ -107,7 +107,8 @@
       position: relative;
       z-index: 2;
       width: 100%;
-      margin-bottom: 2rem;
+      margin: 0;
+      margin-top: -1px; // Attach to header
     }
 
     .main-grid {
@@ -116,28 +117,30 @@
       width: 100%;
       max-width: 1400px;
       display: grid;
-      grid-template-columns: 320px 1fr 320px;
+      grid-template-columns: 280px 1fr;
       grid-template-areas:
-        "premium spinner-with-graph table"
-        "premium history history";
+        "premium spinner-graph"
+        "premium betting-table"
+        "history betting-table";
       gap: 20px;
       align-items: start;
       justify-items: stretch;
 
       @media (max-width: 1200px) {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         grid-template-areas:
-          "premium spinner-with-graph"
-          "table spinner-with-graph"
-          "history history";
+          "premium"
+          "spinner-graph"
+          "betting-table"
+          "history";
       }
 
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
         grid-template-areas:
           "premium"
-          "spinner-with-graph"
-          "table"
+          "spinner-graph"
+          "betting-table"
           "history";
       }
 
@@ -147,14 +150,158 @@
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 20px;
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-        padding: 20px 20px 24px;
+        padding: 16px;
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
+        max-width: 100%;
+
+        h1 {
+          margin: 0 0 12px;
+          font-size: 18px;
+          color: #b8f3ff;
+        }
+
+        .premium-carousel {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+
+          .carousel-arrow {
+            background: rgba(100, 200, 255, 0.15);
+            border: 1px solid rgba(100, 200, 255, 0.25);
+            border-radius: 6px;
+            color: #9ccfff;
+            cursor: pointer;
+            font-size: 18px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+
+            &:hover {
+              background: rgba(100, 200, 255, 0.25);
+              border-color: rgba(100, 200, 255, 0.4);
+            }
+          }
+
+          .premium-features-wrapper {
+            flex: 1;
+            overflow: hidden;
+            height: 76px; // 3 lines * ~25px line-height
+
+            .premium-features-list {
+              padding: 0;
+              margin: 0;
+              list-style: none;
+              transition: transform 0.6s ease;
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+              height: 100%;
+
+              li {
+                color: #d7f4ff;
+                font-size: 12px;
+                line-height: 24px;
+                min-height: 24px;
+                flex-shrink: 0;
+              }
+            }
+          }
+        }
+      }
+
+      .spinner-graph-container {
+        grid-area: spinner-graph;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        min-height: 480px;
+
+        @media (max-width: 1200px) {
+          flex-direction: column;
+          gap: 16px;
+        }
+      }
+
+      .spinner-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+        max-width: 500px;
+        padding: 16px;
+
+        /* Small background panel behind the spin to improve visibility */
+        background: rgba(0, 10, 20, 0.78);
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+
+        // Ensure spinner wheel styles are applied
+        .wheel-container {
+          width: 100%;
+          max-width: 460px;
+          aspect-ratio: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+
+          .spin-wheel-svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            filter: drop-shadow(0 20px 60px rgba(100, 200, 255, 0.15));
+
+            .ring-separators {
+              /* Fixed separators, don't spin */
+            }
+
+            .spin-cw {
+              animation: spinClockwise 30s linear infinite;
+              transform-origin: 300px 300px;
+              will-change: transform;
+              backface-visibility: hidden;
+            }
+
+            .spin-ccw {
+              animation: spinCounterClockwise 28s linear infinite;
+              transform-origin: 300px 300px;
+              will-change: transform;
+              backface-visibility: hidden;
+            }
+          }
+        }
+      }
+
+      .graph-beside {
+        width: 280px;
+        flex-shrink: 0;
+        background: rgba(0, 12, 22, 0.92);
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 12px;
+        padding: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+
+        @media (max-width: 1200px) {
+          width: 100%;
+        }
       }
 
       .strategy-table {
-        grid-area: table;
+        grid-area: betting-table;
         background: rgba(0, 12, 22, 0.82);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 20px;
@@ -175,63 +322,6 @@
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
-      }
-
-      .graph-overlay {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        width: 260px;
-        z-index: 5;
-        background: rgba(0, 12, 22, 0.95);
-        border: 1px solid rgba(100, 200, 255, 0.2);
-        border-radius: 10px;
-        padding: 10px;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-
-        @media (max-width: 1200px) {
-          position: relative;
-          top: auto;
-          right: auto;
-          width: 100%;
-          margin-top: 16px;
-        }
-      }
-
-
-      .premium-card {
-        max-width: 100%;
-        h1 {
-          margin: 0 0 12px;
-          font-size: 22px;
-          color: #b8f3ff;
-        }
-
-        ul {
-          padding-left: 16px;
-          margin: 0;
-          display: grid;
-          gap: 6px;
-          list-style: none;
-          font-size: 14px;
-          line-height: 1.45;
-        }
-
-        li {
-          color: #d7f4ff;
-        }
-      }
-
-      .spinner-with-graph {
-        grid-area: spinner-with-graph;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 480px;
-        max-height: 500px;
       }
 
       .spinner-container {
