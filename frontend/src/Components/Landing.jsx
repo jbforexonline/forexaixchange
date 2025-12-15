@@ -267,7 +267,7 @@ export default function Landing() {
           </section>
 
           {/* Historigram - Trading History Chart */}
-          <section className="historigram-section" style={{ gridColumn: '1 / -1', marginTop: '2rem' }}>
+          <section className="historigram-section">
             <Historigram title="Trading History & Analytics" />
           </section>
         </div>
