@@ -7,6 +7,20 @@
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 
+  &.chart-only {
+    padding: 8px;
+    h3 {
+      margin: 0 0 6px;
+      font-size: 11px;
+    }
+  }
+
+  &.history-only {
+    h3 {
+      margin: 0 0 12px;
+    }
+  }
+
   h3 {
     margin: 0 0 8px;
     font-size: 13px;

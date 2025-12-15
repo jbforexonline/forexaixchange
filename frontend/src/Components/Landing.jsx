@@ -175,6 +175,7 @@ export default function Landing() {
         </section>
 
         <div className="main-grid">
+          {/* Left Column: Premium Card */}
           <section className="premium-card">
             <h1>Forexaiexchange Premium</h1>
             <ul>
@@ -183,7 +184,7 @@ export default function Landing() {
               <li>✅ Flexible Spin Timing & Auto-Press Orders</li>
               <li>✅ High Order Limits (up to $200 per order)</li>
               <li>✅ Unlimited Withdrawals</li>
-              <li>✅ Members’ Chart Room Access & VIP support</li>
+              <li>✅ Members' Chart Room Access & VIP support</li>
               <li>✅ No limits on daily withdraw (basic daily withdraw is $1000)</li>
               <li>✅ Access to all crypto and stock spins</li>
               <li>✅ Free ads account upon yearly subscription</li>
@@ -196,14 +197,23 @@ export default function Landing() {
             </Link>
           </section>
 
-          <div className="spinner-container">
-            <SpinWheel
-              state="open"
-              countdownSec={30}
-              winners={undefined}
-            />
+          {/* Center: Spin Wheel with Graph Overlay */}
+          <div className="spinner-with-graph">
+            <div className="spinner-container">
+              <SpinWheel
+                state="open"
+                countdownSec={30}
+                winners={undefined}
+              />
+            </div>
+            
+            {/* Small Graph in Upper Right Corner */}
+            <div className="graph-overlay">
+              <Historigram title="Analytics" showChartOnly={true} />
+            </div>
           </div>
 
+          {/* Right Column: Betting Table */}
           <section className="strategy-table">
             <h2>Place Order</h2>
             <h2>Balance: $1000</h2>
@@ -266,9 +276,9 @@ export default function Landing() {
             </div>
           </section>
 
-          {/* Historigram - Trading History Chart */}
-          <section className="historigram-section">
-            <Historigram title="Trading History & Analytics" />
+          {/* History Table Below Graph */}
+          <section className="history-section">
+            <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
           </section>
         </div>
       </main>

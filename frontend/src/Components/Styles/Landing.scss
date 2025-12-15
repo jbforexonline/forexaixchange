@@ -77,8 +77,8 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 60px 24px;
-    min-height: calc(100vh - 200px);
+    padding: 40px 24px;
+    min-height: calc(100vh - 180px);
     overflow-x: hidden; // Contain video background, allow vertical scroll
     overflow-y: auto;
 
@@ -114,29 +114,35 @@
       position: relative;
       z-index: 2; // Above video background
       width: 100%;
-      max-width: 1280px;
+      max-width: 1400px;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 320px 1fr 320px;
       grid-template-areas:
-        "spinner spinner"
-        "premium table"
-        "histogram histogram";
-      gap: 24px 20px;
+        "premium spinner-with-graph table"
+        "premium history history";
+      gap: 20px;
       align-items: start;
-      justify-items: center;
+      justify-items: stretch;
 
-      @media (max-width: 1024px) {
-        grid-template-columns: 1fr;
+      @media (max-width: 1200px) {
+        grid-template-columns: 1fr 1fr;
         grid-template-areas:
-          "spinner"
-          "premium"
-          "table"
-          "histogram";
+          "premium spinner-with-graph"
+          "table spinner-with-graph"
+          "history history";
       }
 
-      .premium-card,
-      .strategy-table,
-      .historigram-section {
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "premium"
+          "spinner-with-graph"
+          "table"
+          "history";
+      }
+
+      .premium-card {
+        grid-area: premium;
         background: rgba(0, 12, 22, 0.82);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 20px;
@@ -147,14 +153,56 @@
         -webkit-backdrop-filter: blur(6px);
       }
 
-      .historigram-section {
-        grid-area: histogram;
-        width: 100%;
+      .strategy-table {
+        grid-area: table;
+        background: rgba(0, 12, 22, 0.82);
+        border: 1px solid rgba(100, 200, 255, 0.12);
+        border-radius: 20px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        padding: 20px 20px 24px;
+        color: #e7f7ff;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
       }
 
+      .history-section {
+        grid-area: history;
+        background: rgba(0, 12, 22, 0.82);
+        border: 1px solid rgba(100, 200, 255, 0.12);
+        border-radius: 20px;
+        box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+        padding: 20px 20px 24px;
+        color: #e7f7ff;
+        backdrop-filter: blur(6px);
+        -webkit-backdrop-filter: blur(6px);
+      }
+
+      .graph-overlay {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 260px;
+        z-index: 5;
+        background: rgba(0, 12, 22, 0.95);
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 10px;
+        padding: 10px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+
+        @media (max-width: 1200px) {
+          position: relative;
+          top: auto;
+          right: auto;
+          width: 100%;
+          margin-top: 16px;
+        }
+      }
+
+
       .premium-card {
-        grid-area: premium;
-        max-width: 360px;
+        max-width: 100%;
         h1 {
           margin: 0 0 12px;
           font-size: 22px;
@@ -176,16 +224,25 @@
         }
       }
 
+      .spinner-with-graph {
+        grid-area: spinner-with-graph;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 480px;
+        max-height: 500px;
+      }
+
       .spinner-container {
-        grid-area: spinner;
         position: relative;
         display: flex;
         align-items: center;
         justify-content: center;
         width: 100%;
-        max-width: 850px;
+        max-width: 500px;
         margin: 0 auto;
-        padding: 26px;
+        padding: 16px;
 
         /* Small background panel behind the spin to improve visibility */
         background: rgba(0, 10, 20, 0.78);
@@ -197,7 +254,7 @@
         // Ensure spinner wheel styles are applied
         .wheel-container {
           width: 100%;
-          max-width: 800px;
+          max-width: 460px;
           aspect-ratio: 1;
           display: flex;
           align-items: center;
@@ -232,7 +289,6 @@
       }
 
       .strategy-table {
-        grid-area: table;
         h2 {
           margin: 0 0 12px;
           font-size: 20px;
