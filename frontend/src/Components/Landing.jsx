@@ -9,6 +9,8 @@ import "./Styles/Landing.scss";
 export default function Landing() {
   const videoRef = useRef(null);
   const [premiumSlideIndex, setPremiumSlideIndex] = useState(0);
+  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
+  const carouselIntervalRef = useRef(null);
   const premiumFeatures = [
     "✅ Verification Badge",
     "✅ Internal Transfers between users",
@@ -130,16 +132,37 @@ export default function Landing() {
     };
   }, []);
 
-  // Premium features carousel auto-rotate
+  // Premium features carousel auto-rotate (15 seconds per slide)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPremiumSlideIndex((prev) => (prev + 1) % totalSlides);
-    }, 4000); // 4 seconds per slide
+    if (isCarouselPaused) {
+      if (carouselIntervalRef.current) {
+        clearInterval(carouselIntervalRef.current);
+        carouselIntervalRef.current = null;
+      }
+      return;
+    }
 
-    return () => clearInterval(interval);
-  }, [totalSlides]);
+    carouselIntervalRef.current = setInterval(() => {
+      setPremiumSlideIndex((prev) => (prev + 1) % totalSlides);
+    }, 15000); // 15 seconds per slide
+
+    return () => {
+      if (carouselIntervalRef.current) {
+        clearInterval(carouselIntervalRef.current);
+        carouselIntervalRef.current = null;
+      }
+    };
+  }, [totalSlides, isCarouselPaused]);
 
   const goToSlide = (index) => {
+    // Pause carousel when user interacts
+    setIsCarouselPaused(true);
+    
+    // Resume after 20 seconds of inactivity
+    setTimeout(() => {
+      setIsCarouselPaused(false);
+    }, 20000);
+
     if (index < 0) {
       setPremiumSlideIndex(totalSlides - 1);
     } else if (index >= totalSlides) {
@@ -221,7 +244,7 @@ export default function Landing() {
                 ←
               </button>
               <div className="premium-features-wrapper">
-                <ul className="premium-features-list" style={{ transform: `translateY(-${premiumSlideIndex * (100 / totalSlides)}%)` }}>
+                <ul className="premium-features-list" style={{ transform: `translateY(-${premiumSlideIndex * (itemsPerSlide * 28)}px)` }}>
                   {premiumFeatures.map((feature, index) => (
                     <li key={index}>{feature}</li>
                   ))}
@@ -242,7 +265,7 @@ export default function Landing() {
             </Link>
           </section>
 
-          {/* Center: Spin Wheel and Graph Side by Side */}
+          {/* Center: Spin Wheel, Graph, and Betting Table */}
           <div className="spinner-graph-container">
             <div className="spinner-container">
               <SpinWheel
@@ -256,10 +279,9 @@ export default function Landing() {
             <div className="graph-beside">
               <Historigram title="Analytics" showChartOnly={true} />
             </div>
-          </div>
 
-          {/* Betting Table Below Spin */}
-          <section className="strategy-table">
+            {/* Betting Table Below Spin - Relative to spin size */}
+            <section className="strategy-table">
             <h2>Place Order</h2>
             <h2>Balance: $1000</h2>
             <table>
@@ -319,9 +341,10 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
-          </section>
+            </section>
+          </div>
 
-          {/* History Table Below Premium Features */}
+          {/* History Table Below Premium Features - Wide, no horizontal scroll */}
           <section className="history-section">
             <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
           </section>

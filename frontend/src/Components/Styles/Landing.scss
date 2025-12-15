@@ -115,13 +115,12 @@
       position: relative;
       z-index: 2; // Above video background
       width: 100%;
-      max-width: 1400px;
+      max-width: 1600px;
       display: grid;
       grid-template-columns: 280px 1fr;
       grid-template-areas:
         "premium spinner-graph"
-        "premium betting-table"
-        "history betting-table";
+        "history spinner-graph";
       gap: 20px;
       align-items: start;
       justify-items: stretch;
@@ -203,7 +202,6 @@
               display: flex;
               flex-direction: column;
               gap: 4px;
-              height: 100%;
 
               li {
                 color: #d7f4ff;
@@ -211,6 +209,7 @@
                 line-height: 24px;
                 min-height: 24px;
                 flex-shrink: 0;
+                height: 24px;
               }
             }
           }
@@ -220,8 +219,8 @@
       .spinner-graph-container {
         grid-area: spinner-graph;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
         gap: 20px;
         min-height: 480px;
 
@@ -236,7 +235,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        flex: 1;
+        width: 100%;
         max-width: 500px;
         padding: 16px;
 
@@ -285,8 +284,8 @@
       }
 
       .graph-beside {
-        width: 280px;
-        flex-shrink: 0;
+        width: 100%;
+        max-width: 500px;
         background: rgba(0, 12, 22, 0.92);
         border: 1px solid rgba(100, 200, 255, 0.2);
         border-radius: 12px;
@@ -301,7 +300,6 @@
       }
 
       .strategy-table {
-        grid-area: betting-table;
         background: rgba(0, 12, 22, 0.82);
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 20px;
@@ -310,6 +308,13 @@
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
+        width: 100%;
+        max-width: 500px;
+        margin: 0 auto;
+
+        @media (max-width: 1200px) {
+          max-width: 100%;
+        }
       }
 
       .history-section {
@@ -322,6 +327,29 @@
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
+        width: 100%;
+
+        .histogram-box {
+          width: 100%;
+
+          .history-wrapper {
+            overflow-x: visible;
+            overflow-y: auto;
+            max-height: 400px;
+
+            .history-table {
+              width: 100%;
+              min-width: auto;
+              table-layout: auto;
+
+              th, td {
+                padding: 10px 12px;
+                white-space: normal;
+                word-wrap: break-word;
+              }
+            }
+          }
+        }
       }
 
       .spinner-container {
