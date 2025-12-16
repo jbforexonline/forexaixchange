@@ -346,11 +346,6 @@ export default function Landing() {
           <div className="graph-area">
             <Historigram title="Analytics" showChartOnly={true} />
           </div>
-
-          {/* History Table Below Premium Features - Wide, no horizontal scroll */}
-          <section className="history-section">
-            <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
-          </section>
         </div>
       </main>
 
