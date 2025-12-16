@@ -263,19 +263,19 @@ export default function Landing() {
             </Link>
           </section>
 
-          {/* Center: Spin Wheel, Graph, and Betting Table */}
-          <div className="spinner-graph-container">
+          {/* History Table - Below premium features, beside spin */}
+          <section className="history-section">
+            <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
+          </section>
+
+          {/* Center: Spin Wheel with Betting Table Below */}
+          <div className="spinner-area">
             <div className="spinner-container">
               <SpinWheel
                 state="open"
                 countdownSec={30}
                 winners={undefined}
               />
-            </div>
-            
-            {/* Graph beside spin (middle parallel) */}
-            <div className="graph-beside">
-              <Historigram title="Analytics" showChartOnly={true} />
             </div>
 
             {/* Betting Table Below Spin - Relative to spin size */}
