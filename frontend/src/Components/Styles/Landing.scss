@@ -108,7 +108,7 @@
       z-index: 2;
       width: 100%;
       margin: 0;
-      margin-top: -1px; // Attach to header
+      padding: 0;
     }
 
     .main-grid {
@@ -117,30 +117,29 @@
       width: 100%;
       max-width: 1600px;
       display: grid;
-      grid-template-columns: 280px 1fr;
+      grid-template-columns: 280px 1fr 300px;
       grid-template-areas:
-        "premium spinner-graph"
-        "history spinner-graph";
+        "premium spinner graph"
+        "history spinner graph";
       gap: 20px;
       align-items: start;
       justify-items: stretch;
 
       @media (max-width: 1200px) {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
         grid-template-areas:
-          "premium"
-          "spinner-graph"
-          "betting-table"
-          "history";
+          "premium premium"
+          "history history"
+          "spinner graph";
       }
 
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
         grid-template-areas:
           "premium"
-          "spinner-graph"
-          "betting-table"
-          "history";
+          "history"
+          "spinner"
+          "graph";
       }
 
       .premium-card {
@@ -216,19 +215,13 @@
         }
       }
 
-      .spinner-graph-container {
-        grid-area: spinner-graph;
+      .spinner-area {
+        grid-area: spinner;
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 20px;
-        min-height: 480px;
         width: 100%;
-
-        @media (max-width: 1200px) {
-          flex-direction: column;
-          gap: 16px;
-        }
       }
 
       .spinner-container {
@@ -284,9 +277,8 @@
         }
       }
 
-      .graph-beside {
-        width: 100%;
-        max-width: 500px;
+      .graph-area {
+        grid-area: graph;
         background: rgba(0, 12, 22, 0.92);
         border: 1px solid rgba(100, 200, 255, 0.2);
         border-radius: 12px;
@@ -294,10 +286,7 @@
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
-
-        @media (max-width: 1200px) {
-          width: 100%;
-        }
+        height: fit-content;
       }
 
       .strategy-table {
@@ -324,7 +313,7 @@
         border: 1px solid rgba(100, 200, 255, 0.12);
         border-radius: 20px;
         box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-        padding: 20px 20px 24px;
+        padding: 16px;
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
@@ -332,22 +321,39 @@
 
         .histogram-box {
           width: 100%;
+          background: transparent;
+          border: none;
+          box-shadow: none;
+          padding: 0;
+
+          h3 {
+            font-size: 16px;
+            margin-bottom: 12px;
+          }
 
           .history-wrapper {
-            overflow-x: visible;
-            overflow-y: auto;
-            max-height: 400px;
+            overflow-x: auto;
+            overflow-y: visible;
+            margin-top: 0;
 
             .history-table {
               width: 100%;
-              min-width: auto;
-              table-layout: auto;
+              min-width: 100%;
+              table-layout: fixed;
+              font-size: 11px;
 
               th, td {
-                padding: 10px 12px;
-                white-space: normal;
-                word-wrap: break-word;
+                padding: 8px 6px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
               }
+
+              th:nth-child(1), td:nth-child(1) { width: 15%; }
+              th:nth-child(2), td:nth-child(2) { width: 18%; }
+              th:nth-child(3), td:nth-child(3) { width: 15%; }
+              th:nth-child(4), td:nth-child(4) { width: 25%; }
+              th:nth-child(5), td:nth-child(5) { width: 17%; }
             }
           }
         }

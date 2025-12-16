@@ -30,7 +30,7 @@ export default function Landing() {
     const video = videoRef.current;
     if (!video) return;
 
-    // Start muted for autoplay compatibility, then unmute
+    // Keep video muted permanently
     video.muted = true;
     video.preload = 'auto';
 
@@ -51,10 +51,8 @@ export default function Landing() {
     };
 
     const handlePlaying = () => {
-      // Once playing, unmute for sound
-      if (video.muted) {
-        video.muted = false;
-      }
+      // Keep video muted - no sound
+      video.muted = true;
     };
 
     const handleCanPlay = () => {
@@ -87,16 +85,16 @@ export default function Landing() {
 
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // Start playing immediately
+    // Start playing immediately (muted)
     const playVideo = () => {
       video.play().then(() => {
-        // Successfully playing, unmute
-        video.muted = false;
+        // Keep muted
+        video.muted = true;
       }).catch(() => {
         // If autoplay fails, try again on user interaction
         const tryPlay = () => {
           video.play().then(() => {
-            video.muted = false;
+            video.muted = true;
           }).catch(() => {});
           document.removeEventListener('click', tryPlay);
           document.removeEventListener('touchstart', tryPlay);
@@ -342,6 +340,11 @@ export default function Landing() {
               </div>
             </div>
             </section>
+          </div>
+
+          {/* Right: Graph beside spin */}
+          <div className="graph-area">
+            <Historigram title="Analytics" showChartOnly={true} />
           </div>
 
           {/* History Table Below Premium Features - Wide, no horizontal scroll */}
