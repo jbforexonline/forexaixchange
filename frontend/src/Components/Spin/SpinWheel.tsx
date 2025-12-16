@@ -291,6 +291,9 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           <text x={cx} y={cy - 12} fill="#a5d5ff" textAnchor="middle" fontSize={32} fontWeight={800}>
             {state === "settled" ? "SETTLED" : `${countdownSec}s`}
           </text>
+          <text x={cx} y={cy + 3} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={9} fontWeight={600} letterSpacing={0.5}>
+            Market Ai Analysing
+          </text>
           <text x={cx} y={cy + 18} fill="rgba(165, 213, 255, 0.7)" textAnchor="middle" fontSize={11} fontWeight={600}>
             {state === "open" ? "LIVE" : state === "frozen" ? "FROZEN" : "MARKET"}
           </text>

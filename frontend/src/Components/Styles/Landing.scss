@@ -121,40 +121,24 @@
       width: 100%;
       max-width: 1600px;
       display: grid;
-      grid-template-columns: 300px 380px 1fr 300px;
+      grid-template-columns: 1fr 500px 300px;
       grid-template-areas:
-        "premium history spinner graph"
-        "premium history spinner order";
-      gap: 20px;
-      column-gap: 20px;
-      row-gap: 20px;
+        "premium spinner graph"
+        "history spinner order";
+      gap: 0px;
+      column-gap: 60px;
+      row-gap: 8px;
       align-items: start;
       justify-items: stretch;
       margin-top: 20px;
-      
-      // Reduce gap between premium and history
-      .premium-card {
-        margin-right: 8px;
-      }
-      
-      .history-section {
-        margin-left: 8px;
-      }
-      
-      // Reduce gap between graph and order
-      .graph-area {
-        margin-bottom: 8px;
-      }
-      
-      .order-section {
-        margin-top: 8px;
-      }
 
       @media (max-width: 1400px) {
-        grid-template-columns: 280px 1fr 300px;
-        grid-template-areas:
-          "premium spinner graph"
-          "history spinner graph";
+      grid-template-columns: 1fr 500px 300px;
+      grid-template-areas:
+        "premium spinner graph"
+        "history spinner order";
+        column-gap: 0px;
+        row-gap: 8px;
       }
 
       @media (max-width: 1024px) {
@@ -162,7 +146,10 @@
         grid-template-areas:
           "premium premium"
           "history spinner"
-          "history graph";
+          "history graph"
+          "history order";
+        column-gap: 8px;
+        row-gap: 8px;
       }
 
       @media (max-width: 768px) {
@@ -171,7 +158,10 @@
           "premium"
           "history"
           "spinner"
-          "graph";
+          "graph"
+          "order";
+        column-gap: 8px;
+        row-gap: 8px;
       }
 
       .premium-card {
@@ -184,8 +174,13 @@
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
-        max-width: 100%;
+        width: calc(100% - 20px);
+        max-width: none;
+        min-width: calc(100% - 20px);
         min-height: 200px;
+        margin-right: 20px;
+        margin-left: 0;
+        box-sizing: border-box;
 
         h1 {
           margin: 0 0 12px;
@@ -257,6 +252,12 @@
         align-items: center;
         gap: 20px;
         width: 100%;
+        max-width: 500px;
+        margin-left: 20px;
+        margin-right: 20px;
+        padding-left: 0;
+        padding-right: 0;
+        justify-self: center;
       }
 
       .spinner-container {
@@ -323,6 +324,8 @@
         backdrop-filter: blur(10px);
         -webkit-backdrop-filter: blur(10px);
         height: fit-content;
+        margin-bottom: 0;
+        margin-left: 20px;
       }
 
       .strategy-table {
@@ -343,6 +346,18 @@
         }
       }
 
+      .order-section {
+        grid-area: order;
+        margin-top: 0;
+        margin-left: 20px;
+        max-width: 100%;
+        
+        &.strategy-table {
+          max-width: 100%;
+          margin-left: 20px;
+        }
+      }
+
       .history-section {
         grid-area: history;
         background: rgba(0, 12, 22, 0.82);
@@ -353,10 +368,17 @@
         color: #e7f7ff;
         backdrop-filter: blur(6px);
         -webkit-backdrop-filter: blur(6px);
-        width: 100%;
+        width: calc(100% - 20px);
+        max-width: none;
+        min-width: calc(100% - 20px);
         max-height: none;
         overflow-y: visible;
         overflow-x: visible;
+        margin-top: 0;
+        margin-right: 20px;
+        margin-left: 0;
+        padding-right: 0;
+        box-sizing: border-box;
 
         .histogram-box {
           width: 100%;
@@ -378,20 +400,22 @@
             .history-table {
               width: 100%;
               min-width: 100%;
+              max-width: 100%;
               table-layout: fixed;
-              font-size: 10px;
+              font-size: 11px;
 
               th, td {
-                padding: 6px 4px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                padding: 8px 8px;
+                white-space: normal;
+                overflow: visible;
+                text-overflow: clip;
+                word-wrap: break-word;
               }
 
-              th:nth-child(1), td:nth-child(1) { width: 20%; }
-              th:nth-child(2), td:nth-child(2) { width: 18%; }
-              th:nth-child(3), td:nth-child(3) { width: 15%; }
-              th:nth-child(4), td:nth-child(4) { width: 27%; }
+              th:nth-child(1), td:nth-child(1) { width: 18%; }
+              th:nth-child(2), td:nth-child(2) { width: 20%; }
+              th:nth-child(3), td:nth-child(3) { width: 18%; }
+              th:nth-child(4), td:nth-child(4) { width: 24%; }
               th:nth-child(5), td:nth-child(5) { width: 20%; }
             }
           }

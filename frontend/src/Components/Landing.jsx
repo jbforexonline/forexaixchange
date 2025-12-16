@@ -268,7 +268,7 @@ export default function Landing() {
             <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
           </section>
 
-          {/* Center: Spin Wheel with Betting Table Below */}
+          {/* Center: Spin Wheel */}
           <div className="spinner-area">
             <div className="spinner-container">
               <SpinWheel
@@ -277,9 +277,15 @@ export default function Landing() {
                 winners={undefined}
               />
             </div>
+          </div>
 
-            {/* Betting Table Below Spin - Relative to spin size */}
-            <section className="strategy-table">
+          {/* Right: Graph beside spin */}
+          <div className="graph-area">
+            <Historigram title="Analytics" showChartOnly={true} />
+          </div>
+
+          {/* Place Order Section - Under Analytics */}
+          <section className="strategy-table order-section">
             <h2>Place Order</h2>
             <h2>Balance: $1000</h2>
             <table>
@@ -339,13 +345,7 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
-            </section>
-          </div>
-
-          {/* Right: Graph beside spin */}
-          <div className="graph-area">
-            <Historigram title="Analytics" showChartOnly={true} />
-          </div>
+          </section>
         </div>
       </main>
 
