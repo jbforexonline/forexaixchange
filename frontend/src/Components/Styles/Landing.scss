@@ -117,8 +117,9 @@
       width: 100%;
       max-width: 1600px;
       display: grid;
-      grid-template-columns: 280px 380px 1fr 300px;
+      grid-template-columns: 300px 380px 1fr 300px;
       grid-template-areas:
+        "premium history spinner graph"
         "premium history spinner graph";
       gap: 20px;
       align-items: start;
@@ -128,24 +129,24 @@
         grid-template-columns: 280px 1fr 300px;
         grid-template-areas:
           "premium spinner graph"
-          "history history history";
+          "history spinner graph";
       }
 
       @media (max-width: 1024px) {
         grid-template-columns: 1fr 1fr;
         grid-template-areas:
           "premium premium"
-          "spinner graph"
-          "history history";
+          "history spinner"
+          "history graph";
       }
 
       @media (max-width: 768px) {
         grid-template-columns: 1fr;
         grid-template-areas:
           "premium"
+          "history"
           "spinner"
-          "graph"
-          "history";
+          "graph";
       }
 
       .premium-card {
