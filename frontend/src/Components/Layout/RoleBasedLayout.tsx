@@ -26,7 +26,7 @@ export default function RoleBasedLayout({ children }) {
 
   useEffect(() => {
     const currentUser = getCurrentUser();
-    const publicPaths = ['/login', '/register', '/forgetpassword'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback'];
     const isPublicPath = publicPaths.includes(pathname);
 
     // No user found
@@ -100,7 +100,7 @@ export default function RoleBasedLayout({ children }) {
 
   if (!user) {
     // Only allow specific public paths to render without authentication
-    const publicPaths = ['/login', '/register', '/forgetpassword'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback'];
     const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
     
     if (pathname === '/' || isPublicPath) {
