@@ -1,36 +1,19 @@
 "use client";
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect } from "react";
 import Link from "next/link";
 import SpinWheel from "../Components/Spin/SpinWheel";
-import Historigram from "./Historigram";
-import TradingViewWidget from "./TradingViewWidget";
+import Historigram from "../Components/Historigram";
 import "./Styles/Landing.scss";
+import TradingViewWidget from "../Components/TradingViewWidget";
 
 export default function Landing() {
   const videoRef = useRef(null);
-  const [premiumSlideIndex, setPremiumSlideIndex] = useState(0);
-  const [isCarouselPaused, setIsCarouselPaused] = useState(false);
-  const carouselIntervalRef = useRef(null);
-  const premiumFeatures = [
-    "✅ Verification Badge",
-    "✅ Internal Transfers between users",
-    "✅ Flexible Spin Timing & Auto-Press Orders",
-    "✅ High Order Limits (up to $200 per order)",
-    "✅ Unlimited Withdrawals",
-    "✅ Members' Chart Room Access & VIP support",
-    "✅ No limits on daily withdraw (basic daily withdraw is $1000)",
-    "✅ Access to all crypto and stock spins",
-    "✅ Free ads account upon yearly subscription",
-    "✅ Early access to new features and promotions"
-  ];
-  const itemsPerSlide = 3;
-  const totalSlides = Math.ceil(premiumFeatures.length / itemsPerSlide);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    // Keep video muted permanently
+    // Start muted for autoplay compatibility, then unmute
     video.muted = true;
     video.preload = 'auto';
 
@@ -51,8 +34,10 @@ export default function Landing() {
     };
 
     const handlePlaying = () => {
-      // Keep video muted - no sound
-      video.muted = true;
+      // Once playing, unmute for sound
+      if (video.muted) {
+        video.muted = false;
+      }
     };
 
     const handleCanPlay = () => {
@@ -85,16 +70,16 @@ export default function Landing() {
 
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // Start playing immediately (muted)
+    // Start playing immediately
     const playVideo = () => {
       video.play().then(() => {
-        // Keep muted
-        video.muted = true;
+        // Successfully playing, unmute
+        video.muted = false;
       }).catch(() => {
         // If autoplay fails, try again on user interaction
         const tryPlay = () => {
           video.play().then(() => {
-            video.muted = true;
+            video.muted = false;
           }).catch(() => {});
           document.removeEventListener('click', tryPlay);
           document.removeEventListener('touchstart', tryPlay);
@@ -130,46 +115,6 @@ export default function Landing() {
     };
   }, []);
 
-  // Premium features carousel auto-rotate (15 seconds per slide)
-  useEffect(() => {
-    if (isCarouselPaused) {
-      if (carouselIntervalRef.current) {
-        clearInterval(carouselIntervalRef.current);
-        carouselIntervalRef.current = null;
-      }
-      return;
-    }
-
-    carouselIntervalRef.current = setInterval(() => {
-      setPremiumSlideIndex((prev) => (prev + 1) % totalSlides);
-    }, 15000); // 15 seconds per slide
-
-    return () => {
-      if (carouselIntervalRef.current) {
-        clearInterval(carouselIntervalRef.current);
-        carouselIntervalRef.current = null;
-      }
-    };
-  }, [totalSlides, isCarouselPaused]);
-
-  const goToSlide = (index) => {
-    // Pause carousel when user interacts
-    setIsCarouselPaused(true);
-    
-    // Resume after 20 seconds of inactivity
-    setTimeout(() => {
-      setIsCarouselPaused(false);
-    }, 20000);
-
-    if (index < 0) {
-      setPremiumSlideIndex(totalSlides - 1);
-    } else if (index >= totalSlides) {
-      setPremiumSlideIndex(0);
-    } else {
-      setPremiumSlideIndex(index);
-    }
-  };
-
   return (
     <div className="home">
       {/* HEADER */}
@@ -199,6 +144,9 @@ export default function Landing() {
           </nav>
         </div>
       </header>
+      <div>
+      <TradingViewWidget />
+      </div>
 
       {/* MAIN CONTENT with Spinner */}
       <main className="main-content">
@@ -224,38 +172,21 @@ export default function Landing() {
           </video>
         </div>
 
-        {/* TradingView Widget - Live Market Data - Attached to header */}
-        <section className="tradingview-section">
-          <TradingViewWidget />
-        </section>
-
         <div className="main-grid">
-          {/* Left Column: Premium Card with Carousel */}
           <section className="premium-card">
             <h1>Forexaiexchange Premium</h1>
-            <div className="premium-carousel">
-              <button 
-                className="carousel-arrow carousel-prev" 
-                aria-label="Previous features"
-                onClick={() => goToSlide(premiumSlideIndex - 1)}
-              >
-                ←
-              </button>
-              <div className="premium-features-wrapper">
-                <ul className="premium-features-list" style={{ transform: `translateY(-${premiumSlideIndex * (itemsPerSlide * 34)}px)` }}>
-                  {premiumFeatures.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
-              </div>
-              <button 
-                className="carousel-arrow carousel-next" 
-                aria-label="Next features"
-                onClick={() => goToSlide(premiumSlideIndex + 1)}
-              >
-                →
-              </button>
-            </div>
+            <ul>
+              <li>? Verification Badge</li>
+              <li>? Internal Transfers between users</li>
+              <li>? Flexible Spin Timing & Auto-Press Orders</li>
+              <li>? High Order Limits (up to $200 per order)</li>
+              <li>? Unlimited Withdrawals</li>
+              <li>? Members� Chart Room Access & VIP support</li>
+              <li>? No limits on daily withdraw (basic daily withdraw is $1000)</li>
+              <li>? Access to all crypto and stock spins</li>
+              <li>? Free ads account upon yearly subscription</li>
+              <li>? Early access to new features and promotions</li>
+            </ul>
             <Link href="/login">
               <button className="btn register" style={{ marginTop: '12px', width: '100%' }}>
                 Upgrade to Premium
@@ -263,23 +194,28 @@ export default function Landing() {
             </Link>
           </section>
 
-          {/* History Table - Below premium features, beside spin */}
-          <section className="history-section">
-            <Historigram title="Trading History" showChartOnly={false} showHistoryOnly={true} />
-          </section>
-
-          {/* Center: Spin Wheel with Betting Table Below */}
-          <div className="spinner-area">
-            <div className="spinner-container">
-              <SpinWheel
-                state="open"
-                countdownSec={30}
-                winners={undefined}
-              />
-            </div>
-
-            {/* Betting Table Below Spin - Relative to spin size */}
-            <section className="strategy-table">
+          
+          <div className="spinner-container">
+            <SpinWheel
+              state="open"
+              countdownSec={30}
+              winners={undefined}
+            />
+          </div>
+          <Historigram
+            title="Recent Market Activity"
+            data={[
+              { name: "Buy", value: 12 },
+              { name: "Sell", value: 8 },
+              { name: "Red", value: 5 },
+              { name: "Blue", value: 15 },
+              { name: "High Volatile", value: 7 },
+              { name: "Low Volatile", value: 10 },
+              { name: "Indecision", value: 3 }
+            ]}
+          />
+          
+          <section className="strategy-table">
             <h2>Place Order</h2>
             <h2>Balance: $1000</h2>
             <table>
@@ -339,13 +275,7 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
-            </section>
-          </div>
-
-          {/* Right: Graph beside spin */}
-          <div className="graph-area">
-            <Historigram title="Analytics" showChartOnly={true} />
-          </div>
+          </section>
         </div>
       </main>
 
@@ -357,9 +287,9 @@ export default function Landing() {
             <h4>Forexaiexchange</h4>
             <p>Buy and sell. Secure crypto services built for everyone.</p>
             <div className="socials">
-              <span className="dot">●</span>
-              <span className="dot">●</span>
-              <span className="dot">●</span>
+              <span className="dot">?</span>
+              <span className="dot">?</span>
+              <span className="dot">?</span>
             </div>
           </div>
 
@@ -393,10 +323,11 @@ export default function Landing() {
         </div>
 
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} Forexaiexchange — All rights reserved.</span>
+          <span>� {new Date().getFullYear()} Forexaiexchange � All rights reserved.</span>
         </div>
       </footer>
 
     </div>
   );
 }
+
