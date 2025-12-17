@@ -72,7 +72,7 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
-    const width = 8; // Needle width in degrees
+    const width = 15; // Needle width in degrees
     
     // Top needle (pointing up - 90° in standard coords, which is 0° in our system)
     const topAngle = 0;
@@ -257,9 +257,9 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={11}
+              fontSize={18}
               fontWeight={900}
-              letterSpacing={3}
+              letterSpacing={4}
               transform={`rotate(-90, ${cx}, ${cy - 150})`}
               filter="url(#strongGlow)"
             >
@@ -276,9 +276,9 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={11}
+              fontSize={18}
               fontWeight={900}
-              letterSpacing={3}
+              letterSpacing={4}
               transform={`rotate(-90, ${cx}, ${cy + 150})`}
               filter="url(#strongGlow)"
             >
