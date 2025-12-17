@@ -25,11 +25,15 @@ const R = {
   dir: [250, 300],
 };
 
-// Top 30 most popular/traded currencies
+// Currency pairs and trading instruments
 const CURRENCIES = [
-  "USD", "EUR", "JPY", "GBP", "AUD", "CAD", "CHF", "CNY", "SEK", "NZD",
-  "MXN", "SGD", "HKD", "NOK", "KRW", "TRY", "INR", "RUB", "BRL", "ZAR",
-  "DKK", "PLN", "THB", "MYR", "IDR", "HUF", "CZK", "ILS", "PHP", "AED"
+  "AUDUSD", "AUDJPY", "AUDCAD", "AUDCHF", "AUDNZD",
+  "CADCHF", "CADJPY", "CHFJPY",
+  "EURAUD", "EURCAD", "EURCHF", "EURJPY", "EURNZD", "EURUSD", "EURGBP",
+  "GBPUSD", "GBPAUD", "GBPJPY", "GBPCAD", "GBPNZD", "GBPCHF",
+  "NZDCAD", "NZDCHF", "NZDJPY", "NZDUSD",
+  "USDCAD", "USDJPY", "USDCHF", "USDZAR",
+  "XAUUSD", "Nasdaq"
 ];
 
 const PI = Math.PI;

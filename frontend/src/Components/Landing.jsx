@@ -286,19 +286,17 @@ export default function Landing() {
 
           {/* Place Order Section - Under Analytics */}
           <section className="strategy-table order-section">
-            <h2>Place Order</h2>
-            <h2>Balance: $1000</h2>
             <table>
               <thead>
                 <tr>
                   <th>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Buy (*2) order</button>
+                      <button type="button">Buy (x2) order</button>
                     </Link>
                   </th>
                   <th>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Sell (*2) order</button>
+                      <button type="button">Sell (x2) order</button>
                     </Link>
                   </th>
                 </tr>
@@ -307,12 +305,12 @@ export default function Landing() {
                 <tr>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Blue (*2) stock</button>
+                      <button type="button">Blue (x2) stock</button>
                     </Link>
                   </td>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Red (*2) order</button>
+                      <button type="button">Red (x2) order</button>
                     </Link>
                   </td>
                 </tr>
@@ -331,7 +329,7 @@ export default function Landing() {
                 <tr>
                   <td colSpan="2" className="indecision">
                     <Link href="/login" className="cell-link full">
-                      <button type="button">Indecision Area</button>
+                      <button type="button">Indecision </button>
                     </Link>
                   </td>
                 </tr>

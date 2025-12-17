@@ -150,8 +150,7 @@ export default function Histogram({
               <tr>
                 <th>Date</th>
                 <th>Previous History</th>
-                <th>ForexAI</th>
-                <th>NextGen Suggestion</th>
+                <th>ForexAI next Suggestion</th>
                 <th>Win / Lose</th>
               </tr>
             </thead>
@@ -164,12 +163,6 @@ export default function Histogram({
                   <td>
                     <span className={`badge ${row.previousType}`}>
                       {row.previous}
-                    </span>
-                  </td>
-
-                  <td>
-                    <span className="badge primary">
-                      {row.forexAI}
                     </span>
                   </td>
 

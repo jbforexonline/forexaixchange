@@ -40,14 +40,13 @@
 .history-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12px;
-  min-width: 520px;
+  font-size: 8px;
 }
 
 .history-table thead th {
   background: rgba(59, 130, 246, 0.12);
   color: #9ccfff;
-  padding: 8px 10px;
+  // padding: 6px 8px;
   text-align: left;
   font-weight: 700;
   border-bottom: 1px solid rgba(59, 130, 246, 0.25);
@@ -57,7 +56,17 @@
   padding: 8px 10px;
   border-bottom: 1px solid rgba(59, 130, 246, 0.15);
   color: #e7f7ff;
-  white-space: nowrap;
+  white-space: normal; // allow text to wrap so content fits
+}
+
+.history-table thead th {
+  text-align: center; // center header labels including Date and Win / Lose
+}
+
+.history-table tbody td:nth-child(2),
+.history-table tbody td:nth-child(3),
+.history-table tbody td:nth-child(4) {
+  text-align: center; // center inner columns for a balanced look
 }
 
 .history-table tr:hover td {
@@ -67,7 +76,7 @@
 .empty-row td {
   text-align: center;
   color: rgba(230, 245, 250, 0.55);
-  padding: 16px;
+  padding: 14px;
 }
 
 /* ================= BADGES ================= */
@@ -110,4 +119,5 @@
 .date {
   font-size: 11px;
   color: rgba(230, 245, 250, 0.7);
+  white-space: nowrap; // keep date on one line
 }
