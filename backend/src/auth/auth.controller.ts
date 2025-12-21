@@ -88,6 +88,39 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
+  @Post('demo')
+  @ApiOperation({ summary: 'Create and login as a demo user (for testing purposes)' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Demo account created and logged in successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        user: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            username: { type: 'string' },
+            role: { type: 'string' },
+            wallet: {
+              type: 'object',
+              properties: {
+                available: { type: 'number' },
+              }
+            }
+          }
+        },
+        token: { type: 'string' },
+        demoMessage: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Failed to create demo account' })
+  async createDemo() {
+    return this.authService.createDemoAccount();
+  }
+
   @Get('profile/:userId')
   @ApiOperation({ summary: 'Get user profile by ID' })
   @ApiResponse({ 

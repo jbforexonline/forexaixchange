@@ -107,52 +107,65 @@ export class AuthService {
   }
 
   async login(loginDto: LoginDto) {
-    const { email, phone, password } = loginDto;
+    try {
+      const { email, phone, password } = loginDto;
 
-    // Validate that either email or phone is provided
-    if (!email && !phone) {
-      throw new UnauthorizedException('Either email or phone number is required');
+      console.log('🔍 Login attempt:', { email, phone: phone ? '***' : undefined });
+
+      // Validate that either email or phone is provided
+      if (!email && !phone) {
+        throw new UnauthorizedException('Either email or phone number is required');
+      }
+
+      // Find user by email or phone
+      const user = await this.prisma.user.findFirst({
+        where: {
+          OR: [
+            ...(email ? [{ email }] : []),
+            ...(phone ? [{ phone }] : []),
+          ],
+        },
+        include: {
+          wallet: true,
+        },
+      });
+
+      if (!user) {
+        console.log('❌ User not found');
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      if (!user.isActive || user.isBanned) {
+        console.log('❌ Account inactive or banned');
+        throw new UnauthorizedException('Account is inactive or banned');
+      }
+
+      // Check if user has a password (OAuth users don't have passwords)
+      if (!user.password) {
+        console.log('❌ User has no password (OAuth account)');
+        throw new UnauthorizedException('This account uses social login. Please use Google to sign in.');
+      }
+
+      // Validate password
+      const isPasswordValid = await this.comparePassword(password, user.password);
+      if (!isPasswordValid) {
+        console.log('❌ Invalid password');
+        throw new UnauthorizedException('Invalid credentials');
+      }
+
+      console.log('✅ Login successful for user:', user.id);
+
+      // Remove password from response
+      const { password: _, ...userWithoutPassword } = user;
+
+      return {
+        user: userWithoutPassword,
+        token: this.generateToken(user.id, user.role),
+      };
+    } catch (error) {
+      console.error('❌ Login error:', error);
+      throw error;
     }
-
-    // Find user by email or phone
-    const user = await this.prisma.user.findFirst({
-      where: {
-        OR: [
-          ...(email ? [{ email }] : []),
-          ...(phone ? [{ phone }] : []),
-        ],
-      },
-      include: {
-        wallet: true,
-      },
-    });
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    if (!user.isActive || user.isBanned) {
-      throw new UnauthorizedException('Account is inactive or banned');
-    }
-
-    // Check if user has a password (OAuth users don't have passwords)
-    if (!user.password) {
-      throw new UnauthorizedException('This account uses social login. Please use Google to sign in.');
-    }
-
-    // Validate password
-    const isPasswordValid = await this.comparePassword(password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
-    // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
-
-    return {
-      user: userWithoutPassword,
-      token: this.generateToken(user.id, user.role),
-    };
   }
 
   async validateUser(userId: string) {
@@ -300,6 +313,65 @@ export class AuthService {
         username: user.username,
       },
     };
+  }
+
+  /**
+   * Create a demo account for testing purposes
+   */
+  async createDemoAccount() {
+    try {
+      console.log('🔍 Creating demo account...');
+
+      const baseUsername = 'demo';
+      let username = baseUsername;
+      let usernameExists = await this.prisma.user.findUnique({
+        where: { username },
+      });
+
+      let counter = 1;
+      while (usernameExists) {
+        username = `${baseUsername}${counter}`;
+        usernameExists = await this.prisma.user.findUnique({
+          where: { username },
+        });
+        counter++;
+      }
+
+      const demoEmail = `${username}@demo.forexai.local`;
+
+      const user = await this.prisma.user.create({
+        data: {
+          email: demoEmail,
+          username,
+          firstName: 'Demo',
+          lastName: 'User',
+          password: null,
+          provider: 'demo',
+          wallet: {
+            create: {
+              available: 10000,
+              held: 0,
+            },
+          },
+        },
+        include: {
+          wallet: true,
+        },
+      });
+
+      console.log('✅ Demo account created:', user.id);
+
+      const { password: _, ...userWithoutPassword } = user;
+
+      return {
+        user: userWithoutPassword,
+        token: this.generateToken(user.id, user.role),
+        demoMessage: 'You are logged in as a demo user. This account will be deleted after your session.',
+      };
+    } catch (error) {
+      console.error('❌ Demo account creation error:', error);
+      throw new BadRequestException('Failed to create demo account. Please try again later.');
+    }
   }
 
   /**
