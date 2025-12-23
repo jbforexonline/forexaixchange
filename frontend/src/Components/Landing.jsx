@@ -185,7 +185,7 @@ export default function Landing() {
               <button className="btn signin">Buy and Sell</button>
             </Link>
            <Link href="/login">
-              <button className="btn signin">Account Balance</button>
+              <button className="btn signin">Demo/Live Account</button>
             </Link>
               <Link href="/login">
               <button className="btn signin">Notification</button>

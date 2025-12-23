@@ -29,9 +29,12 @@ export default function WithdrawPage() {
     const fetchTransactions = async () => {
       try {
         const response = await getTransactions(1, 10);
-        setTransactions(response.data || []);
+        // Ensure transactions is always an array
+        const transactionsData = response?.data || response || [];
+        setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
+        setTransactions([]); // Ensure it's an empty array on error
       }
     };
     fetchTransactions();
@@ -309,7 +312,7 @@ export default function WithdrawPage() {
           <div className="transaction-section">
             <h3>Recent Transactions</h3>
             <div className="transaction-list">
-              {transactions.length === 0 ? (
+              {!Array.isArray(transactions) || transactions.length === 0 ? (
                 <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
                   No transactions yet
                 </div>
