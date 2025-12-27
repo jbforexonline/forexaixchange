@@ -26,8 +26,23 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     flex-direction: column;
     background: linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(8, 47, 73, 0.3) 100%);
     border-right: 1px solid $border-color;
-    padding: 1rem 0;
-    overflow-y: auto;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    width: 240px;
+    transition: width 0.3s ease;
+
+    &.open {
+      width: 240px;
+    }
+
+    &.closed {
+      width: 64px;
+    }
 
     &::-webkit-scrollbar {
       width: 4px;
@@ -51,6 +66,7 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
       justify-content: center;
       padding: 1rem 0;
       border-bottom: 1px solid rgba($border-color, 0.5);
+      flex-shrink: 0;
 
       .toggle-btn {
         background: rgba(255, 255, 255, 0.1);
@@ -75,6 +91,14 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
       flex-direction: column;
       gap: 0.75rem;
       padding: 1rem 0.5rem;
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+
+      .nav-item-wrapper {
+        display: flex;
+        flex-direction: column;
+      }
 
       .menu-item {
         display: flex;
@@ -90,10 +114,21 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
         font-size: 0.9rem;
         transition: all 0.3s ease;
         position: relative;
+        width: 100%;
 
-        &:hover:not(.logout) {
+        &:hover:not(.logout):not(.logout-btn) {
           background: rgba($user-primary, 0.15);
           color: $user-accent;
+
+          svg {
+            color: $user-primary;
+          }
+        }
+
+        &.active {
+          background: rgba($user-primary, 0.2);
+          color: $user-accent;
+          border-left: 3px solid $user-primary;
 
           svg {
             color: $user-primary;
@@ -125,16 +160,103 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
             font-size: 0.7rem;
             font-weight: 600;
           }
+
+          .chevron {
+            transition: transform 0.3s ease;
+            color: $text-secondary;
+
+            &.expanded {
+              transform: rotate(180deg);
+            }
+          }
         }
 
-        &.logout {
+        &.logout,
+        &.logout-btn {
           color: #dc2626;
           margin-top: auto;
 
           &:hover {
-            background: rgba(220, 38, 38, 0.1);
+            background: rgba(220, 38, 38, 0.25);
+            color: #ff6b6b;
+            transform: translateX(4px);
+            
+            svg {
+              color: #ff6b6b;
+            }
+          }
+
+          svg {
+            color: #dc2626;
+            transition: color 0.3s ease;
           }
         }
+      }
+
+      .submenu {
+        display: flex;
+        flex-direction: column;
+        margin-left: 2.5rem;
+        margin-top: 0.25rem;
+        gap: 0.25rem;
+        padding: 0.5rem 0;
+        border-left: 2px solid rgba($user-primary, 0.3);
+
+        .submenu-item {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: transparent;
+          border: none;
+          color: $text-secondary;
+          cursor: pointer;
+          border-radius: 6px;
+          font-weight: 400;
+          font-size: 0.85rem;
+          transition: all 0.2s ease;
+          text-align: left;
+
+          &:hover {
+            background: rgba($user-primary, 0.1);
+            color: $user-accent;
+
+            svg {
+              color: $user-primary;
+            }
+          }
+
+          &.active {
+            background: rgba($user-primary, 0.2);
+            color: $user-accent;
+            font-weight: 500;
+
+            svg {
+              color: $user-primary;
+            }
+          }
+
+          svg {
+            width: 16px;
+            height: 16px;
+          }
+        }
+      }
+    }
+
+    .sidebar-footer {
+      padding: 1rem 0.5rem;
+      border-top: 1px solid rgba($border-color, 0.5);
+      margin-top: auto;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(2, 132, 199, 0.1) 0%, rgba(8, 47, 73, 0.3) 100%);
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      
+      .logout-btn {
+        margin-top: 0;
+        width: 100%;
       }
     }
   }
@@ -145,6 +267,10 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
     flex-direction: column;
     flex: 1;
     overflow: hidden;
+    margin-left: 240px;
+    position: relative;
+    z-index: 1;
+    transition: margin-left 0.3s ease;
 
     // Header
     .user-header {
@@ -299,6 +425,15 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
         }
       }
     }
+  }
+
+  // Adjust content margin when sidebar is closed
+  .user-sidebar.closed ~ .user-content-wrapper {
+    margin-left: 64px;
+  }
+
+  .user-sidebar.open ~ .user-content-wrapper {
+    margin-left: 240px;
   }
 }
 

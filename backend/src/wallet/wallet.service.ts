@@ -209,9 +209,10 @@ export class WalletService {
           }
         }
 
-        // Check if method is mobile money (instant processing)
-        const isMobileMoney = ['MTN', 'MoMo', 'momo', 'mtn', 'Mobile Money', 'mobile money'].includes(method);
-        const status = isMobileMoney ? TransactionStatus.COMPLETED : TransactionStatus.PENDING;
+        // PROTOTYPE MODE: All deposits are instant (bypass external API verification)
+        // In production: Check if method is mobile money for instant processing
+        // const isMobileMoney = ['MTN', 'MoMo', 'momo', 'mtn', 'Mobile Money', 'mobile money'].includes(method);
+        const status = TransactionStatus.COMPLETED; // INSTANT for prototype
 
         // Create transaction record
         const transaction = await tx.transaction.create({
@@ -224,13 +225,13 @@ export class WalletService {
             reference,
             idempotencyKey,
             description: `Deposit via ${method}`,
-            processedAt: isMobileMoney ? new Date() : null,
+            processedAt: new Date(), // INSTANT for prototype
           },
         });
 
-        // For mobile money, update wallet immediately (instant)
-        // For other methods, wallet is updated when admin approves
-        if (isMobileMoney) {
+        // PROTOTYPE MODE: All deposits update wallet immediately
+        // In production: Only mobile money is instant, others require admin approval
+        if (true) { // Always instant for prototype
           const wallet = await tx.wallet.update({
             where: { userId },
             data: {
@@ -401,29 +402,31 @@ export class WalletService {
       // Calculate withdrawal fee: Premium users have NO fee, Regular users pay fee
       const fee = isPremium ? new Decimal(0) : this.calculateWithdrawalFee(amount);
 
-      // Create transaction record
+      // PROTOTYPE MODE: Process withdrawal immediately (instant)
+      // Create transaction record as COMPLETED
       const transaction = await tx.transaction.create({
         data: {
           userId,
           type: TransactionType.WITHDRAWAL,
           amount,
           fee,
-          status: TransactionStatus.PENDING,
+          status: TransactionStatus.COMPLETED, // INSTANT for prototype
           method,
           reference,
           idempotencyKey,
           description: `Withdrawal via ${method}`,
+          processedAt: new Date(), // Processed immediately
         },
       });
 
-      // Hold the funds
+      // PROTOTYPE: Deduct funds immediately (no holding)
       await tx.wallet.update({
         where: { userId },
         data: {
           available: {
-            decrement: amount,
+            decrement: amount.add(fee),
           },
-          held: {
+          totalWithdrawn: {
             increment: amount,
           },
         },

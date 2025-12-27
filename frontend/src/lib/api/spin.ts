@@ -48,6 +48,14 @@ export interface Round {
   roundDuration: number;
   commitHash?: string;
   betsCount?: number;
+  // Winner fields (only present when state === 'SETTLED')
+  outerWinner?: string | null;
+  middleWinner?: string | null;
+  innerWinner?: string | null;
+  indecisionTriggered?: boolean;
+  outerTied?: boolean;
+  middleTied?: boolean;
+  innerTied?: boolean;
 }
 
 export interface RoundTotals {

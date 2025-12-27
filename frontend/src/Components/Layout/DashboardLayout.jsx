@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { MotionConfig, motion } from "framer-motion";
-import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft } from "lucide-react";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, FileText, DollarSign } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { logout, getCurrentUser } from "@/lib/auth";
@@ -25,8 +25,9 @@ export default function Sidebar({ children }) {
 
   const menuItems = [
     { icon: Home, label: "Spin", href: "/spin" },
+    { icon: DollarSign, label: "Deposit", href: "/deposit" },
     { icon: Wallet, label: "Withdraw", href: "/withdraw" },
-    // { icon: User, label: "Profile", href: "/user-dashboard" },
+    { icon: FileText, label: "History", href: "/history" },
     { icon: AppWindow, label: "Premium", href: "/deposit" },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
     // { icon: HelpCircle, label: "Dashboard", href: "/dashboard" },

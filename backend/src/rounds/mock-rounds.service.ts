@@ -23,6 +23,14 @@ interface MockRound {
   _count: {
     bets: number;
   };
+  // Winner fields (optional, only present when state === 'SETTLED')
+  outerWinner?: string | null;
+  middleWinner?: string | null;
+  innerWinner?: string | null;
+  indecisionTriggered?: boolean;
+  outerTied?: boolean;
+  middleTied?: boolean;
+  innerTied?: boolean;
 }
 
 @Injectable()
@@ -73,6 +81,14 @@ export class MockRoundsService {
       _count: {
         bets: Math.floor(Math.random() * 50) + 10, // 10-60 bets
       },
+      // Winner fields (undefined for mock rounds since they're not settled)
+      outerWinner: undefined,
+      middleWinner: undefined,
+      innerWinner: undefined,
+      indecisionTriggered: false,
+      outerTied: false,
+      middleTied: false,
+      innerTied: false,
     };
   }
 

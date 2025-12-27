@@ -14,6 +14,9 @@ export class TransactionsService {
       where.type = type;
     }
 
+    console.log(`🔍 getUserTransactions - userId: ${userId}, page: ${page}, limit: ${limit}, type: ${type}`);
+    console.log(`🔍 Query where clause:`, JSON.stringify(where, null, 2));
+
     const [transactions, total] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
@@ -23,6 +26,8 @@ export class TransactionsService {
       }),
       this.prisma.transaction.count({ where }),
     ]);
+
+    console.log(`📦 Found ${transactions.length} transactions out of ${total} total`);
 
     return {
       data: transactions,

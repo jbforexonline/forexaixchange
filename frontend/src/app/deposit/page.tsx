@@ -1,5 +1,10 @@
-import DepositPage from '@/Components/Dashboard/DepositPage'
+import ProtectedRoute from '@/Components/Auth/ProtectedRoute'
+import DepositPage from '@/Components/Dashboard/UserDashboard/DepositPage'
 
 export default function Deposit() {
-    return <DepositPage />
+    return (
+        <ProtectedRoute>
+            <DepositPage />
+        </ProtectedRoute>
+    )
 }

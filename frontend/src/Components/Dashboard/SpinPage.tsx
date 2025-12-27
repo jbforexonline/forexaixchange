@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import "../Styles/SpinPage.scss";
 import SpinWheel from "../Spin/SpinWheel";
 import BetForm from "../Spin/BetForm";
@@ -43,6 +43,38 @@ export default function SpinPage() {
     setUserBets(prev => [...prev, bet]);
   };
 
+  // Extract winners from round data (for settled rounds)
+  const winners = useMemo(() => {
+    if (roundState !== 'settled' || !round) return undefined;
+    
+    // If indecision was triggered, all pairs lose
+    if (round.indecisionTriggered) {
+      return {
+        indecision: true,
+        outer: undefined,
+        color: undefined,
+        vol: undefined,
+      };
+    }
+    
+    // Map backend values to SpinWheel expected format
+    // Backend returns "HIGH_VOL"/"LOW_VOL", SpinWheel expects "HIGH"/"LOW"
+    let vol: "HIGH" | "LOW" | undefined = undefined;
+    if (round.innerWinner === "HIGH_VOL") {
+      vol = "HIGH";
+    } else if (round.innerWinner === "LOW_VOL") {
+      vol = "LOW";
+    }
+    
+    // Extract winners from round data
+    return {
+      outer: round.outerWinner || undefined, // "BUY" or "SELL" (already correct)
+      color: round.middleWinner || undefined, // "BLUE" or "RED" (already correct)
+      vol: vol, // Mapped to "HIGH" or "LOW"
+      indecision: false,
+    };
+  }, [roundState, round]);
+
   const displayCountdown = roundState === 'open' ? timeUntilFreeze : countdown;
 
   return (
@@ -65,7 +97,7 @@ export default function SpinPage() {
           <SpinWheel 
             state={roundState} 
             countdownSec={displayCountdown} 
-            winners={undefined} 
+            winners={winners} 
           />
         </div>
 

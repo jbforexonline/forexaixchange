@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import "../Components/Styles/LogIn.scss";
 import "../Components/Styles/Register.scss";
+import "../styles/wallet-theme.css";
 import RoleBasedLayout from "@/Components/Layout/RoleBasedLayout";
 
 const geistSans = Geist({
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        suppressHydrationWarning
       >
         <RoleBasedLayout>{children}</RoleBasedLayout>
       </body>

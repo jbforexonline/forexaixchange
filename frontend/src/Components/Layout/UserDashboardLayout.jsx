@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { MotionConfig, motion } from "framer-motion";
-import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, RotateCw, DollarSign } from "lucide-react";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, RotateCw, DollarSign, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function UserDashboardLayout({ children }) {
@@ -9,10 +9,11 @@ export default function UserDashboardLayout({ children }) {
   const router = useRouter();
 
   const menuItems = [
-    { icon: Home, label: "Dashboard", href: "/dashboard" },
-    { icon: User, label: "Users", href: "/users" },
-    { icon: RotateCw, label: "Spin", href: "/dashboard/spin" },
-    { icon: RotateCw, label: "Withdraw", href: "/dashboard/withdraw" },
+    { icon: Home, label: "Dashboard", href: "/user-dashboard" },
+    { icon: RotateCw, label: "Spin", href: "/user-dashboard/spin" },
+    { icon: DollarSign, label: "Deposit", href: "/user-dashboard/deposit" },
+    { icon: Wallet, label: "Withdraw", href: "/withdraw" },
+    { icon: FileText, label: "History", href: "/user-dashboard/history" },
     { icon: Settings, label: "Logout", href: "/login" },
   ];
 

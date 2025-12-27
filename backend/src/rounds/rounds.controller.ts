@@ -85,6 +85,14 @@ export class RoundsController {
           roundDuration: round.roundDuration,
           commitHash: round.artifact?.commitHash,
           betsCount: round._count?.bets || 0,
+          // Winner fields (only present when state === 'SETTLED')
+          outerWinner: round.outerWinner,
+          middleWinner: round.middleWinner,
+          innerWinner: round.innerWinner,
+          indecisionTriggered: round.indecisionTriggered,
+          outerTied: round.outerTied,
+          middleTied: round.middleTied,
+          innerTied: round.innerTied,
         },
       };
     } catch (error) {
@@ -105,6 +113,13 @@ export class RoundsController {
               roundDuration: mock.roundDuration,
               commitHash: mock.artifact?.commitHash,
               betsCount: mock._count?.bets || 0,
+              outerWinner: mock.outerWinner,
+              middleWinner: mock.middleWinner,
+              innerWinner: mock.innerWinner,
+              indecisionTriggered: mock.indecisionTriggered,
+              outerTied: mock.outerTied,
+              middleTied: mock.middleTied,
+              innerTied: mock.innerTied,
             },
             message: 'Using mock round due to backend error',
           };
@@ -129,6 +144,13 @@ export class RoundsController {
             roundDuration,
             commitHash: undefined,
             betsCount: 0,
+            outerWinner: undefined,
+            middleWinner: undefined,
+            innerWinner: undefined,
+            indecisionTriggered: false,
+            outerTied: false,
+            middleTied: false,
+            innerTied: false,
           },
           message: 'Using inline mock round due to backend error',
         };

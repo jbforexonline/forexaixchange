@@ -101,7 +101,7 @@ export class RoundsService {
     return this.prisma.round.findFirst({
       where: {
         state: {
-          in: [RoundState.OPEN, RoundState.FROZEN],
+          in: [RoundState.OPEN, RoundState.FROZEN, RoundState.SETTLED],
         },
       },
       orderBy: { roundNumber: 'desc' },
