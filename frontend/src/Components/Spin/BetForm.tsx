@@ -1,11 +1,16 @@
-/**
- * BetForm Component
- * Allows users to place bets on markets
- */
-
-import React, { useState, useEffect } from 'react';
-import type { BetMarket, BetSelection, Wallet } from '@/lib/api/spin';
-import { placeBet, isPremiumUser } from '@/lib/api/spin';
+"use client";
+import React, { useState, useEffect } from "react";
+import {
+  placeBet,
+  type PlaceBetDto,
+  type BetMarket,
+  type BetSelection,
+  isPremiumUser,
+} from "@/lib/api/spin";
+import { useWallet } from "@/hooks/useWallet";
+import { useRound } from "@/hooks/useRound";
+import { useDemo } from "@/context/DemoContext";
+import "./BetForm.scss";
 
 interface BetFormProps {
   roundId: string | null;
@@ -14,11 +19,19 @@ interface BetFormProps {
   onBetPlaced: () => void;
 }
 
-export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: BetFormProps) {
-  const [selectedMarket, setSelectedMarket] = useState<BetMarket>('OUTER');
-  const [selectedSelection, setSelectedSelection] = useState<BetSelection>('BUY');
-  const [amount, setAmount] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
+  const { wallet, loading: walletLoading } = useWallet();
+  const {
+    round,
+    state: roundState,
+    timeUntilFreeze,
+    loading: roundLoading,
+  } = useRound();
+  const { isDemo } = useDemo();
+  const [market, setMarket] = useState<BetMarket>("OUTER");
+  const [selection, setSelection] = useState<BetSelection>("BUY");
+  const [amount, setAmount] = useState<string>("10");
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -69,51 +82,36 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
     e.preventDefault();
     setError(null);
     setSuccess(null);
-
-    // Validation
-    if (!roundId) {
-      setError('No active round');
-      return;
-    }
-
-    if (roundState !== 'open') {
-      setError('Market is closed');
-      return;
-    }
-
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum < minBet) {
-      setError(`Minimum order is $${minBet}`);
-      return;
-    }
-
-    if (amountNum > maxBet) {
-      setError(`Maximum order is $${maxBet}`);
-      return;
-    }
-
-    if (wallet && amountNum > wallet.available) {
-      setError('Insufficient funds');
-      return;
-    }
-
-    setIsSubmitting(true);
+    setLoading(true);
 
     try {
-      await placeBet({
-        market: selectedMarket,
-        selection: selectedSelection,
-        amountUsd: amountNum,
-        idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
-      });
+      if (isInvalidAmount) {
+        throw new Error(`Bet must be between $${minBet} and $${maxBet}`);
+      }
+      if (!wallet) {
+        throw new Error("Wallet not loaded");
+      }
+      if (isInsufficientFunds) {
+        throw new Error("Insufficient balance");
+      }
+      if (!round) {
+        throw new Error("Waiting for next round...");
+      }
+      if (isFrozen) {
+        throw new Error("Round is finalizing, please wait...");
+      }
 
-      setSuccess(`Order placed: $${amountNum} on ${selectedSelection}`);
-      setAmount('');
-      
-      // Notify parent to refresh
-      onBetPlaced();
+      const dto: PlaceBetDto = {
+        market,
+        selection,
+        amountUsd: betAmount,
+        idempotencyKey: `${Date.now()}-${Math.random()}`,
+        isDemo,
+      };
 
-      // Clear success message after 3 seconds
+      const bet = await placeBet(dto);
+      setSuccess(`${isDemo ? '[DEMO] ' : ''}Bet placed! $${betAmount.toFixed(2)} on ${selection}`);
+      setAmount("10");
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to place order';
@@ -189,106 +187,45 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
           </div>
         </div>
 
-        {/* Amount Input */}
-        <div className="form-group">
-          <label className="form-label">
-            Order Amount ($)
-            <span className="balance-info">
-              Available: ${wallet?.available.toFixed(2) || '0.00'}
-            </span>
-          </label>
-          <input
-            type="number"
-            className="amount-input"
-            value={amount}
-            onChange={(e) => {
-              setAmount(e.target.value);
-              setError(null);
-            }}
-            placeholder={`${minBet} - ${maxBet}`}
-            min={minBet}
-            max={maxBet}
-            step="0.01"
-            disabled={!canBet}
-          />
-          
-          {/* Quick Amount Buttons */}
-          <div className="quick-amounts">
-            {[1, 5, 10, 25, 50, 100].map((value) => (
-              <button
-                key={value}
-                type="button"
-                className="quick-amount-btn"
-                onClick={() => handleQuickAmount(value)}
-                disabled={!canBet || (wallet && value > wallet.available)}
-              >
-                ${value}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Payout Info */}
-        {amount && !isNaN(parseFloat(amount)) && (
-          <div className="payout-info">
-            <div className="payout-row">
-              <span>Your Order:</span>
-              <span className="payout-value">${parseFloat(amount).toFixed(2)}</span>
+            <div className="form-section">
+              <label>Amount</label>
+              <div className="amount-controls">
+                <input
+                  type="number"
+                  min={minBet}
+                  max={maxBet}
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="Amount"
+                  disabled={loading}
+                />
+                <div className="quick-amounts">
+                  {quickAmounts
+                    .filter((a) => a <= maxBet)
+                    .map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setAmount(amt.toString())}
+                        disabled={loading}
+                      >
+                        ${amt}
+                      </button>
+                    ))}
+                </div>
+              </div>
             </div>
-            <div className="payout-row">
-              <span>If Win (2x):</span>
-              <span className="payout-value payout-win">
-                ${(parseFloat(amount) * 2).toFixed(2)}
-              </span>
-            </div>
-            <div className="payout-row">
-              <span>Profit:</span>
-              <span className="payout-value payout-profit">
-                +${parseFloat(amount).toFixed(2)}
-              </span>
-            </div>
-          </div>
-        )}
 
-        {/* Error/Success Messages */}
-        {error && <div className="form-message error-message">{error}</div>}
-        {success && <div className="form-message success-message">{success}</div>}
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className="submit-btn"
-          disabled={!canBet || !amount || parseFloat(amount) < minBet}
-        >
-          {isSubmitting ? (
-            <>
-              <span className="spinner" />
-              Placing Order...
-            </>
-          ) : roundState === 'frozen' ? (
-            '❄️ Market Frozen'
-          ) : roundState === 'settled' ? (
-            '⏳ Waiting for Next Round'
-          ) : !roundId ? (
-            '⏳ No Active Round'
-          ) : (
-            `Place Order - $${parseFloat(amount || '0').toFixed(2)}`
-          )}
-        </button>
-
-        {/* Market Rules Info */}
-        <div className="betting-rules">
-          <div className="rule-item">
-            <span className="rule-icon">💡</span>
-            <span className="rule-text">Winners receive 2x their order amount</span>
-          </div>
-          <div className="rule-item">
-            <span className="rule-icon">⚖️</span>
-            <span className="rule-text">Minority side wins (less money = winner)</span>
-          </div>
-          <div className="rule-item">
-            <span className="rule-icon">🎯</span>
-            <span className="rule-text">If any pair ties, Indecision wins</span>
+            <button
+              type="submit"
+              className={`submit-btn ${loading ? "disabled" : "active"}`}
+              disabled={loading}
+            >
+              {loading
+                ? "⏳ PLACING..."
+                : "🎯 PLACE BET"}
+            </button>
           </div>
           {!isPremium && (
             <div className="rule-item premium-notice">

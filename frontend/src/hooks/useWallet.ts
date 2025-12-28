@@ -5,6 +5,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getWallet, type Wallet } from '@/lib/api/spin';
 import { getWebSocketClient } from '@/lib/websocket';
+import { useDemo } from '@/context/DemoContext';
 
 export interface WalletState {
   wallet: Wallet | null;
@@ -18,6 +19,8 @@ export function useWallet() {
     loading: true,
     error: null,
   });
+
+  const { isDemo } = useDemo();
 
   const wsClientRef = useRef(getWebSocketClient());
 
@@ -45,7 +48,7 @@ export function useWallet() {
   // Setup WebSocket listener for wallet updates
   useEffect(() => {
     const client = wsClientRef.current;
-    
+
     // Connect if not already connected
     if (client.getState() === 'CLOSED') {
       client.connect();
@@ -61,6 +64,10 @@ export function useWallet() {
           totalWithdrawn: prev.wallet?.totalWithdrawn || 0,
           totalWon: prev.wallet?.totalWon || 0,
           totalLost: prev.wallet?.totalLost || 0,
+          demoAvailable: data.demoAvailable || prev.wallet?.demoAvailable || 0,
+          demoHeld: data.demoHeld || prev.wallet?.demoHeld || 0,
+          demoTotalWon: prev.wallet?.demoTotalWon || 0,
+          demoTotalLost: prev.wallet?.demoTotalLost || 0,
         },
       }));
     });
@@ -79,8 +86,18 @@ export function useWallet() {
   // - walletUpdated: updates wallet balance in real-time
   // This reduces server load and bandwidth consumption.
 
+  // Transform wallet based on mode
+  const displayWallet = walletState.wallet ? {
+    ...walletState.wallet,
+    available: isDemo ? (walletState.wallet.demoAvailable || 0) : walletState.wallet.available,
+    held: isDemo ? (walletState.wallet.demoHeld || 0) : walletState.wallet.held,
+    totalWon: isDemo ? (walletState.wallet.demoTotalWon || 0) : walletState.wallet.totalWon,
+    totalLost: isDemo ? (walletState.wallet.demoTotalLost || 0) : walletState.wallet.totalLost,
+  } : null;
+
   return {
     ...walletState,
+    wallet: displayWallet,
     refresh: fetchWallet,
   };
 }

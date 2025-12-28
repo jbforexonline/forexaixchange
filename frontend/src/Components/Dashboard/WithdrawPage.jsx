@@ -296,21 +296,25 @@ export default function WithdrawPage() {
             </div>
           </div>
 
-          {/* Right: Recent Withdrawals */}
-          <div>
-            <div className="wallet-form-card">
-              <h2 style={{ marginBottom: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "var(--expert-text, #f6f8ff)" }}>
-                Recent Withdrawals
-              </h2>
-              {transactions.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">💸</div>
-                  <h3>No withdrawals yet</h3>
-                  <p>Your withdrawal history will appear here</p>
+          {/* Right Section */}
+          <div className="transaction-section">
+            <h3>Recent Transactions</h3>
+            <div className="transaction-list">
+              {(!transactions || transactions.length === 0) ? (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
+                  No transactions yet
                 </div>
               ) : (
-                <div className="transaction-list-card">
-                  {transactions.map((tx) => (
+                Array.isArray(transactions) && transactions.map((tx) => {
+                  const isDeposit = tx.type === "DEPOSIT" || tx.type === "INTERNAL_TRANSFER_RECEIVED";
+                  const isWithdrawal = tx.type === "WITHDRAWAL" || tx.type === "INTERNAL_TRANSFER_SENT";
+                  const date = new Date(tx.createdAt).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  });
+                  
+                  return (
                     <div key={tx.id} className="transaction-item">
                       <div style={{
                         width: "48px",

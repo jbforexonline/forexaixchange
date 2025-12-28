@@ -61,12 +61,12 @@ export class RoundsSchedulerService {
         const code = error?.code || error?.meta?.code;
         const model = error?.meta?.modelName || error?.meta?.model;
         const message = String(error?.message || error);
-        if (message.includes('does not exist') || model === 'Round' || code === 'P2021' || code === 'P1010') {
-          this.dbMissing = true;
-          this.dbMissingNotifiedAt = Date.now();
-          this.logger.warn('Detected missing Round table in DB — scheduler will pause until DB is available.');
-          return;
-        }
+        // if (message.includes('does not exist') || model === 'Round' || code === 'P2021' || code === 'P1010') {
+        //   this.dbMissing = true;
+        //   this.dbMissingNotifiedAt = Date.now();
+        //   this.logger.warn('Detected missing Round table in DB — scheduler paused.');
+        //   return;
+        // }
       } catch (inner) {
         // fall through to generic error handling
       }

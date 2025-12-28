@@ -9,7 +9,11 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   constructor() {
     // Simple heartbeat as a connectivity check
-    setInterval(() => this.server.emit('heartbeat', { ts: Date.now() }), 1000);
+    setInterval(() => {
+      if (this.server) {
+        this.server.emit('heartbeat', { ts: Date.now() });
+      }
+    }, 1000);
   }
 
   handleConnection(client: Socket) {

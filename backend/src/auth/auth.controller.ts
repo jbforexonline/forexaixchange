@@ -84,9 +84,9 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 400, description: 'Either email or phone required' })
-  async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
-  }
+  // async login(@Body() loginDto: LoginDto) {
+  //   return this.authService.login(loginDto);
+  // }
 
   @Post('demo')
   @ApiOperation({ summary: 'Create and login as a demo user (for testing purposes)' })
@@ -223,79 +223,4 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto);
   }
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Initiate Google OAuth login' })
-  @ApiResponse({ status: 302, description: 'Redirects to Google OAuth consent screen' })
-  @ApiResponse({ status: 400, description: 'Google OAuth not configured' })
-  async googleAuth(@Req() req: Request, @Res() res: Response) {
-    const clientID = process.env.GOOGLE_CLIENT_ID;
-    if (!clientID || clientID === 'dummy-client-id') {
-      return res.status(400).json({ 
-        message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.' 
-      });
-    }
-    // Guard redirects to Google
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback endpoint' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Google authentication successful',
-    schema: {
-      type: 'object',
-      properties: {
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            username: { type: 'string' },
-            role: { type: 'string' },
-            isActive: { type: 'boolean' },
-            premium: { type: 'boolean' },
-            wallet: {
-              type: 'object',
-              properties: {
-                available: { type: 'number' },
-                held: { type: 'number' },
-              }
-            }
-          }
-        },
-        token: { type: 'string' }
-      }
-    }
-  })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
-    try {
-      // Check if user data is available from Passport
-      if (!req.user) {
-        console.error('Google OAuth callback: req.user is undefined');
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const redirectUrl = `${frontendUrl}/login?error=${encodeURIComponent('Google authentication failed: No user data received')}`;
-        return res.redirect(redirectUrl);
-      }
-
-      console.log('Google OAuth callback: User data received:', JSON.stringify(req.user, null, 2));
-      
-      const result = await this.authService.handleGoogleAuth(req.user);
-      
-      console.log('Google OAuth callback: Authentication successful, redirecting with token');
-      
-      // Always redirect to frontend with token for web apps
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${result.token}`;
-      return res.redirect(redirectUrl);
-    } catch (error) {
-      console.error('Google OAuth callback error:', error);
-      // Redirect to login with error message on failure
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      const redirectUrl = `${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`;
-      return res.redirect(redirectUrl);
-    }
-  }
 }

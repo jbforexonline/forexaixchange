@@ -201,6 +201,32 @@ export function useRound() {
     };
   }, [fetchRound]);
 
+  // Polling fallback (every 5s) to ensure sync if socket misses
+  useEffect(() => {
+    const pollInterval = setInterval(fetchRound, 5000);
+    return () => clearInterval(pollInterval);
+  }, [fetchRound]);
+
+  // Update countdown every second
+  useEffect(() => {
+    if (roundState.round) {
+      intervalRef.current = setInterval(() => {
+        updateCountdown(roundState.round);
+      }, 1000);
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+  }, [roundState.round, updateCountdown]);
+
+  // Removed periodic polling — now relies on Socket.IO events:
+  // - roundSettled: triggers fetchRound() to get new round
+  // - totalsUpdated / betPlaced: updates totals in real-time
+  // This reduces server load and bandwidth consumption.
+
   return {
     ...roundState,
     refresh: fetchRound,
