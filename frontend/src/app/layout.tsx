@@ -4,6 +4,7 @@ import "./globals.css";
 import "../Components/Styles/LogIn.scss";
 import "../Components/Styles/Register.scss";
 import RoleBasedLayout from "@/Components/Layout/RoleBasedLayout";
+import { DemoProvider } from "@/context/DemoContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <RoleBasedLayout>{children}</RoleBasedLayout>
+        <DemoProvider>
+          <RoleBasedLayout>{children}</RoleBasedLayout>
+        </DemoProvider>
       </body>
     </html>
   );

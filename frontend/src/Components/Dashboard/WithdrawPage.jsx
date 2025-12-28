@@ -309,12 +309,12 @@ export default function WithdrawPage() {
           <div className="transaction-section">
             <h3>Recent Transactions</h3>
             <div className="transaction-list">
-              {transactions.length === 0 ? (
+              {(!transactions || transactions.length === 0) ? (
                 <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
                   No transactions yet
                 </div>
               ) : (
-                transactions.map((tx) => {
+                Array.isArray(transactions) && transactions.map((tx) => {
                   const isDeposit = tx.type === "DEPOSIT" || tx.type === "INTERNAL_TRANSFER_RECEIVED";
                   const isWithdrawal = tx.type === "WITHDRAWAL" || tx.type === "INTERNAL_TRANSFER_SENT";
                   const date = new Date(tx.createdAt).toLocaleDateString("en-US", {

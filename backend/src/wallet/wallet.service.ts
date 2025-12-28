@@ -17,13 +17,17 @@ export class WalletService {
     totalWithdrawn: Decimal;
     totalWon: Decimal;
     totalLost: Decimal;
+    demoAvailable: Decimal;
+    demoHeld: Decimal;
+    demoTotalWon: Decimal;
+    demoTotalLost: Decimal;
     user?: { id: string; username?: string; email?: string; premium?: boolean; verificationBadge?: boolean };
   }> = new Map();
 
   constructor(
     private prisma: PrismaService,
     private gateway: RealtimeGateway,
-  ) {}
+  ) { }
 
   private enableDemoMode(reason?: any) {
     if (this.demoMode) return;
@@ -42,6 +46,10 @@ export class WalletService {
         totalWithdrawn: new Decimal(0),
         totalWon: new Decimal(0),
         totalLost: new Decimal(0),
+        demoAvailable: new Decimal(10000),
+        demoHeld: new Decimal(0),
+        demoTotalWon: new Decimal(0),
+        demoTotalLost: new Decimal(0),
         user: { id: userId, username: `demo-${userId}`, email: `${userId}@demo.local`, premium: false, verificationBadge: false },
       });
     }
@@ -117,6 +125,10 @@ export class WalletService {
           totalWithdrawn: dw.totalWithdrawn,
           totalWon: dw.totalWon,
           totalLost: dw.totalLost,
+          demoAvailable: dw.demoAvailable,
+          demoHeld: dw.demoHeld,
+          demoTotalWon: dw.demoTotalWon,
+          demoTotalLost: dw.demoTotalLost,
         };
       }
 
@@ -126,7 +138,7 @@ export class WalletService {
         throw new NotFoundException('Wallet not found');
       }
 
-      return wallet;
+      return wallet as any;
     } catch (error) {
       const code = error?.code || error?.meta?.code;
       const msg = String(error?.message || error);
@@ -141,6 +153,10 @@ export class WalletService {
           totalWithdrawn: dw.totalWithdrawn,
           totalWon: dw.totalWon,
           totalLost: dw.totalLost,
+          demoAvailable: dw.demoAvailable,
+          demoHeld: dw.demoHeld,
+          demoTotalWon: dw.demoTotalWon,
+          demoTotalLost: dw.demoTotalLost,
         };
       }
 
@@ -155,6 +171,9 @@ export class WalletService {
       available: wallet.available,
       held: wallet.held,
       total: (wallet.available as Decimal).add(wallet.held as Decimal),
+      demoAvailable: wallet.demoAvailable,
+      demoHeld: wallet.demoHeld,
+      demoTotal: (wallet.demoAvailable as Decimal).add(wallet.demoHeld as Decimal),
     };
   }
 
@@ -263,7 +282,7 @@ export class WalletService {
           instant: false,
         };
       });
-      
+
       this.logger.log(`✅ Deposit ${result.instant ? 'INSTANT' : 'PENDING'}: ${result.transaction.id}`);
 
       // Emit real-time balance update
@@ -346,88 +365,88 @@ export class WalletService {
         }
 
         const user = await tx.user.findUnique({
-        where: { id: userId },
-        include: { wallet: true },
-      });
+          where: { id: userId },
+          include: { wallet: true },
+        });
 
-      if (!user || !user.wallet) {
-        throw new NotFoundException('User or wallet not found');
-      }
+        if (!user || !user.wallet) {
+          throw new NotFoundException('User or wallet not found');
+        }
 
-      const wallet = user.wallet;
+        const wallet = user.wallet;
 
-      if (wallet.available.lt(amount)) {
-        throw new BadRequestException('Insufficient funds');
-      }
+        if (wallet.available.lt(amount)) {
+          throw new BadRequestException('Insufficient funds');
+        }
 
-      // Check withdrawal limits: Premium unlimited, Regular $2000/day
-      const isPremium = user.premium && (!user.premiumExpiresAt || new Date(user.premiumExpiresAt) >= new Date());
-      if (!isPremium) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        // Check withdrawal limits: Premium unlimited, Regular $2000/day
+        const isPremium = user.premium && (!user.premiumExpiresAt || new Date(user.premiumExpiresAt) >= new Date());
+        if (!isPremium) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
 
-        const todayWithdrawals = await tx.transaction.aggregate({
-          where: {
-            userId,
-            type: 'WITHDRAWAL',
-            status: { in: ['PENDING', 'COMPLETED'] },
-            createdAt: {
-              gte: today,
-              lt: tomorrow,
+          const todayWithdrawals = await tx.transaction.aggregate({
+            where: {
+              userId,
+              type: 'WITHDRAWAL',
+              status: { in: ['PENDING', 'COMPLETED'] },
+              createdAt: {
+                gte: today,
+                lt: tomorrow,
+              },
             },
-          },
-          _sum: {
-            amount: true,
+            _sum: {
+              amount: true,
+            },
+          });
+
+          const todayTotal = todayWithdrawals._sum.amount || new Decimal(0);
+          const dailyLimit = new Decimal(2000); // $2000/day for regular users
+          const afterThisWithdrawal = todayTotal.add(amount);
+
+          if (afterThisWithdrawal.gt(dailyLimit)) {
+            const remaining = dailyLimit.sub(todayTotal);
+            throw new BadRequestException(
+              `Daily withdrawal limit exceeded. Limit: $${dailyLimit.toString()}/day. ` +
+              `Already withdrawn today: $${todayTotal.toString()}. ` +
+              `Remaining: $${remaining.gt(0) ? remaining.toString() : '0'}. ` +
+              `Premium users have unlimited withdrawals.`
+            );
+          }
+        }
+
+        // Calculate withdrawal fee: Premium users have NO fee, Regular users pay fee
+        const fee = isPremium ? new Decimal(0) : this.calculateWithdrawalFee(amount);
+
+        // Create transaction record
+        const transaction = await tx.transaction.create({
+          data: {
+            userId,
+            type: TransactionType.WITHDRAWAL,
+            amount,
+            fee,
+            status: TransactionStatus.PENDING,
+            method,
+            reference,
+            idempotencyKey,
+            description: `Withdrawal via ${method}`,
           },
         });
 
-        const todayTotal = todayWithdrawals._sum.amount || new Decimal(0);
-        const dailyLimit = new Decimal(2000); // $2000/day for regular users
-        const afterThisWithdrawal = todayTotal.add(amount);
-
-        if (afterThisWithdrawal.gt(dailyLimit)) {
-          const remaining = dailyLimit.sub(todayTotal);
-          throw new BadRequestException(
-            `Daily withdrawal limit exceeded. Limit: $${dailyLimit.toString()}/day. ` +
-            `Already withdrawn today: $${todayTotal.toString()}. ` +
-            `Remaining: $${remaining.gt(0) ? remaining.toString() : '0'}. ` +
-            `Premium users have unlimited withdrawals.`
-          );
-        }
-      }
-
-      // Calculate withdrawal fee: Premium users have NO fee, Regular users pay fee
-      const fee = isPremium ? new Decimal(0) : this.calculateWithdrawalFee(amount);
-
-      // Create transaction record
-      const transaction = await tx.transaction.create({
-        data: {
-          userId,
-          type: TransactionType.WITHDRAWAL,
-          amount,
-          fee,
-          status: TransactionStatus.PENDING,
-          method,
-          reference,
-          idempotencyKey,
-          description: `Withdrawal via ${method}`,
-        },
-      });
-
-      // Hold the funds
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          available: {
-            decrement: amount,
+        // Hold the funds
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            available: {
+              decrement: amount,
+            },
+            held: {
+              increment: amount,
+            },
           },
-          held: {
-            increment: amount,
-          },
-        },
-      });
+        });
 
         return {
           transaction,
@@ -436,7 +455,7 @@ export class WalletService {
           totalDeduction: amount.add(fee),
         };
       });
-      
+
       this.logger.log(`✅ Withdrawal request created: ${result.transaction.id}`);
 
       // Emit real-time balance update (funds held)
@@ -643,8 +662,8 @@ export class WalletService {
 
       if (approved) {
         // Move funds to recipient
-        const recipientAmount = transfer.feePayer === 'RECIPIENT' 
-          ? transfer.amount.sub(transfer.fee) 
+        const recipientAmount = transfer.feePayer === 'RECIPIENT'
+          ? transfer.amount.sub(transfer.fee)
           : transfer.amount;
 
         await tx.wallet.update({
@@ -657,8 +676,8 @@ export class WalletService {
         });
 
         // Remove held funds from sender
-        const senderDeduction = transfer.feePayer === 'SENDER' 
-          ? transfer.amount.add(transfer.fee) 
+        const senderDeduction = transfer.feePayer === 'SENDER'
+          ? transfer.amount.add(transfer.fee)
           : transfer.amount;
 
         await tx.wallet.update({
@@ -693,8 +712,8 @@ export class WalletService {
         });
       } else {
         // Return held funds to sender
-        const returnAmount = transfer.feePayer === 'SENDER' 
-          ? transfer.amount.add(transfer.fee) 
+        const returnAmount = transfer.feePayer === 'SENDER'
+          ? transfer.amount.add(transfer.fee)
           : transfer.amount;
 
         await tx.wallet.update({
@@ -740,36 +759,36 @@ export class WalletService {
 
   calculateWithdrawalFee(amount: Decimal): Decimal {
     const amountNum = amount.toNumber();
-    
+
     if (amountNum < 50) return new Decimal(1);
     if (amountNum < 100) return new Decimal(2);
     if (amountNum < 500) return new Decimal(3);
     if (amountNum < 2000) return new Decimal(6);
-    
+
     // 1% for amounts >= $2000
     return amount.mul(0.01);
   }
 
   calculateTransferFee(amount: Decimal): Decimal {
     const amountNum = amount.toNumber();
-    
+
     if (amountNum < 50) return new Decimal(1);
     if (amountNum < 100) return new Decimal(2);
     if (amountNum < 500) return new Decimal(3);
     if (amountNum < 2000) return new Decimal(6);
-    
+
     // 1% for amounts >= $2000
     return amount.mul(0.01);
   }
 
   calculateAffiliateCommission(amount: Decimal): Decimal {
     const amountNum = amount.toNumber();
-    
+
     if (amountNum < 50) return new Decimal(0);
     if (amountNum < 100) return new Decimal(1);
     if (amountNum < 500) return new Decimal(2);
     if (amountNum < 2000) return new Decimal(5);
-    
+
     return new Decimal(7);
   }
 
@@ -793,6 +812,7 @@ export class WalletService {
         premium: true,
       },
     });
+
 
     if (!user) {
       throw new NotFoundException('User not found. Search by username, ID, or email.');
@@ -850,5 +870,36 @@ export class WalletService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+  /**
+   * Reset demo balance
+   */
+  async resetDemoBalance(userId: string, amount: number = 10000) {
+    if (amount <= 0) throw new BadRequestException('Amount must be positive');
+
+    if (this.demoMode) {
+      const demoWallet = this.ensureDemoWallet(userId);
+      demoWallet.available = new Decimal(amount);
+      demoWallet.held = new Decimal(0);
+      demoWallet.totalWon = new Decimal(0);
+      demoWallet.totalLost = new Decimal(0);
+
+      this.emitWalletUpdate(userId);
+      return demoWallet;
+    }
+
+    const wallet = await this.prisma.wallet.update({
+      where: { userId },
+      data: {
+        demoAvailable: amount,
+        demoHeld: 0,
+        demoTotalWon: 0,
+        demoTotalLost: 0,
+      } as any,
+      include: { user: true },
+    });
+
+    this.emitWalletUpdate(userId);
+    return wallet;
   }
 }

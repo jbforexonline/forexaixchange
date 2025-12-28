@@ -50,7 +50,19 @@ export class RoundsSettlementService {
     // Acquire Redis lock to prevent concurrent settlement
     const lockKey = `lock:settle:round:${roundId}`;
     const lockValue = Date.now().toString();
-    const lockAcquired = await this.redis.set(lockKey, lockValue, 'EX', 30, 'NX');
+    let lockAcquired = false;
+    try {
+      if (this.redis.status === 'ready') {
+        const result = await this.redis.set(lockKey, lockValue, 'EX', 30, 'NX');
+        lockAcquired = result === 'OK';
+      } else {
+        this.logger.warn(`Redis not ready, skipping lock for round ${roundId}`);
+        lockAcquired = true; // Fallback: allow settlement if Redis is down
+      }
+    } catch (e) {
+      this.logger.warn(`Failed to acquire lock: ${e.message}. Proceeding anyway.`);
+      lockAcquired = true;
+    }
 
     if (!lockAcquired) {
       this.logger.warn(`Settlement already in progress for round ${roundId}`);
@@ -168,9 +180,15 @@ export class RoundsSettlementService {
       );
     } finally {
       // Release lock
-      const currentValue = await this.redis.get(lockKey);
-      if (currentValue === lockValue) {
-        await this.redis.del(lockKey);
+      try {
+        if (this.redis.status === 'ready') {
+          const currentValue = await this.redis.get(lockKey);
+          if (currentValue === lockValue) {
+            await this.redis.del(lockKey);
+          }
+        }
+      } catch (e) {
+        // Ignore redis errors on unlock
       }
     }
   }

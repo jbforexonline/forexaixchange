@@ -25,6 +25,7 @@ export interface PlaceBetDto {
   selection: string;
   amountUsd: number;
   idempotencyKey?: string;
+  isDemo?: boolean;
 }
 
 @Injectable()
@@ -88,6 +89,13 @@ export class BetsService {
       }
 
       const isPremium = user.premium && user.premiumExpiresAt && user.premiumExpiresAt > new Date();
+      
+      // Enforce Demo-First Policy: Live betting requires Premium
+      if (!dto.isDemo && !isPremium) {
+        throw new ForbiddenException(
+          'Live trading is available only for Premium subscribers. Please upgrade your account.',
+        );
+      }
 
       // 4. Check timing constraints (premium vs regular)
       const now = new Date();
@@ -102,8 +110,9 @@ export class BetsService {
       }
 
       // 5. Check wallet balance
-      if (user.wallet.available.lt(amount)) {
-        throw new BadRequestException('Insufficient funds');
+      const availableBalance = dto.isDemo ? (user.wallet as any).demoAvailable : user.wallet.available;
+      if (availableBalance.lt(amount)) {
+        throw new BadRequestException(`Insufficient ${dto.isDemo ? 'demo ' : ''}funds`);
       }
 
       // 6. Apply bet limits (could be configurable)
@@ -127,17 +136,28 @@ export class BetsService {
           status: 'ACCEPTED',
           isPremiumUser: isPremium,
           idempotencyKey: dto.idempotencyKey,
-        },
+          isDemo: dto.isDemo || false,
+        } as any,
       });
 
       // 8. Hold funds in wallet
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          available: { decrement: amount },
-          held: { increment: amount },
-        },
-      });
+      if (dto.isDemo) {
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            demoAvailable: { decrement: amount },
+            demoHeld: { increment: amount },
+          } as any,
+        });
+      } else {
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            available: { decrement: amount },
+            held: { increment: amount },
+          },
+        });
+      }
 
       // 9. Update Redis totals for real-time UI
       await this.updateRedisTotals(dto.roundId, dto.market, dto.selection, amount);
@@ -149,8 +169,9 @@ export class BetsService {
           type: 'SPIN_LOSS', // Temporary, will be updated on settlement
           amount,
           status: 'PENDING',
+          isDemo: dto.isDemo || false,
           description: `Bet placed - Round ${round.roundNumber} ${dto.market} ${dto.selection}`,
-        },
+        } as any,
       });
 
       this.logger.log(
@@ -185,6 +206,7 @@ export class BetsService {
         total: updatedWallet.available.add(updatedWallet.held).toNumber(),
         reason: 'bet_placed',
         betAmount: amount.toNumber(),
+        isDemo: dto.isDemo,
       });
 
       return bet;
@@ -252,13 +274,23 @@ export class BetsService {
       }
 
       // Refund held funds
-      await tx.wallet.update({
-        where: { userId },
-        data: {
-          available: { increment: bet.amountUsd },
-          held: { decrement: bet.amountUsd },
-        },
-      });
+      if ((bet as any).isDemo) {
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            demoAvailable: { increment: bet.amountUsd },
+            demoHeld: { decrement: bet.amountUsd },
+          } as any,
+        });
+      } else {
+        await tx.wallet.update({
+          where: { userId },
+          data: {
+            available: { increment: bet.amountUsd },
+            held: { decrement: bet.amountUsd },
+          },
+        });
+      }
 
       // Update bet status
       const cancelledBet = await tx.bet.update({
@@ -397,26 +429,32 @@ export class BetsService {
    * Get current round totals from Redis (real-time)
    */
   async getRedisTotals(roundId: string) {
-    const keys = [
-      'outer:BUY',
-      'outer:SELL',
-      'middle:BLUE',
-      'middle:RED',
-      'inner:HIGH_VOL',
-      'inner:LOW_VOL',
-      'global:INDECISION',
-    ];
+    try {
+      if (this.redis.status !== 'ready') return {};
+      const keys = [
+        'outer:BUY',
+        'outer:SELL',
+        'middle:BLUE',
+        'middle:RED',
+        'inner:HIGH_VOL',
+        'inner:LOW_VOL',
+        'global:INDECISION',
+      ];
 
-    const totals: any = {};
+      const totals: any = {};
 
-    for (const key of keys) {
-      const value = await this.redis.get(`round:${roundId}:${key}`);
-      const [market, selection] = key.split(':');
-      if (!totals[market]) totals[market] = {};
-      totals[market][selection] = parseFloat(value || '0');
+      for (const key of keys) {
+        const value = await this.redis.get(`round:${roundId}:${key}`);
+        const [market, selection] = key.split(':');
+        if (!totals[market]) totals[market] = {};
+        totals[market][selection] = parseFloat(value || '0');
+      }
+
+      return totals;
+    } catch (e) {
+      this.logger.warn(`Redis down, skipping totals fetch: ${e.message}`);
+      return {};
     }
-
-    return totals;
   }
 
   /**
@@ -428,11 +466,16 @@ export class BetsService {
     selection: string,
     amount: Decimal,
   ) {
-    const key = `round:${roundId}:${market.toLowerCase()}:${selection}`;
-    await this.redis.incrbyfloat(key, amount.toNumber());
+    try {
+      if (this.redis.status !== 'ready') return;
+      const key = `round:${roundId}:${market.toLowerCase()}:${selection}`;
+      await this.redis.incrbyfloat(key, amount.toNumber());
 
-    // Set expiration (24 hours)
-    await this.redis.expire(key, 86400);
+      // Set expiration (24 hours)
+      await this.redis.expire(key, 86400);
+    } catch (e) {
+      this.logger.warn(`Redis down, skipping totals update: ${e.message}`);
+    }
   }
 
   /**

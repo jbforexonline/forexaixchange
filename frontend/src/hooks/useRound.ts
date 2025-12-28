@@ -167,6 +167,12 @@ export function useRound() {
     fetchRound();
   }, [fetchRound]);
 
+  // Polling fallback (every 5s) to ensure sync if socket misses
+  useEffect(() => {
+    const pollInterval = setInterval(fetchRound, 5000);
+    return () => clearInterval(pollInterval);
+  }, [fetchRound]);
+
   // Update countdown every second
   useEffect(() => {
     if (roundState.round) {

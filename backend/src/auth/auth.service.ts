@@ -68,7 +68,6 @@ export class AuthService {
       // Hash password before storing
       const hashedPassword = await this.hashPassword(password);
 
-      // Create user with wallet
       const user = await this.prisma.user.create({
         data: {
           email,
@@ -78,7 +77,6 @@ export class AuthService {
           firstName,
           lastName,
           referredBy: validReferredBy,
-          provider: 'local',
           wallet: {
             create: {
               available: 0,
@@ -294,8 +292,6 @@ export class AuthService {
     // Validate password strength
     this.validatePasswordStrength(newPassword);
 
-    // Hash and update password
-    // Keep the original provider (google or local) - users can use either login method
     const hashedPassword = await this.hashPassword(newPassword);
     await this.prisma.user.update({
       where: { id: user.id },
@@ -346,7 +342,6 @@ export class AuthService {
           firstName: 'Demo',
           lastName: 'User',
           password: null,
-          provider: 'demo',
           wallet: {
             create: {
               available: 10000,
@@ -374,104 +369,4 @@ export class AuthService {
     }
   }
 
-  /**
-   * Handle Google OAuth authentication
-   * Creates new user or logs in existing user
-   */
-  async handleGoogleAuth(googleUser: any) {
-    const { googleId, email, firstName, lastName, photo } = googleUser;
-
-    if (!email) {
-      throw new BadRequestException('Google account email is required');
-    }
-
-    // Check if user exists with this Google ID
-    let user = await this.prisma.user.findUnique({
-      where: { googleId },
-      include: { wallet: true },
-    });
-
-    if (user) {
-      // User exists with Google ID - log them in
-      if (!user.isActive || user.isBanned) {
-        throw new UnauthorizedException('Account is inactive or banned');
-      }
-
-      const { password: _, ...userWithoutPassword } = user;
-      return {
-        user: userWithoutPassword,
-        token: this.generateToken(user.id, user.role),
-      };
-    }
-
-    // Check if user exists with this email (might be local user)
-    const existingUserByEmail = await this.prisma.user.findUnique({
-      where: { email },
-      include: { wallet: true },
-    });
-
-    if (existingUserByEmail) {
-      // Email exists but with different provider
-      if (existingUserByEmail.provider === 'local') {
-        // Link Google account to existing local account
-        user = await this.prisma.user.update({
-          where: { id: existingUserByEmail.id },
-          data: {
-            googleId,
-            provider: 'google', // Switch to Google provider
-            // Optionally keep password for local login fallback
-          },
-          include: { wallet: true },
-        });
-      } else {
-        // Already a Google user but different googleId (shouldn't happen)
-        throw new ConflictException('Account with this email already exists');
-      }
-    } else {
-      // Create new user with Google OAuth
-      // Generate username from email if not provided
-      const baseUsername = email.split('@')[0];
-      let username = baseUsername;
-      let usernameExists = await this.prisma.user.findUnique({
-        where: { username },
-      });
-
-      // If username exists, append random suffix
-      let counter = 1;
-      while (usernameExists) {
-        username = `${baseUsername}${counter}`;
-        usernameExists = await this.prisma.user.findUnique({
-          where: { username },
-        });
-        counter++;
-      }
-
-      user = await this.prisma.user.create({
-        data: {
-          email,
-          googleId,
-          provider: 'google',
-          username,
-          firstName,
-          lastName,
-          password: null, // No password for OAuth users
-          wallet: {
-            create: {
-              available: 0,
-              held: 0,
-            },
-          },
-        },
-        include: {
-          wallet: true,
-        },
-      });
-    }
-
-    const { password: _, ...userWithoutPassword } = user;
-    return {
-      user: userWithoutPassword,
-      token: this.generateToken(user.id, user.role),
-    };
-  }
 }

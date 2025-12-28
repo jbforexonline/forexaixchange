@@ -5,6 +5,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { logout } from '@/lib/auth'
 import { useUserData } from '@/hooks/useUserData'
+import { useDemo } from '@/context/DemoContext'
 import './UserDashboardLayout.scss'
 
 export default function UserDashboardLayout({ children }) {
@@ -12,9 +13,20 @@ export default function UserDashboardLayout({ children }) {
   const [isDarkMode, setIsDarkMode] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  
-  // Efficient data fetching with caching and WebSocket updates
-  const { user, wallet, subscription, loading, refresh, error } = useUserData()
+  const { isDemo, toggleDemo } = useDemo()
+  const { user, wallet, subscription, loading, refresh, error } = useUserData() // Move useUserData up to destructure refresh
+
+  const handleReset = async (amount) => {
+    if (confirm(`Reset demo balance to ${amount}?`)) {
+      try {
+        await import('@/lib/api/wallet').then(m => m.resetDemoBalance(amount));
+        refresh();
+        alert('Balance reset!');
+      } catch (e) {
+        alert('Failed to reset: ' + e.message);
+      }
+    }
+  }
 
   // Redirect to login if not authenticated (only after initial load completes)
   useEffect(() => {
@@ -50,8 +62,8 @@ export default function UserDashboardLayout({ children }) {
     <div className={`dashboard-root ${isDarkMode ? 'dark' : 'light'}`}>
       <aside className={`dashboard-sidebar ${isSidebarOpen ? 'open' : 'collapsed'}`}>
         <div className="sidebar-header">
-          <button 
-            className="sidebar-toggle" 
+          <button
+            className="sidebar-toggle"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             aria-label="Toggle sidebar"
           >
@@ -88,13 +100,13 @@ export default function UserDashboardLayout({ children }) {
                     )}
                   </div>
                 </div>
-                
+
                 <div className="wallet-summary">
                   <div className="summary-item">
                     <span className="label">Balance</span>
                     <span className="value">${formattedBalance}</span>
                   </div>
-                  <button 
+                  <button
                     className="refresh-btn"
                     onClick={refresh}
                     title="Refresh balance"
@@ -136,7 +148,7 @@ export default function UserDashboardLayout({ children }) {
             <Link href="/user-dashboard/settings" className={`nav-link ${pathname === '/user-dashboard/settings' ? 'active' : ''}`}>⚙️ Settings</Link>
           </div>
         </nav>
-        
+
         <div className="need-help">
           <h4>NEED HELP?</h4>
           <p>Feel free to contact</p>
@@ -200,6 +212,51 @@ export default function UserDashboardLayout({ children }) {
             gap: '1rem',
             flexWrap: 'wrap'
           }}>
+              {userDisplayInfo.isPremium ? (
+                <button
+                  onClick={toggleDemo}
+                  style={{
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: '20px',
+                    border: 'none',
+                    background: isDemo ? '#f59e0b' : '#10b981',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  {isDemo ? '🚧 DEMO MODE' : '✅ LIVE MODE'}
+                </button>
+              ) : (
+                <Link href="/user-dashboard/premium">
+                  <button
+                    style={{
+                      padding: '0.4rem 0.8rem',
+                      borderRadius: '20px',
+                      border: 'none',
+                      background: '#6b7280',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem'
+                    }}
+                  >
+                    🔒 UNLOCK LIVE
+                  </button>
+                </Link>
+              )}
+            {isDemo && (
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button onClick={() => handleReset(10000)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>↺ 10k</button>
+                <button onClick={() => handleReset(20000)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem', cursor: 'pointer' }}>↺ 20k</button>
+              </div>
+            )}
             <button
               className="theme-toggle"
               onClick={toggleDarkMode}

@@ -12,6 +12,8 @@ import {
 } from "recharts";
 import React from "react";
 import "../Components/Styles/Historigram.scss";
+import { getRoundHistory } from "../lib/api/spin";
+import { useEffect, useState } from "react";
 
 const DEFAULT_KEYS = [
   "Buy",
@@ -88,6 +90,52 @@ export default function Histogram({
   showChartOnly = false,
   showHistoryOnly = false
 }) {
+  const [realHistory, setRealHistory] = useState([]);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const { data } = await getRoundHistory(1, 10);
+        // Transform API data to component format
+        const formatted = data.map(round => {
+           let result = "Waiting";
+           let resultType = "warning";
+           const now = new Date();
+           
+           if (round.state === 'SETTLED') {
+             // Simplify result logic for demo
+             result = "Completed"; 
+             resultType = "success"; 
+           } else if (round.state === 'FROZEN') {
+             result = "Finalizing";
+             resultType = "info";
+           }
+
+           return {
+             date: new Date(round.openedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+             previous: `Round ${round.roundNumber}`,
+             previousType: "primary", // can be dynamic based on winner
+             forexAI: "Analyzing...", // Placeholder for AI suggestion
+             suggestion: "High Volatile", // Placeholder
+             result,
+             resultType
+           };
+        });
+        setRealHistory(formatted);
+      } catch (err) {
+        console.error("Failed to fetch history:", err);
+      }
+    };
+
+    fetchHistory();
+    // Refresh every minute
+    const interval = setInterval(fetchHistory, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use real history if available, else fallback slightly or just show loading
+  const displayHistory = realHistory.length > 0 ? realHistory : [];
+
   const normalizedData = DEFAULT_KEYS.map((key) => {
     const found = data.find(
       (d) => d.name?.toLowerCase() === key.toLowerCase()
@@ -156,7 +204,7 @@ export default function Histogram({
             </thead>
 
             <tbody>
-              {historyRows.map((row, index) => (
+              {displayHistory.map((row, index) => (
                 <tr key={index}>
                   <td className="date">{row.date}</td>
 

@@ -9,6 +9,7 @@ import {
 } from "@/lib/api/spin";
 import { useWallet } from "@/hooks/useWallet";
 import { useRound } from "@/hooks/useRound";
+import { useDemo } from "@/context/DemoContext";
 import "./BetForm.scss";
 
 interface BetFormProps {
@@ -24,6 +25,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
     timeUntilFreeze,
     loading: roundLoading,
   } = useRound();
+  const { isDemo } = useDemo();
   const [market, setMarket] = useState<BetMarket>("OUTER");
   const [selection, setSelection] = useState<BetSelection>("BUY");
   const [amount, setAmount] = useState<string>("10");
@@ -80,17 +82,17 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
       if (isInvalidAmount) {
         throw new Error(`Bet must be between $${minBet} and $${maxBet}`);
       }
-      if (isInsufficientFunds) {
-        throw new Error("Insufficient balance");
-      }
       if (!wallet) {
         throw new Error("Wallet not loaded");
       }
-      if (!canPlaceBet) {
-        throw new Error("Betting window closed");
+      if (isInsufficientFunds) {
+        throw new Error("Insufficient balance");
       }
       if (!round) {
-        throw new Error("No active round");
+        throw new Error("Waiting for next round...");
+      }
+      if (isFrozen) {
+        throw new Error("Round is finalizing, please wait...");
       }
 
       const dto: PlaceBetDto = {
@@ -98,10 +100,11 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
         selection,
         amountUsd: betAmount,
         idempotencyKey: `${Date.now()}-${Math.random()}`,
+        isDemo,
       };
 
       const bet = await placeBet(dto);
-      setSuccess(`Bet placed! $${betAmount.toFixed(2)} on ${selection}`);
+      setSuccess(`${isDemo ? '[DEMO] ' : ''}Bet placed! $${betAmount.toFixed(2)} on ${selection}`);
       setAmount("10");
       setTimeout(() => setSuccess(null), 3000);
       onBetPlaced?.(bet);
@@ -242,7 +245,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="Amount"
-                  disabled={loading || !canPlaceBet}
+                  disabled={loading}
                 />
                 <div className="quick-amounts">
                   {quickAmounts
@@ -252,7 +255,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
                         key={amt}
                         type="button"
                         onClick={() => setAmount(amt.toString())}
-                        disabled={loading || !canPlaceBet}
+                        disabled={loading}
                       >
                         ${amt}
                       </button>
@@ -263,14 +266,12 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
 
             <button
               type="submit"
-              className={`submit-btn ${isButtonDisabled ? "disabled" : "active"}`}
-              disabled={isButtonDisabled}
+              className={`submit-btn ${loading ? "disabled" : "active"}`}
+              disabled={loading}
             >
               {loading
                 ? "⏳ PLACING..."
-                : isButtonDisabled
-                  ? "🔒 UNAVAILABLE"
-                  : "🎯 PLACE BET"}
+                : "🎯 PLACE BET"}
             </button>
           </div>
 
