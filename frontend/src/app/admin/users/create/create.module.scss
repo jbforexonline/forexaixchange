@@ -1,0 +1,77 @@
+.container {
+  padding: 1.5rem;
+  background: rgba(0, 12, 22, 0.82);
+  border: 1px solid rgba(100, 200, 255, 0.12);
+  border-radius: 12px;
+  color: #e7f7ff;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.header h1 {
+  margin: 0 0 4px 0;
+  color: #b8f3ff;
+  font-size: 20px;
+}
+
+.sub {
+  color: #d1d5db;
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.form {
+  display: block;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.row label { color: #cfeeff; font-size: 0.85rem; }
+
+/* Scope form controls under the local .form class to satisfy CSS Modules purity */
+.form input,
+.form select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(100,200,255,0.12);
+  background: rgba(0,10,20,0.6);
+  color: #e7f7ff;
+  outline: none;
+}
+
+.rowGroup { display: flex; gap: 12px; margin-bottom: 8px; }
+.rowSmall { flex: 1; display:flex; flex-direction:column; gap:6px; }
+
+.rowInline { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:6px; }
+.checkboxLabel { color:#d1d5db; display:flex; align-items:center; gap:8px; }
+
+.primary {
+  background: linear-gradient(90deg,#00c6ff,#0066ff);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: 700;
+}
+.primary:disabled { opacity: 0.6; cursor: default; }
+
+.listWrap { margin-top: 18px; }
+.listWrap h2 { margin: 0 0 8px 0; color:#b8f3ff; }
+.empty { color:#9ca3af; }
+
+.table { width:100%; border-collapse:collapse; background: rgba(255,255,255,0.02); border-radius:8px; overflow:hidden; }
+.table th, .table td { padding: 10px 12px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.03); color:#e7f7ff; }
+.table th { color:#93c5fd; font-weight:700; }
+
+.accessDenied { padding: 2rem; color: #dc2626; }

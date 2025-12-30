@@ -347,7 +347,7 @@ export default function TransferPage() {
           </label>
           <select
             value={feePayer}
-            onChange={(e) => setFeePayer(e.target.value as "SENDER" | "RECIPIENT")}
+            onChange={(e) => setFeePayer(e.target.value === "SENDER" ? "SENDER" : "RECIPIENT")}
             style={{
               width: "100%",
               padding: "0.75rem",
