@@ -1,283 +1,303 @@
-"use client";
-import React, { useState, useEffect } from "react";
-import {
-  placeBet,
-  type PlaceBetDto,
-  type BetMarket,
-  type BetSelection,
-  isPremiumUser,
-} from "@/lib/api/spin";
-import { useWallet } from "@/hooks/useWallet";
-import { useRound } from "@/hooks/useRound";
-import "./BetForm.scss";
+/**
+ * BetForm Component
+ * Allows users to place bets on markets
+ */
+
+import React, { useState, useEffect } from 'react';
+import type { BetMarket, BetSelection, Wallet } from '@/lib/api/spin';
+import { placeBet, isPremiumUser } from '@/lib/api/spin';
 
 interface BetFormProps {
-  onBetPlaced?: (bet: any) => void;
-  onError?: (error: string) => void;
+  roundId: string | null;
+  roundState: 'preopen' | 'open' | 'frozen' | 'settled';
+  wallet: Wallet | null;
+  onBetPlaced: () => void;
 }
 
-export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
-  const { wallet, loading: walletLoading } = useWallet();
-  const {
-    round,
-    state: roundState,
-    timeUntilFreeze,
-    loading: roundLoading,
-  } = useRound();
-  const [market, setMarket] = useState<BetMarket>("OUTER");
-  const [selection, setSelection] = useState<BetSelection>("BUY");
-  const [amount, setAmount] = useState<string>("10");
-  const [loading, setLoading] = useState(false);
+export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: BetFormProps) {
+  const [selectedMarket, setSelectedMarket] = useState<BetMarket>('OUTER');
+  const [selectedSelection, setSelectedSelection] = useState<BetSelection>('BUY');
+  const [amount, setAmount] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const isPremium = isPremiumUser();
   const minBet = 1;
-  const maxBet = isPremium ? 200 : 100;
-  const betAmount = parseFloat(amount) || 0;
-  const availableBalance = wallet?.available || 0;
-  const isFrozen = roundState === "frozen" || roundState === "settled";
-  const isInsufficientFunds = betAmount > 0 && betAmount > availableBalance;
-  const isInvalidAmount = betAmount < minBet || betAmount > maxBet;
-  const hasNoRound = !round;
+  const maxBet = isPremium ? 200 : 1000; // Premium: $200, Regular: $1000
 
-  // Allow betting when: round exists, not frozen, and has balance
-  const canPlaceBet =
-    !isFrozen && round && availableBalance >= minBet && !loading;
-  const isButtonDisabled =
-    loading ||
-    !canPlaceBet ||
-    walletLoading ||
-    isInvalidAmount ||
-    isInsufficientFunds ||
-    hasNoRound;
-
+  // Update selection when market changes
   useEffect(() => {
-    switch (market) {
-      case "OUTER":
-        setSelection("BUY");
-        break;
-      case "MIDDLE":
-        setSelection("BLUE");
-        break;
-      case "INNER":
-        setSelection("HIGH_VOL");
-        break;
-      case "GLOBAL":
-        setSelection("INDECISION");
-        break;
-    }
-  }, [market]);
+    const defaultSelections: Record<BetMarket, BetSelection> = {
+      OUTER: 'BUY',
+      MIDDLE: 'BLUE',
+      INNER: 'HIGH_VOL',
+      GLOBAL: 'INDECISION',
+    };
+    setSelectedSelection(defaultSelections[selectedMarket]);
+  }, [selectedMarket]);
+
+  const getSelectionsForMarket = (market: BetMarket): BetSelection[] => {
+    const selections: Record<BetMarket, BetSelection[]> = {
+      OUTER: ['BUY', 'SELL'],
+      MIDDLE: ['BLUE', 'RED'],
+      INNER: ['HIGH_VOL', 'LOW_VOL'],
+      GLOBAL: ['INDECISION'],
+    };
+    return selections[market];
+  };
+
+  const getSelectionLabel = (selection: BetSelection): string => {
+    const labels: Record<BetSelection, string> = {
+      BUY: '📈 Buy',
+      SELL: '📉 Sell',
+      BLUE: '🔵 Blue',
+      RED: '🔴 Red',
+      HIGH_VOL: '⚡ High Volatile',
+      LOW_VOL: '📊 Low Volatile',
+      INDECISION: '🎯 Indecision',
+    };
+    return labels[selection];
+  };
+
+  const handleQuickAmount = (value: number) => {
+    setAmount(value.toString());
+    setError(null);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    setLoading(true);
+
+    // Validation
+    if (!roundId) {
+      setError('No active round');
+      return;
+    }
+
+    if (roundState !== 'open') {
+      setError('Betting is closed');
+      return;
+    }
+
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum < minBet) {
+      setError(`Minimum bet is $${minBet}`);
+      return;
+    }
+
+    if (amountNum > maxBet) {
+      setError(`Maximum bet is $${maxBet}`);
+      return;
+    }
+
+    if (wallet && amountNum > wallet.available) {
+      setError('Insufficient funds');
+      return;
+    }
+
+    setIsSubmitting(true);
 
     try {
-      if (isInvalidAmount) {
-        throw new Error(`Bet must be between $${minBet} and $${maxBet}`);
-      }
-      if (isInsufficientFunds) {
-        throw new Error("Insufficient balance");
-      }
-      if (!wallet) {
-        throw new Error("Wallet not loaded");
-      }
-      if (!canPlaceBet) {
-        throw new Error("Betting window closed");
-      }
-      if (!round) {
-        throw new Error("No active round");
-      }
+      await placeBet({
+        market: selectedMarket,
+        selection: selectedSelection,
+        amountUsd: amountNum,
+        idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
+      });
 
-      const dto: PlaceBetDto = {
-        market,
-        selection,
-        amountUsd: betAmount,
-        idempotencyKey: `${Date.now()}-${Math.random()}`,
-      };
+      setSuccess(`Bet placed: $${amountNum} on ${selectedSelection}`);
+      setAmount('');
+      
+      // Notify parent to refresh
+      onBetPlaced();
 
-      const bet = await placeBet(dto);
-      setSuccess(`Bet placed! $${betAmount.toFixed(2)} on ${selection}`);
-      setAmount("10");
+      // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
-      onBetPlaced?.(bet);
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "Failed to place bet";
+      const message = err instanceof Error ? err.message : 'Failed to place bet';
       setError(message);
-      onError?.(message);
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const quickAmounts = [10, 25, 50, 100];
+  const canBet = roundState === 'open' && roundId && !isSubmitting;
 
   return (
-    <div className={`bet-bar ${isExpanded ? "expanded" : ""}`}>
-      <button
-        className="bet-bar-toggle"
-        onClick={() => setIsExpanded(!isExpanded)}
-      >
-        {isExpanded ? "▼ COLLAPSE BET PANEL" : "▲ PLACE BET"}
-      </button>
+    <div className="bet-form-container">
+      <div className="bet-form-header">
+        <h3>Place Your Bet</h3>
+        {isPremium && <span className="premium-badge">⭐ Premium</span>}
+      </div>
 
-      <div className="bet-bar-content">
-        <div className="bet-bar-header">
-          <div className="balance-display">
-            <span className="label">Balance:</span>
-            <span className="amount">
-              ${(wallet?.available || 0).toFixed(2)}
-            </span>
+      <form onSubmit={handleSubmit} className="bet-form">
+        {/* Market Selection */}
+        <div className="form-group">
+          <label className="form-label">Select Market</label>
+          <div className="market-buttons">
+            <button
+              type="button"
+              className={`market-btn ${selectedMarket === 'OUTER' ? 'active' : ''}`}
+              onClick={() => setSelectedMarket('OUTER')}
+            >
+              OUTER
+              <span className="market-subtitle">Direction</span>
+            </button>
+            <button
+              type="button"
+              className={`market-btn ${selectedMarket === 'MIDDLE' ? 'active' : ''}`}
+              onClick={() => setSelectedMarket('MIDDLE')}
+            >
+              MIDDLE
+              <span className="market-subtitle">Color Mode</span>
+            </button>
+            <button
+              type="button"
+              className={`market-btn ${selectedMarket === 'INNER' ? 'active' : ''}`}
+              onClick={() => setSelectedMarket('INNER')}
+            >
+              INNER
+              <span className="market-subtitle">Volatility</span>
+            </button>
+            <button
+              type="button"
+              className={`market-btn ${selectedMarket === 'GLOBAL' ? 'active' : ''}`}
+              onClick={() => setSelectedMarket('GLOBAL')}
+            >
+              GLOBAL
+              <span className="market-subtitle">Indecision</span>
+            </button>
           </div>
-          {!canPlaceBet && (
-            <div className="status-warning">
-              {roundLoading && "🔄 Fetching round data..."}
-              {isFrozen && "❌ Betting closed (round frozen)"}
+        </div>
+
+        {/* Selection Buttons */}
+        <div className="form-group">
+          <label className="form-label">Choose Side</label>
+          <div className="selection-buttons">
+            {getSelectionsForMarket(selectedMarket).map((selection) => (
+              <button
+                key={selection}
+                type="button"
+                className={`selection-btn ${selectedSelection === selection ? 'active' : ''} ${selection.toLowerCase()}`}
+                onClick={() => setSelectedSelection(selection)}
+              >
+                {getSelectionLabel(selection)}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Amount Input */}
+        <div className="form-group">
+          <label className="form-label">
+            Bet Amount ($)
+            <span className="balance-info">
+              Available: ${wallet?.available.toFixed(2) || '0.00'}
+            </span>
+          </label>
+          <input
+            type="number"
+            className="amount-input"
+            value={amount}
+            onChange={(e) => {
+              setAmount(e.target.value);
+              setError(null);
+            }}
+            placeholder={`${minBet} - ${maxBet}`}
+            min={minBet}
+            max={maxBet}
+            step="0.01"
+            disabled={!canBet}
+          />
+          
+          {/* Quick Amount Buttons */}
+          <div className="quick-amounts">
+            {[1, 5, 10, 25, 50, 100].map((value) => (
+              <button
+                key={value}
+                type="button"
+                className="quick-amount-btn"
+                onClick={() => handleQuickAmount(value)}
+                disabled={!canBet || (wallet && value > wallet.available)}
+              >
+                ${value}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Payout Info */}
+        {amount && !isNaN(parseFloat(amount)) && (
+          <div className="payout-info">
+            <div className="payout-row">
+              <span>Your Bet:</span>
+              <span className="payout-value">${parseFloat(amount).toFixed(2)}</span>
+            </div>
+            <div className="payout-row">
+              <span>If Win (2x):</span>
+              <span className="payout-value payout-win">
+                ${(parseFloat(amount) * 2).toFixed(2)}
+              </span>
+            </div>
+            <div className="payout-row">
+              <span>Profit:</span>
+              <span className="payout-value payout-profit">
+                +${parseFloat(amount).toFixed(2)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Error/Success Messages */}
+        {error && <div className="form-message error-message">{error}</div>}
+        {success && <div className="form-message success-message">{success}</div>}
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          className="submit-btn"
+          disabled={!canBet || !amount || parseFloat(amount) < minBet}
+        >
+          {isSubmitting ? (
+            <>
+              <span className="spinner" />
+              Placing Bet...
+            </>
+          ) : roundState === 'frozen' ? (
+            '❄️ Betting Frozen'
+          ) : roundState === 'settled' ? (
+            '⏳ Waiting for Next Round'
+          ) : !roundId ? (
+            '⏳ No Active Round'
+          ) : (
+            `Place Bet - $${parseFloat(amount || '0').toFixed(2)}`
+          )}
+        </button>
+
+        {/* Betting Rules Info */}
+        <div className="betting-rules">
+          <div className="rule-item">
+            <span className="rule-icon">💡</span>
+            <span className="rule-text">Winners receive 2x their bet amount</span>
+          </div>
+          <div className="rule-item">
+            <span className="rule-icon">⚖️</span>
+            <span className="rule-text">Minority side wins (less money = winner)</span>
+          </div>
+          <div className="rule-item">
+            <span className="rule-icon">🎯</span>
+            <span className="rule-text">If any pair ties, Indecision wins</span>
+          </div>
+          {!isPremium && (
+            <div className="rule-item premium-notice">
+              <span className="rule-icon">⭐</span>
+              <span className="rule-text">Upgrade to Premium for higher limits ($200/bet)</span>
             </div>
           )}
         </div>
-
-        <form onSubmit={handleSubmit} className="bet-bar-form">
-          <div className="form-row">
-            <div className="form-section">
-              <label>Market</label>
-              <div className="btn-group">
-                <button
-                  type="button"
-                  className={market === "OUTER" ? "active" : ""}
-                  onClick={() => setMarket("OUTER")}
-                >
-                  Direction
-                </button>
-                <button
-                  type="button"
-                  className={market === "MIDDLE" ? "active" : ""}
-                  onClick={() => setMarket("MIDDLE")}
-                >
-                  Color
-                </button>
-                <button
-                  type="button"
-                  className={market === "INNER" ? "active" : ""}
-                  onClick={() => setMarket("INNER")}
-                >
-                  Volatility
-                </button>
-              </div>
-            </div>
-
-            <div className="form-section">
-              <label>Selection</label>
-              <div className="btn-group">
-                {market === "OUTER" && (
-                  <>
-                    <button
-                      type="button"
-                      className={selection === "BUY" ? "active buy" : ""}
-                      onClick={() => setSelection("BUY")}
-                    >
-                      BUY
-                    </button>
-                    <button
-                      type="button"
-                      className={selection === "SELL" ? "active sell" : ""}
-                      onClick={() => setSelection("SELL")}
-                    >
-                      SELL
-                    </button>
-                  </>
-                )}
-                {market === "MIDDLE" && (
-                  <>
-                    <button
-                      type="button"
-                      className={selection === "BLUE" ? "active blue" : ""}
-                      onClick={() => setSelection("BLUE")}
-                    >
-                      BLUE
-                    </button>
-                    <button
-                      type="button"
-                      className={selection === "RED" ? "active red" : ""}
-                      onClick={() => setSelection("RED")}
-                    >
-                      RED
-                    </button>
-                  </>
-                )}
-                {market === "INNER" && (
-                  <>
-                    <button
-                      type="button"
-                      className={selection === "HIGH_VOL" ? "active" : ""}
-                      onClick={() => setSelection("HIGH_VOL")}
-                    >
-                      HIGH
-                    </button>
-                    <button
-                      type="button"
-                      className={selection === "LOW_VOL" ? "active" : ""}
-                      onClick={() => setSelection("LOW_VOL")}
-                    >
-                      LOW
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className="form-section">
-              <label>Amount</label>
-              <div className="amount-controls">
-                <input
-                  type="number"
-                  min={minBet}
-                  max={maxBet}
-                  step="0.01"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  placeholder="Amount"
-                  disabled={loading || !canPlaceBet}
-                />
-                <div className="quick-amounts">
-                  {quickAmounts
-                    .filter((a) => a <= maxBet)
-                    .map((amt) => (
-                      <button
-                        key={amt}
-                        type="button"
-                        onClick={() => setAmount(amt.toString())}
-                        disabled={loading || !canPlaceBet}
-                      >
-                        ${amt}
-                      </button>
-                    ))}
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              className={`submit-btn ${isButtonDisabled ? "disabled" : "active"}`}
-              disabled={isButtonDisabled}
-            >
-              {loading
-                ? "⏳ PLACING..."
-                : isButtonDisabled
-                  ? "🔒 UNAVAILABLE"
-                  : "🎯 PLACE BET"}
-            </button>
-          </div>
-
-          {error && <div className="error-msg">❌ {error}</div>}
-          {success && <div className="success-msg">✅ {success}</div>}
-        </form>
-      </div>
+      </form>
     </div>
   );
 }
