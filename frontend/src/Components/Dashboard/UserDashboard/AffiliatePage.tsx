@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getAffiliateData, getReferrals, getAffiliateLeaderboard, type AffiliateStats, type Referral } from '@/lib/api/affiliate'
 import { cacheManager, CACHE_KEYS, CACHE_TTL } from '@/lib/cache'
-import '../Styles/AffiliatePage.scss'
+import '../Styles/Affiliate.scss'
 
 export default function AffiliatePage() {
   const [stats, setStats] = useState<AffiliateStats | null>(null)
