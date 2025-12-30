@@ -41,6 +41,8 @@ export class BetsService {
    * Place a bet on the current round
    */
   async placeBet(userId: string, dto: PlaceBetDto) {
+    this.logger.debug(`📝 placeBet called: userId=${userId}, dto=${JSON.stringify(dto)}`);
+    
     const amount = new Decimal(dto.amountUsd);
 
     // Validation
@@ -52,7 +54,8 @@ export class BetsService {
       throw new BadRequestException(`Invalid selection for market ${dto.market}`);
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    try {
+      return await this.prisma.$transaction(async (tx) => {
       // 1. Check idempotency
       if (dto.idempotencyKey) {
         const existing = await tx.bet.findUnique({
@@ -74,7 +77,7 @@ export class BetsService {
       }
 
       if (round.state !== RoundState.OPEN) {
-        throw new BadRequestException('Round is not accepting bets');
+        throw new BadRequestException('Market is not open for orders');
       }
 
       // 3. Get user and check premium status
@@ -97,7 +100,7 @@ export class BetsService {
 
       if (now >= cutoffTime) {
         throw new BadRequestException(
-          `Betting window closed for ${isPremium ? 'premium' : 'regular'} users`,
+          `Market closed - orders no longer accepted`,
         );
       }
 
@@ -112,20 +115,20 @@ export class BetsService {
 
       if (amount.lt(minBet) || amount.gt(maxBet)) {
         throw new BadRequestException(
-          `Bet must be between $${minBet.toString()} and $${maxBet.toString()}`,
+          `Order amount must be between $${minBet.toString()} and $${maxBet.toString()}`,
         );
       }
 
-      // 7. Create bet
+      // 7. Create bet using Prisma relation connect syntax
       const bet = await tx.bet.create({
         data: {
-          roundId: dto.roundId,
-          userId,
+          round: { connect: { id: dto.roundId } },
+          user: { connect: { id: userId } },
           market: dto.market,
           selection: dto.selection,
           amountUsd: amount,
           status: 'ACCEPTED',
-          isPremiumUser: isPremium,
+          isPremiumUser: isPremium ?? false,
           idempotencyKey: dto.idempotencyKey,
         },
       });
@@ -189,6 +192,10 @@ export class BetsService {
 
       return bet;
     });
+    } catch (error) {
+      this.logger.error(`❌ placeBet failed: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
   /**
@@ -210,7 +217,7 @@ export class BetsService {
       }
 
       if (bet.userId !== userId) {
-        throw new BadRequestException('Not authorized to cancel this bet');
+        throw new BadRequestException('Not authorized to cancel this order');
       }
 
       // Check premium status
@@ -221,14 +228,14 @@ export class BetsService {
 
       if (!isPremium) {
         throw new ForbiddenException(
-          'Canceling bets is available to premium users only',
+          'Canceling orders is available to premium users only',
         );
       }
 
       // Check bet status
       if (bet.status !== 'ACCEPTED') {
         throw new BadRequestException(
-          `Cannot cancel bet with status: ${bet.status}`,
+          `Cannot cancel order with status: ${bet.status}`,
         );
       }
 
@@ -236,7 +243,7 @@ export class BetsService {
       const now = new Date();
       if (bet.round.state !== RoundState.OPEN || now >= bet.round.freezeAt) {
         throw new BadRequestException(
-          'Cannot cancel bet: round is frozen or settled',
+          'Cannot cancel order: market is frozen or settled',
         );
       }
 
@@ -247,7 +254,7 @@ export class BetsService {
 
       if (now >= cutoffTime) {
         throw new BadRequestException(
-          'Cannot cancel bet: cutoff time has passed',
+          'Cannot cancel order: cutoff time has passed',
         );
       }
 
@@ -397,26 +404,37 @@ export class BetsService {
    * Get current round totals from Redis (real-time)
    */
   async getRedisTotals(roundId: string) {
-    const keys = [
-      'outer:BUY',
-      'outer:SELL',
-      'middle:BLUE',
-      'middle:RED',
-      'inner:HIGH_VOL',
-      'inner:LOW_VOL',
-      'global:INDECISION',
-    ];
+    try {
+      const keys = [
+        'outer:BUY',
+        'outer:SELL',
+        'middle:BLUE',
+        'middle:RED',
+        'inner:HIGH_VOL',
+        'inner:LOW_VOL',
+        'global:INDECISION',
+      ];
 
-    const totals: any = {};
+      const totals: any = {};
 
-    for (const key of keys) {
-      const value = await this.redis.get(`round:${roundId}:${key}`);
-      const [market, selection] = key.split(':');
-      if (!totals[market]) totals[market] = {};
-      totals[market][selection] = parseFloat(value || '0');
+      for (const key of keys) {
+        const value = await this.redis.get(`round:${roundId}:${key}`);
+        const [market, selection] = key.split(':');
+        if (!totals[market]) totals[market] = {};
+        totals[market][selection] = parseFloat(value || '0');
+      }
+
+      return totals;
+    } catch (error) {
+      this.logger.warn(`Redis getRedisTotals failed: ${error.message}`);
+      // Return empty totals if Redis fails
+      return {
+        outer: { BUY: 0, SELL: 0 },
+        middle: { BLUE: 0, RED: 0 },
+        inner: { HIGH_VOL: 0, LOW_VOL: 0 },
+        global: { INDECISION: 0 },
+      };
     }
-
-    return totals;
   }
 
   /**
@@ -428,11 +446,16 @@ export class BetsService {
     selection: string,
     amount: Decimal,
   ) {
-    const key = `round:${roundId}:${market.toLowerCase()}:${selection}`;
-    await this.redis.incrbyfloat(key, amount.toNumber());
+    try {
+      const key = `round:${roundId}:${market.toLowerCase()}:${selection}`;
+      await this.redis.incrbyfloat(key, amount.toNumber());
 
-    // Set expiration (24 hours)
-    await this.redis.expire(key, 86400);
+      // Set expiration (24 hours)
+      await this.redis.expire(key, 86400);
+    } catch (error) {
+      this.logger.warn(`Redis updateRedisTotals failed: ${error.message}`);
+      // Continue without Redis - not fatal
+    }
   }
 
   /**

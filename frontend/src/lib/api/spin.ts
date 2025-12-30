@@ -73,7 +73,29 @@ export async function getCurrentRound(): Promise<{ round: Round | null; message?
     method: 'GET',
     headers: getHeaders(),
   });
-  return handleResponse(response);
+  const result = await handleResponse<any>(response);
+  
+  // Debug: log what we're receiving
+  console.log('getCurrentRound raw response:', result);
+  
+  // Backend wraps response in envelope: { data: { round: {...} }, message, statusCode, timestamp }
+  // Unwrap the envelope first
+  const payload = result?.data ?? result;
+  
+  console.log('getCurrentRound payload (unwrapped):', payload);
+  
+  // Handle different response formats
+  if (payload?.round) {
+    console.log('getCurrentRound: Found round in payload.round');
+    return { round: payload.round, message: payload.message || result?.message };
+  } else if (payload?.id && payload?.state) {
+    // Backend returned round directly without wrapper
+    console.log('getCurrentRound: Found round directly in payload');
+    return { round: payload as Round };
+  } else {
+    console.warn('No active round found or unexpected format:', payload);
+    return { round: null, message: payload?.message || result?.message || 'No active round' };
+  }
 }
 
 /**
@@ -96,6 +118,72 @@ export async function getRoundHistory(page = 1, limit = 20) {
     headers: getHeaders(),
   });
   return handleResponse(response);
+}
+
+/**
+ * Recent settled round for display
+ */
+export interface RecentRound {
+  id: string;
+  roundNumber: number;
+  outerWinner: string | null;
+  middleWinner: string | null;
+  innerWinner: string | null;
+  indecisionTriggered: boolean;
+  totalVolume: number;
+  settledAt: string;
+  betsCount: number;
+}
+
+/**
+ * Get recent settled rounds (for live results display)
+ */
+export async function getRecentRounds(limit = 5): Promise<{ data: RecentRound[] }> {
+  const response = await fetch(`${API_URL}/rounds/history?page=1&limit=${limit}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const result = await handleResponse<any>(response);
+  
+  // Debug: log the actual response structure
+  console.log('getRecentRounds raw response:', result);
+  
+  // Backend wraps response in envelope: { data: { data: [...], meta: {...} }, message, statusCode, timestamp }
+  // Unwrap the envelope first
+  const payload = result?.data ?? result;
+  
+  console.log('getRecentRounds payload (unwrapped):', payload);
+  
+  // Handle different response formats - backend may return { data: [...] } or array directly
+  let roundsArray: any[];
+  if (Array.isArray(payload)) {
+    roundsArray = payload;
+  } else if (Array.isArray(payload?.data)) {
+    // Nested: payload.data is the rounds array
+    roundsArray = payload.data;
+  } else if (Array.isArray(payload?.rounds)) {
+    roundsArray = payload.rounds;
+  } else {
+    console.warn('Unexpected response format from rounds/history (after unwrap):', payload);
+    roundsArray = [];
+  }
+  
+  console.log('getRecentRounds found rounds:', roundsArray.length);
+  
+  // Transform the backend response to our frontend format
+  const rounds: RecentRound[] = roundsArray.map((round: any) => ({
+    id: round.id,
+    roundNumber: round.roundNumber,
+    outerWinner: round.outerWinner || null,
+    middleWinner: round.middleWinner || null,
+    innerWinner: round.innerWinner || null,
+    indecisionTriggered: round.indecisionTriggered || false,
+    totalVolume: Number(round.totalVolume) || 0,
+    settledAt: round.settledAt || round.updatedAt || round.createdAt,
+    betsCount: round._count?.bets || 0,
+  }));
+  
+  return { data: rounds };
 }
 
 // =============================================================================
@@ -134,12 +222,24 @@ export interface Bet {
  * Place a bet on the current round
  */
 export async function placeBet(dto: PlaceBetDto): Promise<Bet> {
+  console.log('placeBet: Sending request', dto);
   const response = await fetch(`${API_URL}/bets`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify(dto),
   });
-  return handleResponse(response);
+  
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+    console.error('placeBet: Error response', { status: response.status, errorData });
+    throw new Error(errorData.message || `HTTP ${response.status}: Failed to place order`);
+  }
+  
+  const result = await response.json();
+  console.log('placeBet: Success response', result);
+  
+  // Unwrap envelope if present
+  return result.data || result;
 }
 
 /**
@@ -150,7 +250,13 @@ export async function getCurrentRoundBets(): Promise<Bet[]> {
     method: 'GET',
     headers: getHeaders(),
   });
-  return handleResponse(response);
+  const result = await handleResponse<any>(response);
+  
+  // Unwrap envelope: { data: [...], message, statusCode, timestamp }
+  const payload = result?.data ?? result;
+  
+  // Return array or empty array
+  return Array.isArray(payload) ? payload : [];
 }
 
 /**

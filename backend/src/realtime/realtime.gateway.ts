@@ -1,4 +1,4 @@
-import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect } from '@nestjs/websockets';
+import { WebSocketGateway, WebSocketServer, OnGatewayConnection, OnGatewayDisconnect, SubscribeMessage, MessageBody, ConnectedSocket } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 
@@ -18,6 +18,23 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
+  }
+
+  /**
+   * Handle client joining a room (e.g., user:${userId} for private events)
+   */
+  @SubscribeMessage('joinRoom')
+  handleJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() room: string,
+  ) {
+    // Validate room name to prevent abuse
+    if (room && typeof room === 'string' && room.startsWith('user:')) {
+      client.join(room);
+      this.logger.log(`Client ${client.id} joined room: ${room}`);
+      return { success: true, room };
+    }
+    return { success: false, error: 'Invalid room name' };
   }
 
   /**

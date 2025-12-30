@@ -141,13 +141,14 @@ export class RoundsSchedulerService {
   }
 
   /**
-   * Ensure there's always an active round
+   * Ensure there's always an active round (OPEN or FROZEN, not SETTLED)
    */
   private async ensureActiveRound() {
     try {
-      const currentRound = await this.roundsService.getCurrentRound();
+      // Use getActiveRound which only returns OPEN or FROZEN rounds
+      const activeRound = await this.roundsService.getActiveRound();
 
-      if (!currentRound) {
+      if (!activeRound) {
         this.logger.log('🎰 No active round found, opening new round...');
         const newRound = await this.roundsService.openNewRound();
         this.logger.log(
@@ -156,6 +157,17 @@ export class RoundsSchedulerService {
         
         // Broadcast new round opened
         this.realtimeGateway.server.emit('roundStateChanged', {
+          roundId: newRound.id,
+          roundNumber: newRound.roundNumber,
+          state: newRound.state,
+          openedAt: newRound.openedAt,
+          freezeAt: newRound.freezeAt,
+          settleAt: newRound.settleAt,
+          roundDuration: newRound.roundDuration,
+        });
+
+        // Also emit roundOpened event for better client handling
+        this.realtimeGateway.server.emit('roundOpened', {
           roundId: newRound.id,
           roundNumber: newRound.roundNumber,
           state: newRound.state,

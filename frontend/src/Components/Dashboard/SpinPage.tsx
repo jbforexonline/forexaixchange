@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import "../Styles/SpinPage.scss";
 import SpinWheel from "../Spin/SpinWheel";
+import RecentSpinsTable from "../Spin/RecentSpinsTable";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
 import { getCurrentRoundBets, placeBet, isPremiumUser } from "@/lib/api/spin";
@@ -101,18 +102,18 @@ export default function SpinPage() {
 
   const handlePlaceBet = async () => {
     if (!round || roundState !== 'open') {
-      setBetError('Betting is closed');
+      setBetError('Market is closed');
       return;
     }
 
     const amount = parseFloat(betAmount);
     if (isNaN(amount) || amount < 1) {
-      setBetError('Minimum bet is $1');
+      setBetError('Minimum order is $1');
       return;
     }
 
     if (amount > maxBet) {
-      setBetError(`Maximum bet is $${maxBet}`);
+      setBetError(`Maximum order is $${maxBet}`);
       return;
     }
 
@@ -141,7 +142,7 @@ export default function SpinPage() {
         setUserBets(bets);
       }
     } catch (err) {
-      setBetError(err instanceof Error ? err.message : 'Failed to place bet');
+      setBetError(err instanceof Error ? err.message : 'Failed to place order');
     } finally {
       setIsPlacingBet(false);
     }
@@ -180,8 +181,9 @@ export default function SpinPage() {
   const displayCountdown = roundState === 'open' ? timeUntilFreeze : countdown;
   const canBet = roundState === 'open' && round && !isPlacingBet;
 
-  // Calculate totals for display
-  const totalBets = userBets.reduce((sum, bet) => sum + bet.amountUsd, 0);
+  // Calculate totals for display (ensure userBets is array)
+  const betsArray = Array.isArray(userBets) ? userBets : [];
+  const totalBets = betsArray.reduce((sum, bet) => sum + bet.amountUsd, 0);
   const potentialWin = totalBets * 2;
 
   return (
@@ -216,6 +218,11 @@ export default function SpinPage() {
             ⚠ Connection issue
           </div>
         )}
+
+        {/* Recent Results Table - Bottom Right, above order bar */}
+        <div className="recent-results-container">
+          <RecentSpinsTable maxResults={5} />
+        </div>
       </div>
 
       {/* Right Sidebar - Fixed Panel */}
@@ -301,7 +308,7 @@ export default function SpinPage() {
         </div>
       </aside>
 
-      {/* Bottom Betting Bar - Like Expert Option */}
+      {/* Bottom Order Bar - Like Expert Option */}
       <div className="betting-bar">
         {/* Amount Control */}
         <div className="amount-section">
@@ -334,7 +341,7 @@ export default function SpinPage() {
           </div>
         </div>
 
-        {/* Market Selection */}
+        {/* Market Selection - Always selectable */}
         <div className="markets-section">
           {MARKET_OPTIONS.map((option) => (
             <button
@@ -345,7 +352,6 @@ export default function SpinPage() {
                 borderColor: selectedOption.selection === option.selection ? option.color : 'transparent'
               } as React.CSSProperties}
               onClick={() => setSelectedOption(option)}
-              disabled={!canBet}
             >
               <span className="market-icon" style={{ color: option.color }}>{option.icon}</span>
               <span className="market-label">{option.label}</span>
@@ -376,7 +382,9 @@ export default function SpinPage() {
             ) : roundState === 'frozen' ? (
               <>❄️ FROZEN</>
             ) : roundState === 'settled' ? (
-              <>⏳ SETTLING</>
+              <>⏳ NEXT ROUND</>
+            ) : roundState === 'preopen' ? (
+              <>⏳ WAITING</>
             ) : (
               <>
                 <span className="btn-icon" style={{ color: selectedOption.color }}>{selectedOption.icon}</span>
@@ -385,14 +393,6 @@ export default function SpinPage() {
               </>
             )}
           </button>
-
-          {/* Timer */}
-          <div className="timer-display">
-            <span className="timer-value">{String(Math.floor(displayCountdown / 60)).padStart(2, '0')}:{String(displayCountdown % 60).padStart(2, '0')}</span>
-            <span className="timer-label">
-              {roundState === 'open' ? 'until freeze' : roundState === 'frozen' ? 'settling' : 'next round'}
-            </span>
-          </div>
         </div>
       </div>
     </div>

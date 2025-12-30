@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getCurrentRound, getRoundTotals, type Round, type RoundTotals } from '@/lib/api/spin';
-import { getWebSocketClient, type WebSocketEvent } from '@/lib/websocket';
+import { getWebSocketClient } from '@/lib/websocket';
 
 export interface RoundState {
   round: Round | null;
@@ -27,22 +27,16 @@ export function useRound() {
     state: 'preopen',
   });
 
+  const roundRef = useRef<Round | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const wsClientRef = useRef(getWebSocketClient());
 
-  // Calculate countdown and state
-  const updateCountdown = useCallback((round: Round | null) => {
+  // Calculate countdown and state from a round
+  const calculateState = useCallback((round: Round | null): Pick<RoundState, 'countdown' | 'timeUntilFreeze' | 'state'> => {
     if (!round) {
-      setRoundState(prev => ({
-        ...prev,
-        countdown: 0,
-        timeUntilFreeze: 0,
-        state: 'preopen',
-      }));
-      return;
+      return { countdown: 0, timeUntilFreeze: 0, state: 'preopen' };
     }
 
-    const now = new Date().getTime();
+    const now = Date.now();
     const freezeAt = new Date(round.freezeAt).getTime();
     const settleAt = new Date(round.settleAt).getTime();
 
@@ -60,60 +54,100 @@ export function useRound() {
       state = 'open';
     }
 
-    setRoundState(prev => ({
-      ...prev,
-      countdown,
-      timeUntilFreeze,
-      state,
-    }));
+    return { countdown, timeUntilFreeze, state };
   }, []);
 
   // Fetch current round
   const fetchRound = useCallback(async () => {
     try {
-      setRoundState(prev => ({ ...prev, loading: true, error: null }));
+      console.log('useRound: Fetching current round...');
       const data = await getCurrentRound();
+      console.log('useRound: Got response:', data);
       
       if (data.round) {
+        console.log('useRound: Round found:', data.round.roundNumber, data.round.state);
+        roundRef.current = data.round;
+        const calculated = calculateState(data.round);
+        console.log('useRound: Calculated state:', calculated);
+        
         setRoundState(prev => ({
           ...prev,
           round: data.round!,
           loading: false,
+          error: null,
+          ...calculated,
         }));
-        updateCountdown(data.round);
         
-        // Fetch totals
-        try {
-          const totalsData = await getRoundTotals(data.round.id);
-          setRoundState(prev => ({
-            ...prev,
-            totals: totalsData.totals,
-          }));
-        } catch (error) {
-          console.error('Failed to fetch totals:', error);
+        // Fetch totals in background
+        if (data.round.id) {
+          getRoundTotals(data.round.id)
+            .then(totalsData => {
+              setRoundState(prev => ({
+                ...prev,
+                totals: totalsData.totals,
+              }));
+            })
+            .catch(err => console.error('Failed to fetch totals:', err));
         }
       } else {
+        console.log('useRound: No round found');
+        roundRef.current = null;
         setRoundState(prev => ({
           ...prev,
           round: null,
           loading: false,
+          countdown: 0,
+          timeUntilFreeze: 0,
+          state: 'preopen',
         }));
-        updateCountdown(null);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch round';
+      console.error('useRound: Failed to fetch round:', error);
       setRoundState(prev => ({
         ...prev,
         error: message,
         loading: false,
       }));
-      console.error('Failed to fetch round:', error);
     }
-  }, [updateCountdown]);
+  }, [calculateState]);
+
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchRound();
+  }, [fetchRound]);
+
+  // Update countdown every second
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      if (roundRef.current) {
+        const calculated = calculateState(roundRef.current);
+        setRoundState(prev => ({
+          ...prev,
+          ...calculated,
+        }));
+      }
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [calculateState]);
+
+  // Poll for round updates every 3 seconds (fast polling for dev)
+  useEffect(() => {
+    const pollInterval = setInterval(() => {
+      fetchRound();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [fetchRound]);
 
   // Setup WebSocket listeners
   useEffect(() => {
-    const client = wsClientRef.current;
+    const client = getWebSocketClient();
     
     // Connect if not already connected
     if (client.getState() === 'CLOSED') {
@@ -121,18 +155,23 @@ export function useRound() {
     }
 
     // Listen for round updates
-    const unsubscribeRoundSettled = client.on('roundSettled', (data) => {
-      console.log('Round settled:', data);
-      fetchRound(); // Refresh round data to get next round
+    const unsubscribeRoundSettled = client.on('roundSettled', () => {
+      console.log('WS: Round settled');
+      fetchRound();
     });
 
-    const unsubscribeRoundStateChanged = client.on('roundStateChanged', (data) => {
-      console.log('Round state changed:', data);
-      fetchRound(); // Refresh when state changes (e.g., OPEN → FROZEN)
+    const unsubscribeRoundStateChanged = client.on('roundStateChanged', () => {
+      console.log('WS: Round state changed');
+      fetchRound();
+    });
+
+    const unsubscribeRoundOpened = client.on('roundOpened', () => {
+      console.log('WS: New round opened');
+      fetchRound();
     });
 
     const unsubscribeTotalsUpdated = client.on('totalsUpdated', (data) => {
-      if (data.roundId === roundState.round?.id) {
+      if (data.roundId === roundRef.current?.id) {
         setRoundState(prev => ({
           ...prev,
           totals: data.totals,
@@ -141,51 +180,26 @@ export function useRound() {
     });
 
     const unsubscribeBetPlaced = client.on('betPlaced', (data) => {
-      if (data.roundId === roundState.round?.id) {
-        // Refresh totals when bet is placed
-        if (roundState.round) {
-          getRoundTotals(roundState.round.id).then(data => {
+      if (data.roundId === roundRef.current?.id && roundRef.current) {
+        getRoundTotals(roundRef.current.id)
+          .then(totalsData => {
             setRoundState(prev => ({
               ...prev,
-              totals: data.totals,
+              totals: totalsData.totals,
             }));
-          }).catch(console.error);
-        }
+          })
+          .catch(console.error);
       }
     });
 
     return () => {
       unsubscribeRoundSettled();
       unsubscribeRoundStateChanged();
+      unsubscribeRoundOpened();
       unsubscribeTotalsUpdated();
       unsubscribeBetPlaced();
     };
-  }, [roundState.round?.id, fetchRound]);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchRound();
   }, [fetchRound]);
-
-  // Update countdown every second
-  useEffect(() => {
-    if (roundState.round) {
-      intervalRef.current = setInterval(() => {
-        updateCountdown(roundState.round);
-      }, 1000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
-    }
-  }, [roundState.round, updateCountdown]);
-
-  // Removed periodic polling — now relies on Socket.IO events:
-  // - roundSettled: triggers fetchRound() to get new round
-  // - totalsUpdated / betPlaced: updates totals in real-time
-  // This reduces server load and bandwidth consumption.
 
   return {
     ...roundState,

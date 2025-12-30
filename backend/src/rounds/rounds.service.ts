@@ -39,6 +39,12 @@ export class RoundsService {
       freezeOffset = isProduction ? 60 : 5;
     }
     
+    // Order cutoffs: time before freeze when orders must be placed
+    // In dev: both premium and regular users can order until freeze (0 seconds cutoff)
+    // In production: premium 5 seconds, regular 60 seconds before freeze
+    const premiumCutoff = isProduction ? 5 : 0;
+    const regularCutoff = isProduction ? 60 : 0;
+    
     const openedAt = new Date();
     const freezeAt = new Date(openedAt.getTime() + (roundDuration - freezeOffset) * 1000);
     const settleAt = new Date(openedAt.getTime() + roundDuration * 1000);
@@ -67,6 +73,8 @@ export class RoundsService {
           settleAt,
           roundDuration,
           freezeOffset,
+          premiumCutoff,
+          regularCutoff,
           artifact: {
             create: {
               commitHash,
@@ -95,13 +103,14 @@ export class RoundsService {
   }
 
   /**
-   * Get the current active round (OPEN or FROZEN)
+   * Get the current round for display (includes all active states)
    */
   async getCurrentRound() {
     return this.prisma.round.findFirst({
       where: {
         state: {
-          in: [RoundState.OPEN, RoundState.FROZEN, RoundState.SETTLED],
+          // Include SETTLING to avoid gaps when settlement is processing
+          in: [RoundState.OPEN, RoundState.FROZEN, RoundState.SETTLING, RoundState.SETTLED],
         },
       },
       orderBy: { roundNumber: 'desc' },
@@ -118,6 +127,20 @@ export class RoundsService {
           },
         },
       },
+    });
+  }
+
+  /**
+   * Get only truly active rounds (OPEN or FROZEN) - used by scheduler
+   */
+  async getActiveRound() {
+    return this.prisma.round.findFirst({
+      where: {
+        state: {
+          in: [RoundState.OPEN, RoundState.FROZEN],
+        },
+      },
+      orderBy: { roundNumber: 'desc' },
     });
   }
 

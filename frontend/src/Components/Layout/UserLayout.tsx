@@ -10,6 +10,8 @@ import {
   FileText,
   ArrowUpCircle,
   ArrowDownCircle,
+  History,
+  BarChart3,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
@@ -54,6 +56,8 @@ export default function UserLayout({
 
   const userMenuItems: MenuItem[] = [
     { icon: Home, label: "Spin", href: "/spin" },
+    { icon: History, label: "Spin History", href: "/spin-history" },
+    { icon: BarChart3, label: "Statistics", href: "/statistics" },
     {
       icon: Wallet,
       label: "Wallet",
@@ -67,7 +71,7 @@ export default function UserLayout({
     {
       icon: AppWindow,
       label: "Premium",
-      href: "/deposit",
+      href: "/premium",
       badge:
         subscriptionTier !== SubscriptionTier.FREE
           ? subscriptionTier

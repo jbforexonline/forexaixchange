@@ -292,24 +292,30 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
           {/* Core (countdown + state) - FIXED, no separator circle here */}
           <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
-          <text x={cx} y={cy - 12} fill="#a5d5ff" textAnchor="middle" fontSize={32} fontWeight={800}>
-            {state === "settled" ? "SETTLED" : `${countdownSec}s`}
+          
+          {/* Timer Display - Minutes:Seconds format */}
+          <text x={cx} y={cy - 15} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
+            {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
-          <text x={cx} y={cy + 3} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={9} fontWeight={600} letterSpacing={0.5}>
-            Market Ai Analysing
+          
+          {/* AI Market Analysis Text */}
+          <text x={cx} y={cy + 2} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={8} fontWeight={600} letterSpacing={0.5}>
+            Market AI Analysing
           </text>
-          <text x={cx} y={cy + 18} fill="rgba(165, 213, 255, 0.7)" textAnchor="middle" fontSize={11} fontWeight={600}>
-            {state === "open" ? "LIVE" : state === "frozen" ? "FROZEN" : "MARKET"}
+          
+          {/* State Label */}
+          <text x={cx} y={cy + 16} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.7)"} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={1}>
+            {state === "open" ? "MARKET OPEN" : state === "frozen" ? "FROZEN" : state === "settled" ? "SETTLED" : "WAITING"}
           </text>
         </g>
       </svg>
 
       {/* State indicator */}
       <div className="state-indicator">
-        {state === "preopen" && "Waiting to open"}
-        {state === "open" && null}
-        {state === "frozen" && "Final minute — no new bets"}
-        {state === "settled" && "Winners announced"}
+        {state === "preopen" && "Connecting to server..."}
+        {state === "open" && `Round open • ${countdownSec}s remaining`}
+        {state === "frozen" && "Market closed • Settling..."}
+        {state === "settled" && "Round complete • Next round starting..."}
       </div>
     </div>
   );

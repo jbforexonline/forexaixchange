@@ -13,6 +13,8 @@ import {
   Param,
   ParseIntPipe,
   BadRequestException,
+  UseGuards,
+  Logger,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,12 +28,13 @@ import { RoundsService } from './rounds.service';
 import { PlaceBetDto } from './dto/place-bet.dto';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { UseGuards } from '@nestjs/common';
 
 @ApiTags('Bets')
 @Controller('bets')
 @UseGuards(JwtAuthGuard)
 export class BetsController {
+  private readonly logger = new Logger(BetsController.name);
+
   constructor(
     private readonly betsService: BetsService,
     private readonly roundsService: RoundsService,
@@ -69,15 +72,21 @@ export class BetsController {
   @ApiResponse({ status: 400, description: 'Bad request - Invalid bet or insufficient funds' })
   @ApiResponse({ status: 404, description: 'No active round available' })
   async placeBet(@Body() dto: PlaceBetDto, @CurrentUser() user: any) {
+    this.logger.debug(`📝 placeBet request: user=${user?.id}, dto=${JSON.stringify(dto)}`);
+    
     // Get current active round
     const currentRound = await this.roundsService.getCurrentRound();
     
     if (!currentRound) {
+      this.logger.warn('No active round found for bet placement');
       throw new BadRequestException('No active round available. Please wait for next round.');
     }
 
+    this.logger.debug(`📝 Current round: ${currentRound.roundNumber} (${currentRound.state})`);
+
     if (currentRound.state !== 'OPEN') {
-      throw new BadRequestException(`Round is ${currentRound.state}. Cannot place bets.`);
+      this.logger.warn(`Round ${currentRound.roundNumber} is ${currentRound.state}, cannot place bets`);
+      throw new BadRequestException(`Round is ${currentRound.state}. Cannot place orders.`);
     }
 
     // Place bet with authenticated user

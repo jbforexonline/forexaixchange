@@ -63,13 +63,13 @@ export default function CountdownTimer({
         {/* Freeze Warning */}
         {roundState === 'open' && timeUntilFreeze > 0 && timeUntilFreeze <= 10 && (
           <div className="freeze-warning">
-            ⚠️ Betting closes in {timeUntilFreeze}s
+            ⚠️ Market closes in {timeUntilFreeze}s
           </div>
         )}
 
         {isFreezeTime && (
           <div className="freeze-alert">
-            ❄️ Betting Closed - Settlement in Progress
+            ❄️ Market Closed - Settlement in Progress
           </div>
         )}
       </div>
@@ -89,7 +89,7 @@ export default function CountdownTimer({
         {roundState === 'open' && !isFreezeTime && (
           <span className="timer-badge open-badge">
             <span className="badge-dot pulse" />
-            Betting Open
+            Market Open
           </span>
         )}
         {isFreezeTime && (

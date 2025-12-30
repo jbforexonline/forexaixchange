@@ -77,6 +77,21 @@ class WebSocketClient {
         this.isConnecting = false;
         this.reconnectAttempts = 0;
         console.log('✅ Socket.IO connected');
+        
+        // Join user-specific room for private events (wallet updates, etc.)
+        const userStr = localStorage.getItem('user');
+        if (userStr && this.socket) {
+          try {
+            const user = JSON.parse(userStr);
+            if (user?.id) {
+              this.socket.emit('joinRoom', `user:${user.id}`);
+              console.log(`📡 Joined room: user:${user.id}`);
+            }
+          } catch (e) {
+            console.error('Failed to parse user for room join:', e);
+          }
+        }
+        
         this.emit('connected', {});
       });
 

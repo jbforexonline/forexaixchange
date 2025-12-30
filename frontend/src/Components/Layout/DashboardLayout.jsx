@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { MotionConfig, motion } from "framer-motion";
-import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, FileText, DollarSign } from "lucide-react";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, FileText, DollarSign, History, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { logout, getCurrentUser } from "@/lib/auth";
@@ -25,15 +25,19 @@ export default function Sidebar({ children }) {
 
   const menuItems = [
     { icon: Home, label: "Spin", href: "/spin" },
+    { icon: History, label: "Spin History", href: "/spin-history" },
+    { icon: BarChart3, label: "Statistics", href: "/statistics" },
     { icon: DollarSign, label: "Deposit", href: "/deposit" },
     { icon: Wallet, label: "Withdraw", href: "/withdraw" },
     { icon: FileText, label: "History", href: "/history" },
-    { icon: AppWindow, label: "Premium", href: "/deposit" },
+    { icon: AppWindow, label: "Premium", href: "/premium" },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
-    // { icon: HelpCircle, label: "Dashboard", href: "/dashboard" },
     { icon: Sword, label: "Settings", href: "/settings" },
-
   ];
+
+  const handleMenuClick = (item) => {
+    router.push(item.href);
+  };
 
   const handleLogout = () => {
     logout();

@@ -77,18 +77,18 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
     }
 
     if (roundState !== 'open') {
-      setError('Betting is closed');
+      setError('Market is closed');
       return;
     }
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum < minBet) {
-      setError(`Minimum bet is $${minBet}`);
+      setError(`Minimum order is $${minBet}`);
       return;
     }
 
     if (amountNum > maxBet) {
-      setError(`Maximum bet is $${maxBet}`);
+      setError(`Maximum order is $${maxBet}`);
       return;
     }
 
@@ -107,7 +107,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
       });
 
-      setSuccess(`Bet placed: $${amountNum} on ${selectedSelection}`);
+      setSuccess(`Order placed: $${amountNum} on ${selectedSelection}`);
       setAmount('');
       
       // Notify parent to refresh
@@ -116,7 +116,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to place bet';
+      const message = err instanceof Error ? err.message : 'Failed to place order';
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -128,7 +128,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
   return (
     <div className="bet-form-container">
       <div className="bet-form-header">
-        <h3>Place Your Bet</h3>
+        <h3>Place Your Order</h3>
         {isPremium && <span className="premium-badge">⭐ Premium</span>}
       </div>
 
@@ -192,7 +192,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
         {/* Amount Input */}
         <div className="form-group">
           <label className="form-label">
-            Bet Amount ($)
+            Order Amount ($)
             <span className="balance-info">
               Available: ${wallet?.available.toFixed(2) || '0.00'}
             </span>
@@ -232,7 +232,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
         {amount && !isNaN(parseFloat(amount)) && (
           <div className="payout-info">
             <div className="payout-row">
-              <span>Your Bet:</span>
+              <span>Your Order:</span>
               <span className="payout-value">${parseFloat(amount).toFixed(2)}</span>
             </div>
             <div className="payout-row">
@@ -263,24 +263,24 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
           {isSubmitting ? (
             <>
               <span className="spinner" />
-              Placing Bet...
+              Placing Order...
             </>
           ) : roundState === 'frozen' ? (
-            '❄️ Betting Frozen'
+            '❄️ Market Frozen'
           ) : roundState === 'settled' ? (
             '⏳ Waiting for Next Round'
           ) : !roundId ? (
             '⏳ No Active Round'
           ) : (
-            `Place Bet - $${parseFloat(amount || '0').toFixed(2)}`
+            `Place Order - $${parseFloat(amount || '0').toFixed(2)}`
           )}
         </button>
 
-        {/* Betting Rules Info */}
+        {/* Market Rules Info */}
         <div className="betting-rules">
           <div className="rule-item">
             <span className="rule-icon">💡</span>
-            <span className="rule-text">Winners receive 2x their bet amount</span>
+            <span className="rule-text">Winners receive 2x their order amount</span>
           </div>
           <div className="rule-item">
             <span className="rule-icon">⚖️</span>
@@ -293,7 +293,7 @@ export default function BetForm({ roundId, roundState, wallet, onBetPlaced }: Be
           {!isPremium && (
             <div className="rule-item premium-notice">
               <span className="rule-icon">⭐</span>
-              <span className="rule-text">Upgrade to Premium for higher limits ($200/bet)</span>
+              <span className="rule-text">Upgrade to Premium for higher limits ($200/order)</span>
             </div>
           )}
         </div>

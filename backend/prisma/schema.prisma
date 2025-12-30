@@ -390,6 +390,35 @@ enum TransferStatus {
   COMPLETED
 }
 
+// =============================================================================
+// PLATFORM/HOUSE ACCOUNT - Tracks platform revenue and reserves
+// =============================================================================
+model PlatformAccount {
+  id                String   @id @default("HOUSE") // Single record with fixed ID
+  balance           Decimal  @default(0) @db.Decimal(18, 2) // Current house balance
+  totalFees         Decimal  @default(0) @db.Decimal(18, 2) // Total fees collected
+  totalPaidOut      Decimal  @default(0) @db.Decimal(18, 2) // Total paid to winners
+  totalCollected    Decimal  @default(0) @db.Decimal(18, 2) // Total collected from losers
+  totalSubsidy      Decimal  @default(0) @db.Decimal(18, 2) // Amount house paid when pool insufficient
+  reserveBalance    Decimal  @default(10000) @db.Decimal(18, 2) // Reserve fund for payouts
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// Platform ledger for audit trail
+model PlatformLedger {
+  id           String   @id @default(cuid())
+  roundId      String?
+  type         String   // 'FEE', 'LOSER_COLLECTION', 'WINNER_PAYOUT', 'SUBSIDY'
+  amount       Decimal  @db.Decimal(18, 2)
+  description  String?
+  balanceAfter Decimal  @db.Decimal(18, 2)
+  createdAt    DateTime @default(now())
+  
+  @@index([roundId])
+  @@index([type])
+}
+
 enum SentimentType {
   BUY
   SELL

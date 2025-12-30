@@ -375,6 +375,28 @@ export class RoundsSettlementService {
     round: any,
     settlement: SettlementResult,
   ) {
+    // 1. First, ensure PlatformAccount exists
+    let platformAccount = await tx.platformAccount.findUnique({
+      where: { id: 'HOUSE' },
+    });
+
+    if (!platformAccount) {
+      // Create house account with initial reserve
+      platformAccount = await tx.platformAccount.create({
+        data: {
+          id: 'HOUSE',
+          balance: new Decimal(0),
+          reserveBalance: new Decimal(10000), // $10,000 initial reserve
+        },
+      });
+      this.logger.log('🏦 House account created with $10,000 reserve');
+    }
+
+    // 2. Calculate totals for this round
+    let totalCollectedFromLosers = new Decimal(0);
+    let totalPaidToWinners = new Decimal(0);
+
+    // 3. Process all bets
     for (const bet of round.bets) {
       const payout = settlement.payouts.get(bet.id);
       if (!payout) continue;
@@ -394,7 +416,6 @@ export class RoundsSettlementService {
       // Update wallet
       if (payout.isWinner) {
         // Winner: return stake + profit to available, remove from held
-        // Balance = original balance + profit (stake already deducted at bet time)
         await tx.wallet.update({
           where: { userId: bet.userId },
           data: {
@@ -404,10 +425,12 @@ export class RoundsSettlementService {
           },
         });
 
+        totalPaidToWinners = totalPaidToWinners.add(payout.profitAmount);
+
         // Create WIN transaction
         await tx.transaction.create({
           data: {
-            userId: bet.userId,
+            user: { connect: { id: bet.userId } },
             type: 'SPIN_WIN',
             amount: payout.profitAmount,
             status: 'COMPLETED',
@@ -420,17 +443,26 @@ export class RoundsSettlementService {
         const winnerWallet = await tx.wallet.findUnique({
           where: { userId: bet.userId },
         });
-        this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
+        if (winnerWallet) {
+          this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
+            userId: bet.userId,
+            available: winnerWallet.available.toNumber(),
+            held: winnerWallet.held.toNumber(),
+            total: winnerWallet.available.add(winnerWallet.held).toNumber(),
+            reason: 'bet_won',
+            profitAmount: payout.profitAmount.toNumber(),
+            payoutAmount: payout.payoutAmount.toNumber(),
+          });
+        }
+        
+        // Also emit globally for the user
+        this.gateway.server.emit('walletUpdated', {
           userId: bet.userId,
-          available: winnerWallet.available.toNumber(),
-          held: winnerWallet.held.toNumber(),
-          total: winnerWallet.available.add(winnerWallet.held).toNumber(),
           reason: 'bet_won',
           profitAmount: payout.profitAmount.toNumber(),
-          payoutAmount: payout.payoutAmount.toNumber(),
         });
       } else {
-        // Loser: remove held funds, increase totalLost (no return - funds lost)
+        // Loser: remove held funds, increase totalLost (funds go to house)
         await tx.wallet.update({
           where: { userId: bet.userId },
           data: {
@@ -439,10 +471,12 @@ export class RoundsSettlementService {
           },
         });
 
+        totalCollectedFromLosers = totalCollectedFromLosers.add(bet.amountUsd);
+
         // Create LOSS transaction
         await tx.transaction.create({
           data: {
-            userId: bet.userId,
+            user: { connect: { id: bet.userId } },
             type: 'SPIN_LOSS',
             amount: bet.amountUsd,
             status: 'COMPLETED',
@@ -455,15 +489,79 @@ export class RoundsSettlementService {
         const loserWallet = await tx.wallet.findUnique({
           where: { userId: bet.userId },
         });
-        this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
-          userId: bet.userId,
-          available: loserWallet.available.toNumber(),
-          held: loserWallet.held.toNumber(),
-          total: loserWallet.available.add(loserWallet.held).toNumber(),
-          reason: 'bet_lost',
-          lostAmount: bet.amountUsd.toNumber(),
-        });
+        if (loserWallet) {
+          this.gateway.server.to(`user:${bet.userId}`).emit('walletUpdated', {
+            userId: bet.userId,
+            available: loserWallet.available.toNumber(),
+            held: loserWallet.held.toNumber(),
+            total: loserWallet.available.add(loserWallet.held).toNumber(),
+            reason: 'bet_lost',
+            lostAmount: bet.amountUsd.toNumber(),
+          });
+        }
       }
     }
+
+    // 4. Update Platform Account with economics
+    const netProfit = totalCollectedFromLosers.sub(totalPaidToWinners).sub(settlement.houseFee);
+    const newBalance = platformAccount.balance.add(netProfit).add(settlement.houseFee);
+
+    await tx.platformAccount.update({
+      where: { id: 'HOUSE' },
+      data: {
+        balance: newBalance,
+        totalFees: { increment: settlement.houseFee },
+        totalPaidOut: { increment: totalPaidToWinners },
+        totalCollected: { increment: totalCollectedFromLosers },
+        // If we paid more than we collected, track as subsidy
+        totalSubsidy: totalPaidToWinners.gt(totalCollectedFromLosers)
+          ? { increment: totalPaidToWinners.sub(totalCollectedFromLosers) }
+          : undefined,
+      },
+    });
+
+    // 5. Create ledger entries for audit trail
+    if (totalCollectedFromLosers.gt(0)) {
+      await tx.platformLedger.create({
+        data: {
+          roundId: round.id,
+          type: 'LOSER_COLLECTION',
+          amount: totalCollectedFromLosers,
+          description: `Round ${round.roundNumber} - Collected from losers`,
+          balanceAfter: newBalance,
+        },
+      });
+    }
+
+    if (totalPaidToWinners.gt(0)) {
+      await tx.platformLedger.create({
+        data: {
+          roundId: round.id,
+          type: 'WINNER_PAYOUT',
+          amount: totalPaidToWinners.neg(), // Negative for outflow
+          description: `Round ${round.roundNumber} - Paid to winners`,
+          balanceAfter: newBalance,
+        },
+      });
+    }
+
+    if (settlement.houseFee.gt(0)) {
+      await tx.platformLedger.create({
+        data: {
+          roundId: round.id,
+          type: 'FEE',
+          amount: settlement.houseFee,
+          description: `Round ${round.roundNumber} - House fee (2%)`,
+          balanceAfter: newBalance,
+        },
+      });
+    }
+
+    this.logger.log(
+      `🏦 House: Collected $${totalCollectedFromLosers.toFixed(2)}, ` +
+      `Paid $${totalPaidToWinners.toFixed(2)}, ` +
+      `Fee $${settlement.houseFee.toFixed(2)}, ` +
+      `Net $${netProfit.add(settlement.houseFee).toFixed(2)}`
+    );
   }
 }
