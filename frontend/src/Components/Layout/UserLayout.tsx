@@ -5,17 +5,13 @@ import {
   Wallet,
   AppWindow,
   BookOpen,
-  Sword,
-  Settings,
   Crown,
   ChevronDown,
   FileText,
-  DollarSign,
   ArrowUpCircle,
   ArrowDownCircle,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
-import { logout } from "@/lib/auth";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
 import "../Layout/UserLayout.scss";
 
@@ -78,7 +74,6 @@ export default function UserLayout({
           : undefined,
     },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
-    { icon: Sword, label: "Settings", href: "/settings" },
   ];
 
   const toggleMenu = (category: string) => {
@@ -95,11 +90,6 @@ export default function UserLayout({
       return submenu.some((item) => pathname === item.href);
     }
     return false;
-  };
-
-  const handleLogout = () => {
-    logout();
-    router.replace("/login");
   };
 
   const getSubscriptionBadgeClass = () => {
@@ -199,13 +189,6 @@ export default function UserLayout({
           })}
         </nav>
 
-        {/* Logout Button */}
-        <div className="sidebar-footer">
-          <button className="menu-item logout-btn" onClick={handleLogout}>
-            <Settings size={20} />
-            {sidebarOpen && <span className="menu-label">Logout</span>}
-          </button>
-        </div>
       </aside>
 
       {/* Content Wrapper */}

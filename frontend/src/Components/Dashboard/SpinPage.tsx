@@ -8,6 +8,16 @@ import { useWallet } from "@/hooks/useWallet";
 import { getCurrentRoundBets, placeBet, isPremiumUser } from "@/lib/api/spin";
 import type { Bet, BetMarket, BetSelection } from "@/lib/api/spin";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
+import { getCurrentUser, logout } from "@/lib/auth";
+import { 
+  Wallet, 
+  Settings, 
+  Crown, 
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
+  User
+} from "lucide-react";
 
 type MarketOption = {
   market: BetMarket;
@@ -37,10 +47,16 @@ export default function SpinPage() {
   const [isPlacingBet, setIsPlacingBet] = useState(false);
   const [betError, setBetError] = useState<string | null>(null);
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
-  const [showBetsPanel, setShowBetsPanel] = useState(false);
-
+  const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  
+  const user = getCurrentUser();
   const isPremium = isPremiumUser();
   const maxBet = isPremium ? 200 : 1000;
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
 
   useEffect(() => {
     initWebSocket();
@@ -169,17 +185,7 @@ export default function SpinPage() {
   const potentialWin = totalBets * 2;
 
   return (
-    <div className="spin-gaming-container">
-      {/* Back Button - Exit Gaming Mode */}
-      <button 
-        className="exit-game-btn" 
-        onClick={() => router.push('/user-dashboard')}
-        title="Exit to Dashboard"
-      >
-        <span className="exit-icon">←</span>
-        <span className="exit-text">Exit</span>
-      </button>
-
+    <div className={`spin-gaming-container ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
       {/* Main Gaming Area */}
       <div className="spin-gaming-main">
         {/* Spin Wheel - Centered and Prominent */}
@@ -198,70 +204,6 @@ export default function SpinPage() {
           />
         </div>
 
-        {/* Right Mini Panel - Wallet & Info */}
-        <div className="right-mini-panel">
-          <div className="mini-panel-toggle" onClick={() => setShowBetsPanel(!showBetsPanel)}>
-            <span className="toggle-icon">≡</span>
-          </div>
-          
-          <div className={`mini-panel-content ${showBetsPanel ? 'expanded' : ''}`}>
-            {/* Wallet */}
-            <div className="wallet-mini">
-              <div className="wallet-balance">
-                <span className="balance-label">Balance</span>
-                <span className="balance-value">${wallet?.available.toFixed(2) || '0.00'}</span>
-              </div>
-              {wallet && wallet.held > 0 && (
-                <div className="wallet-held">
-                  <span className="held-label">In Play</span>
-                  <span className="held-value">${wallet.held.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
-
-            {/* Round Info */}
-            {round && (
-              <div className="round-mini">
-                <div className="round-number">Round #{round.roundNumber}</div>
-                <div className={`round-status ${roundState}`}>
-                  {roundState.toUpperCase()}
-                </div>
-              </div>
-            )}
-
-            {/* Active Bets */}
-            {userBets.length > 0 && (
-              <div className="bets-mini">
-                <div className="bets-header">
-                  <span>Your Bets</span>
-                  <span className="bets-count">{userBets.length}</span>
-                </div>
-                <div className="bets-list">
-                  {userBets.slice(0, 5).map(bet => (
-                    <div key={bet.id} className={`bet-mini-item ${bet.status?.toLowerCase()}`}>
-                      <span className="bet-selection">{bet.selection.replace('_', ' ')}</span>
-                      <span className="bet-amount">${bet.amountUsd.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                {userBets.length > 0 && (
-                  <div className="bets-total">
-                    <span>Total: ${totalBets.toFixed(2)}</span>
-                    <span className="potential">Win: ${potentialWin.toFixed(2)}</span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Premium Badge */}
-            {isPremium && (
-              <div className="premium-mini">
-                <span>⭐ Premium</span>
-              </div>
-            )}
-          </div>
-        </div>
-
         {/* Error/Success Toast */}
         {(betError || betSuccess) && (
           <div className={`toast-message ${betError ? 'error' : 'success'}`}>
@@ -275,6 +217,89 @@ export default function SpinPage() {
           </div>
         )}
       </div>
+
+      {/* Right Sidebar - Fixed Panel */}
+      <aside className={`right-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
+        {/* Toggle Button */}
+        <button 
+          className="sidebar-toggle"
+          onClick={() => setSidebarExpanded(!sidebarExpanded)}
+          title={sidebarExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+        >
+          {sidebarExpanded ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+        </button>
+
+        {/* Company Branding */}
+        <div className="sidebar-header">
+          <div className="company-logo">
+            <img src="/image/logo.png" alt="ForexAI" onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }} />
+          </div>
+          {sidebarExpanded && (
+            <div className="company-name">ForexAI Exchange</div>
+          )}
+        </div>
+
+        {/* User Profile */}
+        <div className="user-section">
+          <div className="user-avatar">
+            {user?.profilePicture ? (
+              <img src={user.profilePicture} alt={user.username} />
+            ) : (
+              <div className="avatar-placeholder">
+                {user?.username?.charAt(0).toUpperCase() || <User size={20} />}
+              </div>
+            )}
+          </div>
+          {sidebarExpanded && (
+            <div className="user-info">
+              <span className="username">{user?.username || 'Guest'}</span>
+              {isPremium && (
+                <span className="premium-badge">
+                  <Crown size={12} /> Premium
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Balance Display */}
+        <div className="balance-section">
+          <div className="balance-icon">
+            <Wallet size={18} />
+          </div>
+          {sidebarExpanded && (
+            <div className="balance-content">
+              <span className="balance-label">Balance</span>
+              <span className="balance-value">${wallet?.available.toFixed(2) || '0.00'}</span>
+              {wallet && wallet.held > 0 && (
+                <span className="balance-held">In play: ${wallet.held.toFixed(2)}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Settings Button */}
+        <nav className="sidebar-menu">
+          <button 
+            className="menu-item"
+            onClick={() => router.push('/settings')}
+            title="Settings"
+          >
+            <Settings size={18} />
+            {sidebarExpanded && <span>Settings</span>}
+          </button>
+        </nav>
+
+        {/* Logout Button */}
+        <div className="sidebar-footer">
+          <button className="logout-btn" onClick={handleLogout} title="Logout">
+            <LogOut size={18} />
+            {sidebarExpanded && <span>Logout</span>}
+          </button>
+        </div>
+      </aside>
 
       {/* Bottom Betting Bar - Like Expert Option */}
       <div className="betting-bar">
@@ -339,7 +364,7 @@ export default function SpinPage() {
           ))}
         </div>
 
-        {/* Place Bet Button */}
+        {/* Make Order Button */}
         <div className="action-section">
           <button 
             className={`place-bet-btn ${!canBet ? 'disabled' : ''}`}
@@ -355,7 +380,7 @@ export default function SpinPage() {
             ) : (
               <>
                 <span className="btn-icon" style={{ color: selectedOption.color }}>{selectedOption.icon}</span>
-                <span className="btn-text">PLACE BET</span>
+                <span className="btn-text">MAKE ORDER</span>
                 <span className="btn-amount">${parseFloat(betAmount || '0').toFixed(2)}</span>
               </>
             )}
