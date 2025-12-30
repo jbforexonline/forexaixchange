@@ -50,7 +50,6 @@ export default function SuperAdminLayout({
         { label: "All Users", href: "/admin/users" },
         { label: "Create User", href: "/admin/users/create" },
         { label: "User Reports", href: "/admin/users/reports" },
-        { label: "Banned Users", href: "/admin/users/banned" },
       ],
     },
     {
