@@ -1,15 +1,12 @@
-import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout'
-import SpinPage from '@/Components/Dashboard/UserDashboard/SpinPage'
+import SpinPage from '@/Components/Dashboard/SpinPage'
 import ProtectedRoute from '@/Components/Auth/ProtectedRoute'
-import '@/Components/Layout/DashboardLayout.scss'
+import '@/Components/Styles/SpinPage.scss'
 
+// Full-screen gaming experience - no sidebar wrapper
 export default function UserSpinPage() {
     return (
         <ProtectedRoute>
-            <UserDashboardLayout>
-                <SpinPage />
-            </UserDashboardLayout>
+            <SpinPage />
         </ProtectedRoute>
     )
 }
-
