@@ -166,6 +166,34 @@ $border-hover: rgba(100, 200, 255, 0.5);
       font-weight: 600;
       animation: pulse 2s ease-in-out infinite;
     }
+    
+    .timer-display {
+      font-size: 14px;
+      font-weight: 700;
+      color: $primary-color;
+      padding: 6px 12px;
+      background: rgba(100, 200, 255, 0.1);
+      border-radius: 6px;
+      border: 1px solid rgba(100, 200, 255, 0.2);
+      
+      strong {
+        color: #fff;
+        font-size: 16px;
+        margin-left: 4px;
+      }
+      
+      &.urgent {
+        color: $warning-color;
+        border-color: $warning-color;
+        background: rgba(251, 191, 36, 0.1);
+        animation: pulse 1s infinite;
+      }
+      
+      &.waiting {
+        color: rgba(255, 255, 255, 0.6);
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+    }
   }
 
   // ==========================================
@@ -414,6 +442,13 @@ $border-hover: rgba(100, 200, 255, 0.5);
 
       &.active {
         animation: glow 2s ease-in-out infinite;
+      }
+      
+      &.pulsing {
+        background: linear-gradient(135deg, $warning-color, #f59e0b);
+        color: #000;
+        animation: pulse 0.8s infinite;
+        box-shadow: 0 0 20px rgba(251, 191, 36, 0.5);
       }
 
       &.disabled {

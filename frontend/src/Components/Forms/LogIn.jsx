@@ -29,8 +29,8 @@ export default function LoginPage() {
           const user = JSON.parse(localStorage.getItem('user') || '{}')
           const role = (user.role || 'USER').toUpperCase()
           const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-            ? '/dashboard'
-            : '/spin'
+            ? '/admin/dashboard'
+            : '/dashboard'
           router.replace(nextRoute)
           return
         }
@@ -59,8 +59,8 @@ export default function LoginPage() {
         const user = JSON.parse(localStorage.getItem('user') || '{}')
         const role = (user.role || 'USER').toUpperCase()
         const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-          ? '/dashboard'
-          : '/spin'
+          ? '/admin/dashboard'
+          : '/dashboard'
         router.replace(nextRoute)
       }
     }
@@ -116,7 +116,12 @@ export default function LoginPage() {
         return
       }
 
-      const payload = responseBody?.data ?? responseBody
+      // Robust payload extraction to handle potential double-nesting (e.g. data.data.token)
+      let payload = responseBody
+      // Drill down into data property if it exists and doesn't contain what we need directly
+      while (payload && payload.data && (!payload.token || !payload.user)) {
+        payload = payload.data
+      }
 
       if (!payload?.token || !payload?.user) {
         throw new Error('Invalid response from server')
@@ -134,8 +139,8 @@ export default function LoginPage() {
       const role = (payload.user.role || 'USER').toUpperCase()
 
       // Determine redirect route based on role
-      let nextRoute = '/spin'  // Default for regular users
-      
+      let nextRoute = '/dashboard'  // Default for regular users
+
       if (role === 'SUPER_ADMIN') {
         console.log('🔴 Super Admin detected - redirecting to admin dashboard')
         nextRoute = '/admin/dashboard'
@@ -146,8 +151,8 @@ export default function LoginPage() {
         console.log('🟣 Moderator detected - redirecting to dashboard')
         nextRoute = '/dashboard'
       } else {
-        console.log('🔷 Regular user - redirecting to spin page')
-        nextRoute = '/spin'
+        console.log('🔷 Regular user - redirecting to user dashboard')
+        nextRoute = '/dashboard'
       }
 
       console.log('🚀 Redirecting to:', nextRoute)
@@ -159,6 +164,60 @@ export default function LoginPage() {
       console.error('Login error details:', err)
       const message = err instanceof Error ? err.message : 'Unexpected error'
       setError(`Network error: ${message}. Please check if backend is running on ${apiUrl}`)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDemoLogin = async () => {
+    setError('')
+    setLoading(true)
+
+    try {
+      console.log('🎯 Creating demo account...')
+
+      const response = await fetch(`${apiUrl}/auth/demo`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      console.log('Demo response status:', response.status)
+
+      const responseBody = await response.json()
+      console.log('Demo response data:', responseBody)
+
+      if (!response.ok) {
+        setError(responseBody.message || 'Failed to create demo account. Please try again.')
+        return
+      }
+
+      // Robust payload extraction to handle potential double-nesting (e.g. data.data.token)
+      let payload = responseBody
+      // Drill down into data property if it exists and doesn't contain what we need directly
+      while (payload && payload.data && (!payload.token || !payload.user)) {
+        payload = payload.data
+      }
+
+      if (!payload?.token || !payload?.user) {
+        throw new Error('Invalid response from server')
+      }
+
+      // Store token and user data in localStorage
+      localStorage.setItem('token', payload.token)
+      localStorage.setItem('user', JSON.stringify(payload.user))
+
+      console.log('✅ Demo account created!')
+      console.log('📋 User:', payload.user.username)
+      console.log('💰 Starting balance:', payload.user.wallet?.available)
+
+      router.replace('/dashboard')
+      window.history.replaceState(null, '', '/dashboard')
+    } catch (err) {
+      console.error('Demo login error:', err)
+      const message = err instanceof Error ? err.message : 'Unexpected error'
+      setError(`Failed to create demo account: ${message}`)
     } finally {
       setLoading(false)
     }
@@ -240,8 +299,8 @@ export default function LoginPage() {
             />
 
             <div className="login-forgot">
-              <a 
-                href="#" 
+              <a
+                href="#"
                 onClick={(e) => {
                   e.preventDefault();
                   setShowForgotPassword(true);
@@ -260,38 +319,63 @@ export default function LoginPage() {
             <span>OR</span>
           </div>
 
-          <button 
+          <button
             type="button"
-            className="google-btn" 
+            className="demo-btn"
+            onClick={handleDemoLogin}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '0.8rem',
+              marginBottom: '1rem',
+              backgroundColor: '#667eea',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              transition: 'all 0.3s ease',
+            }}
+            onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#5568d3')}
+            onMouseOut={(e) => (e.target.style.backgroundColor = '#667eea')}
+          >
+            {loading ? 'Creating Demo Account...' : '🎮 Try Demo Account'}
+          </button>
+
+          <button
+            type="button"
+            className="google-btn"
             onClick={() => {
               const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
               const width = 500;
               const height = 600;
               const left = (window.screen.width - width) / 2;
               const top = (window.screen.height - height) / 2;
-              
+
               const popup = window.open(
                 `${apiUrl}/auth/google`,
                 'Google OAuth',
                 `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
               );
-              
+
               if (!popup || popup.closed || typeof popup.closed === 'undefined') {
                 setError('Popup was blocked. Please allow popups for this site.');
                 return;
               }
-              
+
               // Listen for messages from the popup
               const messageListener = (event) => {
                 if (event.origin !== window.location.origin) return;
-                
+
                 if (event.data.type === 'GOOGLE_OAUTH_SUCCESS') {
                   window.removeEventListener('message', messageListener);
                   popup.close();
-                  
+
                   const { token } = event.data;
                   localStorage.setItem('token', token);
-                  
+
                   fetch(`${apiUrl}/auth/me`, {
                     headers: { 'Authorization': `Bearer ${token}` },
                   })
@@ -301,8 +385,8 @@ export default function LoginPage() {
                       if (user?.id) {
                         localStorage.setItem('user', JSON.stringify(user));
                         const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
-                          ? '/dashboard'
-                          : '/spin';
+                          ? '/admin/dashboard'
+                          : '/dashboard';
                         router.replace(nextRoute);
                       }
                     })
@@ -313,7 +397,7 @@ export default function LoginPage() {
                   setError(event.data.message || 'Google authentication failed');
                 }
               };
-              
+
               window.addEventListener('message', messageListener);
             }}
             disabled={loading}
@@ -327,10 +411,10 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
-      
-      <ForgotPasswordModal 
-        isOpen={showForgotPassword} 
-        onClose={() => setShowForgotPassword(false)} 
+
+      <ForgotPasswordModal
+        isOpen={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
       />
     </div>
   )

@@ -305,6 +305,113 @@
   overflow-y: auto;
 }
 
+/* Dashboard Header Styles */
+.dashboard-header {
+  background: linear-gradient(135deg, rgba(100, 200, 255, 0.05), rgba(100, 200, 255, 0.02));
+  border-bottom: 2px solid rgba(100, 200, 255, 0.1);
+  padding: 20px 32px;
+  margin-bottom: 24px;
+  border-radius: 12px;
+
+  .header-left h2 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .premium-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      padding: 8px 16px;
+      border-radius: 20px;
+      color: #000;
+      font-weight: 600;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+    }
+
+    .user-menu {
+      .user-avatar-header {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #64c8ff, #4a9eff);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+        cursor: pointer;
+        transition: transform 0.2s ease;
+
+        &:hover {
+          transform: scale(1.05);
+        }
+      }
+    }
+  }
+}
+
+/* Sidebar Footer User Info */
+.eo-footer {
+  padding: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+
+  .user-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #64c8ff, #4a9eff);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+
+    .user-details {
+      flex: 1;
+      overflow: hidden;
+
+      .user-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 4px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .premium-badge {
+        font-size: 11px;
+        color: #fbbf24;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+    }
+  }
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .dashboard-sidebar {
@@ -366,5 +473,96 @@
 .sidebar-overlay {
   @media (max-width: 768px) {
     display: block;
+  }
+}
+
+/* Minimal Status Header - Ultra Premium */
+.minimal-status-header {
+  position: fixed;
+  top: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  width: auto;
+  min-width: 400px;
+  max-width: 90vw;
+
+  .status-left {
+    .user-pill {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.4rem 0.8rem;
+      border-radius: 20px;
+      transition: all 0.3s ease;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      .premium-tag {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        background: linear-gradient(135deg, #d4af37, #aa8412);
+        color: #000;
+        padding: 0.2rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+    }
+  }
+
+  .nav-hub-mini {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .nav-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.4);
+      padding: 0.6rem;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+
+      &.active {
+        color: #d4af37;
+        background: rgba(212, 175, 55, 0.1);
+      }
+    }
+  }
+}
+
+.dashboard-root.no-sidebar {
+  .eo-main {
+    padding-top: 6rem; /* Space for the floating header */
+    background: #0f172a;
+    min-height: 100vh;
   }
 }

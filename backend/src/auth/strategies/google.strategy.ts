@@ -68,7 +68,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         accessToken,
       };
 
-      this.logger.log(`Google OAuth validated user: ${user.email} (${user.googleId})`);
+      this.logger.log(`Google OAuth validated user: ${user.email}`);
       done(null, user);
     } catch (error) {
       this.logger.error('Error in Google OAuth validate:', error);

@@ -18,7 +18,6 @@ async function main() {
       username: 'superadmin',
       firstName: 'Super',
       lastName: 'Admin',
-      provider: 'local',
       role: UserRole.SUPER_ADMIN,
       isActive: true,
       isVerified: true,
@@ -50,7 +49,6 @@ async function main() {
       username: 'admin',
       firstName: 'Admin',
       lastName: 'User',
-      provider: 'local',
       role: UserRole.ADMIN,
       isActive: true,
       isVerified: true,
@@ -101,6 +99,16 @@ async function main() {
       password: await bcrypt.hash('password123', 12),
       available: 10000,
       premium: true,
+    },
+    {
+      email: 'demo@forexaixchange.com',
+      phone: '+1234567895',
+      username: 'demouser',
+      firstName: 'Demo',
+      lastName: 'User',
+      password: await bcrypt.hash('password123', 12),
+      available: 0,
+      premium: false,
     },
   ];
 
@@ -290,6 +298,7 @@ async function main() {
   console.log('📧 User 1 Email: user1@test.com | Phone: +1234567892 | Password: password123 | Balance: $2,500 (Premium)');
   console.log('📧 User 2 Email: user2@test.com | Phone: +1234567893 | Password: password123 | Balance: $1,500 (Regular)');
   console.log('📧 Premium User Email: premium@test.com | Phone: +1234567894 | Password: password123 | Balance: $10,000 (Premium)');
+  console.log('📧 Demo User Email: demo@forexaixchange.com | Phone: +1234567895 | Password: password123 | Balance: $0 (Regular)');
   console.log('');
   console.log('🔐 You can now login with either email OR phone number!');
 }

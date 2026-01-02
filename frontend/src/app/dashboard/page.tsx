@@ -1,8 +1,14 @@
+import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout'
+import UserDashboard from '@/Components/Dashboard/UserDashboard/UserDashboard'
+import ProtectedRoute from '@/Components/Auth/ProtectedRoute'
+import '@/Components/Layout/DashboardLayout.scss'
 
-import DashboardHome from '@/Components/Dashboard/DashboardHome'
-import '@/Components/Styles/DashboardHome.scss'
-
-export default function DashboardPage() {
-    return <DashboardHome />
-
+export default function UserDashboardPage() {
+    return (
+        <ProtectedRoute>
+            <UserDashboardLayout>
+                <UserDashboard />
+            </UserDashboardLayout>
+        </ProtectedRoute>
+    )
 }

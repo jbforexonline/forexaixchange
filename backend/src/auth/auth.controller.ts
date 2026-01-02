@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Req, Res, Query, HttpException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
@@ -22,33 +22,71 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        user: {
+        success: { type: 'boolean' },
+        data: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            phone: { type: 'string' },
-            username: { type: 'string' },
-            role: { type: 'string' },
-            isActive: { type: 'boolean' },
-            premium: { type: 'boolean' },
-            wallet: {
+            user: {
               type: 'object',
               properties: {
-                available: { type: 'number' },
-                held: { type: 'number' },
+                id: { type: 'string' },
+                email: { type: 'string' },
+                phone: { type: 'string' },
+                username: { type: 'string' },
+                firstName: { type: 'string' },
+                lastName: { type: 'string' },
+                affiliateCode: { type: 'string' },
+                referredBy: { type: 'string' },
+                role: { type: 'string' },
+                isActive: { type: 'boolean' },
+                premium: { type: 'boolean' },
+                wallet: {
+                  type: 'object',
+                  properties: {
+                    available: { type: 'number' },
+                    held: { type: 'number' },
+                    totalDeposited: { type: 'number' },
+                  }
+                }
               }
-            }
+            },
+            token: { type: 'string' }
           }
         },
-        token: { type: 'string' }
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
       }
     }
   })
   @ApiResponse({ status: 409, description: 'User already exists' })
   @ApiResponse({ status: 400, description: 'Invalid input data - either email or phone required' })
+  @ApiResponse({ status: 500, description: 'Internal server error' })
   async register(@Body() registerDto: RegisterDto) {
-    return this.authService.register(registerDto);
+    try {
+      const result = await this.authService.register(registerDto);
+      return result;
+    } catch (error) {
+      // Log the error for debugging
+      console.error('Registration controller error:', error);
+      
+      // If it's already an HttpException, re-throw it
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      
+      // For other errors, throw a generic 500 error
+      throw new HttpException(
+        {
+          statusCode: 500,
+          timestamp: new Date().toISOString(),
+          path: '/auth/register',
+          method: 'POST',
+          message: error.message || 'Internal server error'
+        },
+        500
+      );
+    }
   }
 
   @Post('login')
@@ -59,33 +97,142 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        user: {
+        success: { type: 'boolean' },
+        data: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            phone: { type: 'string' },
-            username: { type: 'string' },
-            role: { type: 'string' },
-            isActive: { type: 'boolean' },
-            premium: { type: 'boolean' },
-            wallet: {
+            user: {
               type: 'object',
               properties: {
-                available: { type: 'number' },
-                held: { type: 'number' },
+                id: { type: 'string' },
+                email: { type: 'string' },
+                phone: { type: 'string' },
+                username: { type: 'string' },
+                role: { type: 'string' },
+                isActive: { type: 'boolean' },
+                premium: { type: 'boolean' },
+                wallet: {
+                  type: 'object',
+                  properties: {
+                    available: { type: 'number' },
+                    held: { type: 'number' },
+                    totalDeposited: { type: 'number' },
+                  }
+                }
               }
-            }
+            },
+            token: { type: 'string' }
           }
         },
-        token: { type: 'string' }
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
       }
     }
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiResponse({ status: 400, description: 'Either email or phone required' })
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto);
+    try {
+      const result = await this.authService.login(loginDto);
+      return result;
+    } catch (error) {
+      console.error('Login controller error:', error);
+      throw error;
+    }
+  }
+
+  @Get('referrer-info')
+  @ApiOperation({ summary: 'Get information about referrer by affiliate code' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Referrer info retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            username: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            email: { type: 'string' },
+          }
+        },
+        message: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 404, description: 'Referrer not found' })
+  @ApiResponse({ status: 400, description: 'Referral code is required' })
+  async getReferrerInfo(@Query('code') code: string) {
+    try {
+      const referrer = await this.authService.getReferrerInfo(code);
+      return {
+        success: true,
+        data: referrer,
+        message: 'Success'
+      };
+    } catch (error) {
+      console.error('Error in getReferrerInfo:', error);
+      return {
+        success: false,
+        data: null,
+        message: error.message || 'Error fetching referrer info'
+      };
+    }
+  }
+
+  @Post('demo')
+  @ApiOperation({ summary: 'Create and login as a demo user (for testing purposes)' })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'Demo account created and logged in successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                username: { type: 'string' },
+                role: { type: 'string' },
+                wallet: {
+                  type: 'object',
+                  properties: {
+                    available: { type: 'number' },
+                    held: { type: 'number' },
+                    totalDeposited: { type: 'number' },
+                  }
+                }
+              }
+            },
+            token: { type: 'string' },
+            demoMessage: { type: 'string' }
+          }
+        },
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Failed to create demo account' })
+  async createDemo() {
+    try {
+      const result = await this.authService.createDemoAccount();
+      return result;
+    } catch (error) {
+      console.error('Demo account creation error:', error);
+      throw error;
+    }
   }
 
   @Get('profile/:userId')
@@ -107,6 +254,7 @@ export class AuthController {
           properties: {
             available: { type: 'number' },
             held: { type: 'number' },
+            totalDeposited: { type: 'number' },
           }
         }
       }
@@ -114,7 +262,6 @@ export class AuthController {
   })
   @ApiResponse({ status: 404, description: 'User not found' })
   getProfile(@Body() body: any) {
-    // NO AUTH - just return any request body
     return body;
   }
 
@@ -125,6 +272,43 @@ export class AuthController {
   @ApiResponse({ 
     status: 200, 
     description: 'User retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                phone: { type: 'string' },
+                username: { type: 'string' },
+                firstName: { type: 'string' },
+                lastName: { type: 'string' },
+                affiliateCode: { type: 'string' },
+                role: { type: 'string' },
+                isActive: { type: 'boolean' },
+                premium: { type: 'boolean' },
+                wallet: {
+                  type: 'object',
+                  properties: {
+                    available: { type: 'number' },
+                    held: { type: 'number' },
+                    totalDeposited: { type: 'number' },
+                  }
+                }
+              }
+            }
+          }
+        },
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
+      }
+    }
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   getCurrentUser(@CurrentUser() user: any) {
@@ -139,9 +323,32 @@ export class AuthController {
 
   @Get('test')
   @ApiOperation({ summary: 'Test endpoint to check server functionality' })
-  @ApiResponse({ status: 200, description: 'Test successful' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Test successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: { 
+          type: 'object',
+          properties: {
+            message: { type: 'string' }
+          }
+        },
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
+      }
+    }
+  })
   test() {
-    return { message: 'Auth service is working!', timestamp: new Date().toISOString() };
+    return { 
+      data: { message: 'Auth service is working!' },
+      message: 'Success',
+      statusCode: 200,
+      timestamp: new Date().toISOString()
+    };
   }
 
   @Post('forgot-password')
@@ -152,15 +359,30 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            message: { type: 'string' },
+            email: { type: 'string' }
+          }
+        },
         message: { type: 'string' },
-        identifier: { type: 'string' }
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
       }
     }
   })
   @ApiResponse({ status: 400, description: 'Invalid input - either email or phone required' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(forgotPasswordDto);
+    try {
+      const result = await this.authService.forgotPassword(forgotPasswordDto);
+      return result;
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      throw error;
+    }
   }
 
   @Post('reset-password')
@@ -171,98 +393,37 @@ export class AuthController {
     schema: {
       type: 'object',
       properties: {
-        message: { type: 'string' },
-        user: {
+        success: { type: 'boolean' },
+        data: {
           type: 'object',
           properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            phone: { type: 'string' },
-            username: { type: 'string' }
+            message: { type: 'string' },
+            user: {
+              type: 'object',
+              properties: {
+                id: { type: 'string' },
+                email: { type: 'string' },
+                phone: { type: 'string' },
+                username: { type: 'string' }
+              }
+            }
           }
-        }
+        },
+        message: { type: 'string' },
+        statusCode: { type: 'number' },
+        timestamp: { type: 'string' }
       }
     }
   })
   @ApiResponse({ status: 400, description: 'Invalid OTP or input data' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
-    return this.authService.resetPassword(resetPasswordDto);
-  }
-
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Initiate Google OAuth login' })
-  @ApiResponse({ status: 302, description: 'Redirects to Google OAuth consent screen' })
-  @ApiResponse({ status: 400, description: 'Google OAuth not configured' })
-  async googleAuth(@Req() req: Request, @Res() res: Response) {
-    const clientID = process.env.GOOGLE_CLIENT_ID;
-    if (!clientID || clientID === 'dummy-client-id') {
-      return res.status(400).json({ 
-        message: 'Google OAuth is not configured. Please set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in environment variables.' 
-      });
-    }
-    // Guard redirects to Google
-  }
-
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Google OAuth callback endpoint' })
-  @ApiResponse({ 
-    status: 200, 
-    description: 'Google authentication successful',
-    schema: {
-      type: 'object',
-      properties: {
-        user: {
-          type: 'object',
-          properties: {
-            id: { type: 'string' },
-            email: { type: 'string' },
-            username: { type: 'string' },
-            role: { type: 'string' },
-            isActive: { type: 'boolean' },
-            premium: { type: 'boolean' },
-            wallet: {
-              type: 'object',
-              properties: {
-                available: { type: 'number' },
-                held: { type: 'number' },
-              }
-            }
-          }
-        },
-        token: { type: 'string' }
-      }
-    }
-  })
-  async googleAuthCallback(@Req() req: Request, @Res() res: Response) {
     try {
-      // Check if user data is available from Passport
-      if (!req.user) {
-        console.error('Google OAuth callback: req.user is undefined');
-        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-        const redirectUrl = `${frontendUrl}/login?error=${encodeURIComponent('Google authentication failed: No user data received')}`;
-        return res.redirect(redirectUrl);
-      }
-
-      console.log('Google OAuth callback: User data received:', JSON.stringify(req.user, null, 2));
-      
-      const result = await this.authService.handleGoogleAuth(req.user);
-      
-      console.log('Google OAuth callback: Authentication successful, redirecting with token');
-      
-      // Always redirect to frontend with token for web apps
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const redirectUrl = `${frontendUrl}/auth/callback?token=${result.token}`;
-      return res.redirect(redirectUrl);
+      const result = await this.authService.resetPassword(resetPasswordDto);
+      return result;
     } catch (error) {
-      console.error('Google OAuth callback error:', error);
-      // Redirect to login with error message on failure
-      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
-      const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
-      const redirectUrl = `${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`;
-      return res.redirect(redirectUrl);
+      console.error('Reset password error:', error);
+      throw error;
     }
   }
 }

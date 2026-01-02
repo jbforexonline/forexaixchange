@@ -56,7 +56,7 @@ export default function WithdrawPage() {
     setLoading(true);
     try {
       const method = withdrawMethod === "bank" ? "Bank" : mobileMoneyDetails.provider || "MTN";
-      const reference = withdrawMethod === "bank" 
+      const reference = withdrawMethod === "bank"
         ? `BANK-${bankDetails.accountNumber}-${Date.now()}`
         : `MOBILE-${mobileMoneyDetails.phoneNumber}-${Date.now()}`;
 
@@ -187,6 +187,8 @@ export default function WithdrawPage() {
                 <label>Withdrawal Method</label>
                 <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                   <button
+                    className={`method-btn ${withdrawMethod === "bank" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("bank")}
                     style={{
                       flex: 1,
@@ -203,6 +205,8 @@ export default function WithdrawPage() {
                     🏦 Bank
                   </button>
                   <button
+                    className={`method-btn ${withdrawMethod === "mobile" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("mobile")}
                     style={{
                       flex: 1,
@@ -287,74 +291,68 @@ export default function WithdrawPage() {
               </div>
 
               <button
+                className="withdraw-btn"
                 onClick={handleWithdraw}
-                disabled={loading || walletLoading || !amount || parseFloat(amount) <= 0}
-                className="primary-button"
+                disabled={loading || walletLoading}
               >
                 {loading ? "⏳ Processing..." : "💸 Request Withdrawal"}
               </button>
             </div>
           </div>
 
-          {/* Right: Recent Withdrawals */}
-          <div>
-            <div className="wallet-form-card">
-              <h2 style={{ marginBottom: "1.5rem", fontSize: "1.5rem", fontWeight: "700", color: "var(--expert-text, #f6f8ff)" }}>
-                Recent Withdrawals
-              </h2>
-              {transactions.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-state-icon">💸</div>
-                  <h3>No withdrawals yet</h3>
-                  <p>Your withdrawal history will appear here</p>
+          {/* Right Section */}
+          <div className="transaction-section">
+            <h3>Recent Transactions</h3>
+            <div className="transaction-list">
+              {(!transactions || transactions.length === 0) ? (
+                <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
+                  No transactions yet
                 </div>
               ) : (
-                <div className="transaction-list-card">
-                  {transactions.map((tx) => (
-                    <div key={tx.id} className="transaction-item">
-                      <div style={{
-                        width: "48px",
-                        height: "48px",
-                        borderRadius: "50%",
-                        backgroundColor: "#fee2e2",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        fontSize: "1.5rem",
-                      }}>
-                        💸
+                Array.isArray(transactions) && transactions.map((tx) => (
+                  <div key={tx.id} className="transaction-item">
+                    <div style={{
+                      width: "48px",
+                      height: "48px",
+                      borderRadius: "50%",
+                      backgroundColor: "#fee2e2",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.5rem",
+                    }}>
+                      💸
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "600", marginBottom: "0.25rem", color: "var(--expert-text, #f6f8ff)" }}>
+                        {tx.method || "Withdrawal"}
                       </div>
-                      <div>
-                        <div style={{ fontWeight: "600", marginBottom: "0.25rem", color: "var(--expert-text, #f6f8ff)" }}>
-                          {tx.method || "Withdrawal"}
-                        </div>
-                        <div style={{ fontSize: "0.875rem", color: "var(--expert-muted, #98a3cd)" }}>
-                          {formatDate(tx.createdAt)}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontWeight: "700", fontSize: "1.25rem", color: "#ef4444" }}>
-                          -${parseFloat(tx.amount).toFixed(2)}
-                        </div>
-                        {tx.fee && parseFloat(tx.fee) > 0 && (
-                          <div style={{ fontSize: "0.75rem", color: "#999" }}>
-                            Fee: ${parseFloat(tx.fee).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                      <div style={{
-                        padding: "0.375rem 0.875rem",
-                        borderRadius: "12px",
-                        fontSize: "0.75rem",
-                        fontWeight: "600",
-                        backgroundColor: "#d1fae5",
-                        color: "#065f46",
-                      }}>
-                        {tx.status}
+                      <div style={{ fontSize: "0.875rem", color: "var(--expert-muted, #98a3cd)" }}>
+                        {formatDate(tx.createdAt)}
                       </div>
                     </div>
-                  ))}
-                </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontWeight: "700", fontSize: "1.25rem", color: "#ef4444" }}>
+                        -${parseFloat(tx.amount).toFixed(2)}
+                      </div>
+                      {tx.fee && parseFloat(tx.fee) > 0 && (
+                        <div style={{ fontSize: "0.75rem", color: "#999" }}>
+                          Fee: ${parseFloat(tx.fee).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
+                    <div style={{
+                      padding: "0.375rem 0.875rem",
+                      borderRadius: "12px",
+                      fontSize: "0.75rem",
+                      fontWeight: "600",
+                      backgroundColor: "#d1fae5",
+                      color: "#065f46",
+                    }}>
+                      {tx.status}
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>

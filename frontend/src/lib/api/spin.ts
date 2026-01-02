@@ -198,6 +198,7 @@ export interface PlaceBetDto {
   selection: BetSelection;
   amountUsd: number;
   idempotencyKey?: string;
+  isDemo?: boolean;
 }
 
 export interface Bet {
@@ -303,6 +304,10 @@ export interface Wallet {
   totalWithdrawn: number;
   totalWon: number;
   totalLost: number;
+  demoAvailable?: number;
+  demoHeld?: number;
+  demoTotalWon?: number;
+  demoTotalLost?: number;
 }
 
 /**
@@ -324,6 +329,10 @@ export async function getWallet(): Promise<Wallet> {
     totalWithdrawn: Number(payload?.totalWithdrawn) || 0,
     totalWon: Number(payload?.totalWon) || 0,
     totalLost: Number(payload?.totalLost) || 0,
+    demoAvailable: Number(payload?.demoAvailable) || 0,
+    demoHeld: Number(payload?.demoHeld) || 0,
+    demoTotalWon: Number(payload?.demoTotalWon) || 0,
+    demoTotalLost: Number(payload?.demoTotalLost) || 0,
   };
 
   return wallet;
@@ -499,4 +508,29 @@ export function isPremiumUser(): boolean {
   }
   return true;
 }
-
+/**
+ * Reset demo wallet balance
+ */
+export async function resetDemoWallet(amount: number): Promise<Wallet> {
+  const response = await fetch(`${API_URL}/wallet/demo/reset`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ amount }),
+  });
+  
+  const result = await handleResponse<any>(response);
+  const payload = result?.data ?? result;
+  
+  return {
+    available: Number(payload?.available) || 0,
+    held: Number(payload?.held) || 0,
+    totalDeposited: Number(payload?.totalDeposited) || 0,
+    totalWithdrawn: Number(payload?.totalWithdrawn) || 0,
+    totalWon: Number(payload?.totalWon) || 0,
+    totalLost: Number(payload?.totalLost) || 0,
+    demoAvailable: Number(payload?.demoAvailable) || 0,
+    demoHeld: Number(payload?.demoHeld) || 0,
+    demoTotalWon: Number(payload?.demoTotalWon) || 0,
+    demoTotalLost: Number(payload?.demoTotalLost) || 0,
+  };
+}

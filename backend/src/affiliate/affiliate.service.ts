@@ -1,213 +1,481 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { AffiliateTier } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class AffiliateService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private gateway: RealtimeGateway,
+  ) { }
+
+  private async emitWalletUpdate(userId: string) {
+    try {
+      const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
+      if (wallet && this.gateway.server) {
+        this.gateway.server.to(`user:${userId}`).emit('walletUpdated', {
+          userId,
+          available: wallet.available.toNumber(),
+          held: wallet.held.toNumber(),
+          total: wallet.available.add(wallet.held).toNumber(),
+          totalDeposited: wallet.totalDeposited.toNumber(),
+          totalWithdrawn: wallet.totalWithdrawn.toNumber(),
+          totalWon: wallet.totalWon.toNumber(),
+          totalLost: wallet.totalLost.toNumber(),
+        });
+        console.log(`Real-time wallet update emitted for user ${userId} after commission`);
+      }
+    } catch (error) {
+      console.error('Failed to emit wallet update after commission:', error);
+    }
+  }
 
   async getUserAffiliateData(userId: string) {
-    const [user, referrals, earnings] = await Promise.all([
-      this.prisma.user.findUnique({
+    try {
+      console.log(`Getting affiliate data for user: ${userId}`);
+
+      // Get user with basic info
+      const user = await this.prisma.user.findUnique({
         where: { id: userId },
         select: {
+          id: true,
           affiliateCode: true,
-          referrals: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              createdAt: true,
-              wallet: {
-                select: {
-                  totalDeposited: true,
-                },
-              },
-            },
-          },
+          username: true,
+          email: true,
         },
-      }),
-      this.prisma.user.count({
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Ensure user has an affiliate code
+      let affiliateCode = user.affiliateCode;
+      if (!affiliateCode) {
+        affiliateCode = await this.generateAffiliateCode(userId);
+      }
+
+      // Get referrals count
+      const totalReferrals = await this.prisma.user.count({
         where: { referredBy: userId },
-      }),
-      this.prisma.affiliateEarning.findMany({
+      });
+
+      // Get affiliate earnings
+      const earnings = await this.prisma.affiliateEarning.findMany({
         where: { userId },
-        include: {
-          referredUser: {
+        orderBy: { createdAt: 'desc' },
+      });
+
+      // Calculate totals
+      let totalEarnings = new Decimal(0);
+      let totalPaid = new Decimal(0);
+
+      earnings.forEach(earning => {
+        totalEarnings = totalEarnings.add(earning.amount);
+        if (earning.isPaid) {
+          totalPaid = totalPaid.add(earning.amount);
+        }
+      });
+
+      const pendingPayout = totalEarnings.sub(totalPaid);
+
+      // Aggregated earnings per referral
+      const referralEarnings = await this.prisma.affiliateEarning.groupBy({
+        by: ['referredUserId'],
+        where: { userId },
+        _sum: {
+          amount: true,
+        },
+      });
+
+      const earningMap = new Map();
+      referralEarnings.forEach(re => {
+        earningMap.set(re.referredUserId, re._sum.amount?.toNumber() || 0);
+      });
+
+      // Get basic referrals info
+      const referrals = await this.prisma.user.findMany({
+        where: { referredBy: userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          createdAt: true,
+          wallet: {
             select: {
-              username: true,
-              email: true,
-            },
-          },
+              totalDeposited: true,
+              available: true,
+            }
+          }
         },
         orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+        take: 10,
+      });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+      // Format response
+      return {
+        affiliateCode,
+        totalReferrals,
+        activeReferrals: referrals.filter(ref => (ref.wallet?.totalDeposited?.toNumber() || 0) > 0).length,
+        totalEarnings: totalEarnings.toNumber(),
+        totalPaid: totalPaid.toNumber(),
+        pendingPayout: pendingPayout.toNumber(),
+        referrals: referrals.map(ref => ({
+          id: ref.id,
+          username: ref.username,
+          email: ref.email,
+          createdAt: ref.createdAt,
+          totalDeposited: ref.wallet?.totalDeposited?.toNumber() || 0,
+          yourCommission: earningMap.get(ref.id) || 0,
+          status: (ref.wallet?.totalDeposited?.toNumber() || 0) > 0 ? 'Active' : 'Inactive',
+        })),
+        earnings: earnings.map(e => ({
+          id: e.id,
+          amount: e.amount.toNumber(),
+          tier: e.tier,
+          isPaid: e.isPaid,
+          createdAt: e.createdAt,
+          description: e.referredUserId ? `Commission from referral` : 'Affiliate commission',
+        })),
+      };
+    } catch (error) {
+      console.error('Error in getUserAffiliateData:', error);
+      console.error('Error stack:', error.stack);
+
+      // Return default data if there's an error
+      return {
+        affiliateCode: '',
+        totalReferrals: 0,
+        activeReferrals: 0,
+        totalEarnings: 0,
+        totalPaid: 0,
+        pendingPayout: 0,
+        referrals: [],
+        earnings: [],
+      };
     }
+  }
 
-    const totalEarnings = earnings.reduce((sum, earning) => sum.add(earning.amount), new Decimal(0));
-    const totalPaid = earnings.filter(e => e.isPaid).reduce((sum, earning) => sum.add(earning.amount), new Decimal(0));
-    const pendingPayout = totalEarnings.sub(totalPaid);
+  async getUserReferrals(userId: string) {
+    try {
+      // Aggregated earnings per referral
+      const referralEarnings = await this.prisma.affiliateEarning.groupBy({
+        by: ['referredUserId'],
+        where: { userId },
+        _sum: {
+          amount: true,
+        },
+      });
 
-    return {
-      affiliateCode: user.affiliateCode,
-      totalReferrals: referrals,
-      totalEarnings: totalEarnings.toNumber(),
-      totalPaid: totalPaid.toNumber(),
-      pendingPayout: pendingPayout.toNumber(),
-      earnings,
-    };
+      const earningMap = new Map();
+      referralEarnings.forEach(re => {
+        earningMap.set(re.referredUserId, re._sum.amount?.toNumber() || 0);
+      });
+
+      const referrals = await this.prisma.user.findMany({
+        where: { referredBy: userId },
+        select: {
+          id: true,
+          username: true,
+          email: true,
+          createdAt: true,
+          wallet: {
+            select: {
+              totalDeposited: true,
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return referrals.map(ref => ({
+        id: ref.id,
+        username: ref.username,
+        email: ref.email,
+        createdAt: ref.createdAt,
+        totalDeposited: ref.wallet?.totalDeposited?.toNumber() || 0,
+        yourCommission: earningMap.get(ref.id) || 0,
+        paidCommission: earningMap.get(ref.id) || 0,
+        pendingCommission: 0,
+        status: (ref.wallet?.totalDeposited?.toNumber() || 0) > 0 ? 'Active' : 'Inactive',
+      }));
+    } catch (error) {
+      console.error('Error in getUserReferrals:', error);
+      return [];
+    }
+  }
+
+  async generateAffiliateCode(userId: string): Promise<string> {
+    try {
+      // Generate a unique affiliate code
+      const generateCode = () => {
+        return `REF${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+      };
+
+      let code = generateCode();
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      // Ensure code is unique
+      while (attempts < maxAttempts) {
+        const existing = await this.prisma.user.findUnique({
+          where: { affiliateCode: code },
+        });
+
+        if (!existing) {
+          break;
+        }
+
+        code = generateCode();
+        attempts++;
+      }
+
+      // Save to user
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { affiliateCode: code },
+      });
+
+      return code;
+    } catch (error) {
+      console.error('Error generating affiliate code:', error);
+      // Return a fallback code
+      return `REF${userId.substring(0, 8).toUpperCase()}`;
+    }
   }
 
   async getAffiliateStats() {
-    const [
-      totalAffiliates,
-      totalReferrals,
-      totalCommissions,
-      paidCommissions,
-    ] = await Promise.all([
-      this.prisma.user.count({
+    try {
+      const totalAffiliates = await this.prisma.user.count({
         where: {
-          referrals: {
-            some: {},
+          affiliateCode: {
+            not: null,
           },
         },
-      }),
-      this.prisma.user.count({
+      });
+
+      const totalReferrals = await this.prisma.user.count({
         where: {
           referredBy: {
             not: null,
           },
         },
-      }),
-      this.prisma.affiliateEarning.aggregate({
-        _sum: { amount: true },
-      }),
-      this.prisma.affiliateEarning.aggregate({
-        where: { isPaid: true },
-        _sum: { amount: true },
-      }),
-    ]);
+      });
 
-    return {
-      totalAffiliates,
-      totalReferrals,
-      totalCommissions: totalCommissions._sum.amount || 0,
-      paidCommissions: paidCommissions._sum.amount || 0,
-      pendingCommissions: (totalCommissions._sum.amount || new Decimal(0)).sub(paidCommissions._sum.amount || new Decimal(0)).toNumber(),
-    };
-  }
-
-  calculateAffiliateTier(totalDeposited: Decimal): AffiliateTier {
-    const amount = totalDeposited.toNumber();
-    
-    if (amount < 50) return AffiliateTier.TIER_1;
-    if (amount < 100) return AffiliateTier.TIER_2;
-    if (amount < 500) return AffiliateTier.TIER_3;
-    if (amount < 2000) return AffiliateTier.TIER_4;
-    
-    return AffiliateTier.TIER_5;
-  }
-
-  async processAffiliateCommission(referredUserId: string, depositAmount: Decimal) {
-    const referredUser = await this.prisma.user.findUnique({
-      where: { id: referredUserId },
-      include: {
-        referrer: true,
-      },
-    });
-
-    if (!referredUser || !referredUser.referredBy) {
-      return; // No referrer, no commission
-    }
-
-    const referrer = referredUser.referrer;
-    if (!referrer) return;
-
-    // Calculate commission based on tier
-    const tier = await this.calculateAffiliateTier(depositAmount);
-    const commission = this.calculateCommission(depositAmount, tier);
-
-    if (commission.gt(0)) {
-      // Check if there was a payout today (once-per-day rule)
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      const todayPayouts = await this.prisma.affiliateEarning.findFirst({
+      // Get total commissions
+      const earnings = await this.prisma.affiliateEarning.aggregate({
+        _sum: {
+          amount: true,
+        },
         where: {
-          userId: referrer.id,
           isPaid: true,
-          date: {
-            gte: today,
-            lt: tomorrow,
+        },
+      });
+
+      const pendingEarnings = await this.prisma.affiliateEarning.aggregate({
+        _sum: {
+          amount: true,
+        },
+        where: {
+          isPaid: false,
+        },
+      });
+
+      return {
+        totalAffiliates,
+        totalReferrals,
+        totalCommissions: earnings._sum.amount?.toNumber() || 0,
+        paidCommissions: earnings._sum.amount?.toNumber() || 0,
+        pendingCommissions: pendingEarnings._sum.amount?.toNumber() || 0,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      console.error('Error in getAffiliateStats:', error);
+      return {
+        totalAffiliates: 0,
+        totalReferrals: 0,
+        totalCommissions: 0,
+        paidCommissions: 0,
+        pendingCommissions: 0,
+        timestamp: new Date().toISOString(),
+      };
+    }
+  }
+
+  // REMOVE WITHDRAWAL METHOD FOR NOW
+  // async withdrawCommission(userId: string, amount: Decimal) {
+  //   // Remove this method for now
+  // }
+
+  async getRecentEarnings(userId: string, limit: number = 10) {
+    try {
+      const earnings = await this.prisma.affiliateEarning.findMany({
+        where: { userId },
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return earnings.map(e => ({
+        id: e.id,
+        amount: e.amount.toNumber(),
+        tier: e.tier,
+        isPaid: e.isPaid,
+        createdAt: e.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error in getRecentEarnings:', error);
+      return [];
+    }
+  }
+
+  async processAffiliateCommission(
+    referredUserId: string,
+    depositAmount: Decimal,
+  ) {
+    try {
+      const referredUser = await this.prisma.user.findUnique({
+        where: { id: referredUserId },
+        include: { referrer: true },
+      });
+
+      if (!referredUser || !referredUser.referredBy || !referredUser.referrer) {
+        console.log(`No referrer found for user ${referredUserId}`);
+        return null;
+      }
+
+      const referrer = referredUser.referrer;
+      console.log(`Processing affiliate commission for ${referredUser.username} referred by ${referrer.username}`);
+
+      // Calculate commission based on tier
+      const commissionRate = this.getCommissionRate(depositAmount);
+      const commissionAmount = depositAmount.mul(new Decimal(commissionRate));
+
+      // Determine tier
+      const tier = this.getTierForAmount(depositAmount);
+
+      // Use transaction for atomic update
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create affiliate earning
+        const earning = await tx.affiliateEarning.create({
+          data: {
+            userId: referrer.id,
+            referredUserId,
+            amount: commissionAmount,
+            tier,
+            isPaid: true, // Mark as paid since we credit directly
           },
-        },
-      });
+        });
 
-      // Create affiliate earning record (always record)
-      const earning = await this.prisma.affiliateEarning.create({
-        data: {
-          userId: referrer.id,
-          referredUserId,
-          amount: commission,
-          tier,
-          isPaid: false, // Will be paid in daily batch
-        },
-      });
-
-      // Only pay immediately if no payout was made today (once-per-day rule)
-      if (!todayPayouts) {
-        // Add commission to referrer's wallet
-        await this.prisma.wallet.update({
+        // Credit the referrer's wallet
+        await tx.wallet.update({
           where: { userId: referrer.id },
           data: {
             available: {
-              increment: commission,
+              increment: commissionAmount,
             },
           },
         });
 
-        // Mark as paid
-        await this.prisma.affiliateEarning.update({
-          where: { id: earning.id },
-          data: { isPaid: true },
-        });
+        return earning;
+      });
 
-        // Create transaction record
-        await this.prisma.transaction.create({
-          data: {
-            userId: referrer.id,
-            type: 'AFFILIATE_EARNING',
-            amount: commission,
-            status: 'COMPLETED',
-            description: `Affiliate commission from ${referredUser.username}`,
-          },
-        });
-      }
-      // If payout already made today, commission will be paid in next day's batch
+      console.log(`Commission recorded and credited to wallet: $${commissionAmount} (${commissionRate * 100}%)`);
+      
+      // Emit real-time update to referrer
+      await this.emitWalletUpdate(referrer.id);
+      
+      return result;
+    } catch (error) {
+      console.error('Error processing affiliate commission:', error);
+      return null;
     }
   }
 
-  private calculateCommission(amount: Decimal, tier: AffiliateTier): Decimal {
-    switch (tier) {
-      case AffiliateTier.TIER_1:
-        return new Decimal(0);
-      case AffiliateTier.TIER_2:
-        return new Decimal(1);
-      case AffiliateTier.TIER_3:
-        return new Decimal(2);
-      case AffiliateTier.TIER_4:
-        return new Decimal(5);
-      case AffiliateTier.TIER_5:
-        return new Decimal(7);
-      default:
-        return new Decimal(0);
+  async processWithdrawalCommission(
+    referredUserId: string,
+    withdrawalAmount: Decimal,
+  ) {
+    try {
+      const referredUser = await this.prisma.user.findUnique({
+        where: { id: referredUserId },
+        include: { referrer: true },
+      });
+
+      if (!referredUser || !referredUser.referredBy || !referredUser.referrer) {
+        console.log(`No referrer found for user ${referredUserId} for withdrawal commission`);
+        return null;
+      }
+
+      const referrer = referredUser.referrer;
+      console.log(`Processing withdrawal commission for ${referredUser.username} referred by ${referrer.username}`);
+
+      // Fixed 2% commission for withdrawals for now (can be made dynamic)
+      const commissionRate = 0.02;
+      const commissionAmount = withdrawalAmount.mul(new Decimal(commissionRate));
+
+      // Use transaction for atomic update
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create affiliate earning record for withdrawal
+        const earning = await tx.affiliateEarning.create({
+          data: {
+            userId: referrer.id,
+            referredUserId,
+            amount: commissionAmount,
+            tier: AffiliateTier.TIER_1, // Default tier for withdrawals
+            isPaid: true,
+          },
+        });
+
+        // Credit the referrer's wallet
+        await tx.wallet.update({
+          where: { userId: referrer.id },
+          data: {
+            available: {
+              increment: commissionAmount,
+            },
+          },
+        });
+
+        return earning;
+      });
+
+      console.log(`Withdrawal commission recorded and credited to wallet: $${commissionAmount} (2%)`);
+      
+      // Emit real-time update to referrer
+      await this.emitWalletUpdate(referrer.id);
+      
+      return result;
+    } catch (error) {
+      console.error('Error processing withdrawal commission:', error);
+      return null;
     }
+  }
+
+  private calculateCommission(depositAmount: number): number {
+    if (depositAmount < 50) return 0;
+    if (depositAmount < 100) return depositAmount * 0.01; // 1%
+    if (depositAmount < 500) return depositAmount * 0.02; // 2%
+    if (depositAmount < 2000) return depositAmount * 0.05; // 5%
+    return depositAmount * 0.07; // 7%
+  }
+
+  private getCommissionRate(depositAmount: Decimal): number {
+    const amount = depositAmount.toNumber();
+    if (amount < 50) return 0;
+    if (amount < 100) return 0.01; // 1%
+    if (amount < 500) return 0.02; // 2%
+    if (amount < 2000) return 0.05; // 5%
+    return 0.07; // 7%
+  }
+
+  private getTierForAmount(depositAmount: Decimal): AffiliateTier {
+    const amount = depositAmount.toNumber();
+    if (amount < 50) return AffiliateTier.TIER_1;
+    if (amount < 100) return AffiliateTier.TIER_2;
+    if (amount < 500) return AffiliateTier.TIER_3;
+    if (amount < 2000) return AffiliateTier.TIER_4;
+    return AffiliateTier.TIER_5;
   }
 }

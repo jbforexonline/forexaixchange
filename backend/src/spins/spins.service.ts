@@ -7,7 +7,7 @@ import { Decimal } from '@prisma/client/runtime/library';
 export class SpinsService {
   constructor(private prisma: PrismaService) {}
 
-  async createSpin(userId: string, betAmount: Decimal, betType: BetType, volatility?: VolatilityType, color?: ColorType) {
+  async createSpin(userId: string, betAmount: Decimal, betType: BetType, volatility?: VolatilityType, color?: ColorType, isDemo: boolean = false) {
     return this.prisma.$transaction(async (tx) => {
       // Get user and wallet
       const user = await tx.user.findUnique({
@@ -19,8 +19,10 @@ export class SpinsService {
         throw new BadRequestException('User or wallet not found');
       }
 
-      if (user.wallet.available.lt(betAmount)) {
-        throw new BadRequestException('Insufficient funds');
+      const availableBalance = isDemo ? user.wallet.demoAvailable : user.wallet.available;
+
+      if (availableBalance.lt(betAmount)) {
+        throw new BadRequestException(`Insufficient ${isDemo ? 'demo ' : ''}funds`);
       }
 
       // Get current round number
@@ -49,24 +51,33 @@ export class SpinsService {
           countdownTime: user.premium ? 300 : 1200, // 5 min for premium, 20 min for free
           isPremiumUser: user.premium,
           autoSpin: false, // TODO: Implement auto-spin logic
+          isDemo,
         },
       });
 
       // Update wallet
-      const walletUpdateData: any = {
-        available: {
-          decrement: betAmount,
-        },
-        held: {
-          increment: betAmount,
-        },
-      };
+      const walletUpdateData: any = {};
+      
+      if (isDemo) {
+        walletUpdateData.demoAvailable = { decrement: betAmount };
+        walletUpdateData.demoHeld = { increment: betAmount };
 
-      if (isWin) {
-        walletUpdateData.available.increment = winAmount;
-        walletUpdateData.totalWon = { increment: winAmount };
+        if (isWin) {
+          walletUpdateData.demoAvailable.increment = winAmount;
+          walletUpdateData.demoTotalWon = { increment: winAmount };
+        } else {
+          walletUpdateData.demoTotalLost = { increment: betAmount };
+        }
       } else {
-        walletUpdateData.totalLost = { increment: betAmount };
+        walletUpdateData.available = { decrement: betAmount };
+        walletUpdateData.held = { increment: betAmount };
+
+        if (isWin) {
+          walletUpdateData.available.increment = winAmount;
+          walletUpdateData.totalWon = { increment: winAmount };
+        } else {
+          walletUpdateData.totalLost = { increment: betAmount };
+        }
       }
 
       await tx.wallet.update({
@@ -82,6 +93,7 @@ export class SpinsService {
           amount: isWin ? winAmount : betAmount,
           status: 'COMPLETED',
           description: `Spin ${isWin ? 'win' : 'loss'} - ${betType}`,
+          isDemo,
         },
       });
 
@@ -90,7 +102,9 @@ export class SpinsService {
         outcome,
         isWin,
         winAmount: isWin ? winAmount : null,
-        newBalance: user.wallet.available.sub(betAmount).add(isWin ? winAmount : 0),
+        newBalance: isDemo 
+          ? user.wallet.demoAvailable.sub(betAmount).add(isWin ? winAmount : 0)
+          : user.wallet.available.sub(betAmount).add(isWin ? winAmount : 0),
       };
     });
   }
