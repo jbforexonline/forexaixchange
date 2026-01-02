@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
@@ -41,10 +41,42 @@ export default function Register() {
     country: '',
     phone: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    referralCode: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [referralInfo, setReferralInfo] = useState(null)
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const refCode = urlParams.get('ref');
+      
+      if (refCode) {
+        setFormData(prev => ({ ...prev, referralCode: refCode }));
+        fetchReferralInfo(refCode);
+      }
+    }
+  }, []);
+
+  const fetchReferralInfo = async (referralCode) => {
+    try {
+      const response = await fetch(`${apiUrl}/auth/referrer-info?code=${referralCode}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReferralInfo(data.data || data);
+      }
+    } catch (err) {
+      console.error('Error fetching referral info:', err);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -54,19 +86,16 @@ export default function Register() {
     e.preventDefault()
     setError('')
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match')
       return
     }
 
-    // Validate password length
     if (formData.password.length < 6) {
       setError('Password must be at least 6 characters long')
       return
     }
 
-    // Validate email or phone
     if (!formData.email && !formData.phone) {
       setError('Please provide either email or phone number')
       return
@@ -75,12 +104,10 @@ export default function Register() {
     setLoading(true)
 
     try {
-      // Split full name into first and last name
       const nameParts = formData.fullName.trim().split(' ')
       const firstName = nameParts[0] || ''
       const lastName = nameParts.slice(1).join(' ') || ''
 
-      // Prepare username - use provided username or derive from email
       let username = formData.username
       if (!username && formData.email) {
         username = formData.email.split('@')[0]
@@ -89,6 +116,7 @@ export default function Register() {
         username = formData.fullName.replace(/\s+/g, '').toLowerCase()
       }
 
+      // Create request body WITHOUT country field
       const requestBody = {
         password: formData.password,
         username: username,
@@ -102,6 +130,13 @@ export default function Register() {
       }
       if (formData.phone) {
         requestBody.phone = formData.phone
+      }
+
+      // Add referral code if present - use 'referralCode' or 'referredBy' depending on your backend
+      if (formData.referralCode) {
+        // Try both field names to see which one works
+        requestBody.referredBy = formData.referralCode;
+        // Alternative: requestBody.referralCode = formData.referralCode;
       }
 
       console.log('Sending registration request to:', `${apiUrl}/auth/register`)
@@ -121,7 +156,12 @@ export default function Register() {
       console.log('Response data:', responseBody)
 
       if (!response.ok) {
-        setError(responseBody.message || 'Registration failed. Please try again.')
+        // Handle validation errors better
+        if (responseBody.message && Array.isArray(responseBody.message)) {
+          setError(responseBody.message.join(', '))
+        } else {
+          setError(responseBody.message || 'Registration failed. Please try again.')
+        }
         return
       }
 
@@ -131,11 +171,13 @@ export default function Register() {
         throw new Error('Invalid response from server')
       }
 
-      // Store token and user data in localStorage
       localStorage.setItem('token', payload.token)
       localStorage.setItem('user', JSON.stringify(payload.user))
 
-      // Redirect based on user role (default to USER when missing)
+      if (formData.referralCode) {
+        alert(`🎉 Registration successful! You were referred by ${referralInfo?.username || 'a friend'}.`);
+      }
+
       const role = (payload.user.role || 'USER').toUpperCase()
       const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
         ? '/dashboard'
@@ -153,26 +195,36 @@ export default function Register() {
 
   return (
     <div className="register-container">
-      {/* Left background */}
       <div className="register-left"></div>
 
-      {/* Right form */}
       <div className="register-right">
         <div className="register-form-wrapper">
           <h1 className="register-title">Create an Account</h1>
+          
+          {formData.referralCode && (
+            <div className="referral-notice">
+              <div className="referral-badge">
+                🎁 Referral Signup
+              </div>
+              {referralInfo ? (
+                <p className="referral-text">
+                  You were invited by <strong>{referralInfo.username}</strong>
+                  {referralInfo.firstName && ` (${referralInfo.firstName})`}
+                </p>
+              ) : (
+                <p className="referral-text">
+                  You're signing up with a referral link
+                </p>
+              )}
+            </div>
+          )}
+          
           <p className="register-subtitle">
-            Are you ready to join us? Let’s create Account
+            Are you ready to join us? Let's create Account
           </p>
 
           {error && (
-            <div style={{
-              padding: '0.8rem',
-              backgroundColor: '#fee',
-              color: '#c33',
-              borderRadius: '8px',
-              marginBottom: '1rem',
-              fontSize: '0.9rem'
-            }}>
+            <div className="error-message">
               {error}
             </div>
           )}
@@ -210,7 +262,8 @@ export default function Register() {
               disabled={loading}
             />
 
-            <label>Country</label>
+            {/* Country field is only for display, not sent to backend */}
+            <label>Country (Optional)</label>
             <select
               name="country"
               value={formData.country}
@@ -218,11 +271,14 @@ export default function Register() {
               className="country-select"
               disabled={loading}
             >
-              <option value="">Select country</option>
+              <option value="">Select country (optional)</option>
               {COUNTRIES.map(country => (
                 <option key={country} value={country}>{country}</option>
               ))}
             </select>
+            <small style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginBottom: '16px', display: 'block' }}>
+              Country information is stored locally for your reference only
+            </small>
 
             <label>Phone Number (optional)</label>
             <input
@@ -258,6 +314,14 @@ export default function Register() {
               disabled={loading}
             />
 
+            {formData.referralCode && (
+              <input
+                type="hidden"
+                name="referralCode"
+                value={formData.referralCode}
+              />
+            )}
+
             <button type="submit" className="register-btn" disabled={loading}>
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
@@ -271,14 +335,17 @@ export default function Register() {
             type="button"
             className="google-btn"
             onClick={() => {
-              const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
+              const googleAuthUrl = formData.referralCode 
+                ? `${apiUrl}/auth/google?ref=${formData.referralCode}`
+                : `${apiUrl}/auth/google`;
+              
               const width = 500;
               const height = 600;
               const left = (window.screen.width - width) / 2;
               const top = (window.screen.height - height) / 2;
               
               const popup = window.open(
-                `${apiUrl}/auth/google`,
+                googleAuthUrl,
                 'Google OAuth',
                 `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`
               );
@@ -288,7 +355,6 @@ export default function Register() {
                 return;
               }
               
-              // Listen for messages from the popup
               const messageListener = (event) => {
                 if (event.origin !== window.location.origin) return;
                 

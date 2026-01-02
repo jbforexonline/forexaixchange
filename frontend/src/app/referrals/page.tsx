@@ -1,10 +1,10 @@
-import PremiumPage from "@/Components/Dashboard/PremiumPage";
+import ReferralPage from "@/Components/Dashboard/ReferralPage";
 import UserDashboardLayout from "@/Components/Layout/UserDashboardLayout";
 
-export default function Premium() {
+export default function Referrals() {
   return (
     <UserDashboardLayout>
-      <PremiumPage />
+      <ReferralPage />
     </UserDashboardLayout>
   );
 }

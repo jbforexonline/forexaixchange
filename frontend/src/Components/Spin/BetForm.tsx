@@ -22,6 +22,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
   const {
     round,
     state: roundState,
+    countdown,
     timeUntilFreeze,
     loading: roundLoading,
   } = useRound();
@@ -126,7 +127,16 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
         className="bet-bar-toggle"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        {isExpanded ? "▼ COLLAPSE BET PANEL" : "▲ PLACE BET"}
+        {isExpanded 
+          ? "▼ COLLAPSE BET PANEL" 
+          : (
+            <span>
+              ▲ PLACE BET 
+              {round && !isFrozen && <span style={{marginLeft: '10px', opacity: 0.8}}>⏳ {timeUntilFreeze}s</span>}
+              {round && isFrozen && <span style={{marginLeft: '10px', opacity: 0.8}}>⏳ Next round: {countdown}s</span>}
+            </span>
+          )
+        }
       </button>
 
       <div className="bet-bar-content">
@@ -142,6 +152,16 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
               {roundLoading && "🔄 Fetching round data..."}
               {isFrozen && "❌ Betting closed (round frozen)"}
             </div>
+          )}
+          {round && !isFrozen && (
+            <div className={`timer-display ${timeUntilFreeze < 10 ? 'urgent' : ''}`}>
+               ⏳ Closing in: <strong>{timeUntilFreeze}s</strong>
+            </div>
+          )}
+          {round && isFrozen && (
+             <div className="timer-display waiting">
+               Next round in: <strong>{countdown}s</strong>
+             </div>
           )}
         </div>
 
@@ -266,12 +286,14 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
 
             <button
               type="submit"
-              className={`submit-btn ${loading ? "disabled" : "active"}`}
-              disabled={loading}
+              className={`submit-btn ${isButtonDisabled ? "disabled" : "active"} ${timeUntilFreeze < 10 ? 'pulsing' : ''}`}
+              disabled={isButtonDisabled}
             >
               {loading
                 ? "⏳ PLACING..."
-                : "🎯 PLACE BET"}
+                : isFrozen 
+                  ? "❌ CLOSED" 
+                  : `🎯 PLACE BET (${timeUntilFreeze}s)`}
             </button>
           </div>
 

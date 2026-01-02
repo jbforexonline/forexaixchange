@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import { simulateSubscription, getPremiumPlans, refreshUserData } from "@/lib/api/premium";
 import "../../Components/Styles/Checkout.scss";
 
 export default function CheckoutPage() {
@@ -10,13 +11,55 @@ export default function CheckoutPage() {
   const [method, setMethod] = useState("card");
   const [saveInfo, setSaveInfo] = useState(false);
   const [email] = useState("jtumukunde60@gmail.com");
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const router = useRouter();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log({ email, method, saveInfo, plan: planParam });
-    alert(
-      `Static demo: payment simulated for ${planParam}. Full integration comes next.`
-    );
+    
+    try {
+      setProcessing(true);
+      setError(null);
+      
+      // Get all plans to find the matching plan ID
+      const response = await getPremiumPlans();
+      const plans = Array.isArray(response) ? response : (response.data || []);
+      
+      // Map plan names to find the right plan
+      const planMap = {
+        'monthly': plans.find(p => p.duration === 1),
+        'half-year': plans.find(p => p.duration === 6),
+        'yearly': plans.find(p => p.duration === 12),
+      };
+      
+      const selectedPlan = planMap[planParam];
+      
+      if (!selectedPlan) {
+        throw new Error('Plan not found');
+      }
+      
+      // Activate premium subscription
+      await simulateSubscription(selectedPlan.id);
+      
+      // Refresh user data to update premium status in localStorage
+      await refreshUserData();
+      
+      // Success - redirect to dashboard
+      alert('✅ Premium activated successfully! Redirecting...');
+      setTimeout(() => {
+        router.push('/dashboard');
+        window.location.reload();
+      }, 1500);
+      
+    } catch (err) {
+      console.error('Subscription error:', err);
+      const message = err.response?.data?.message || err.message || 'Failed to activate premium';
+      setError(message);
+      alert(`❌ ${message}`);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const planConfig = {
@@ -196,9 +239,19 @@ export default function CheckoutPage() {
             </label>
 
             {/* SUBMIT */}
-            <button className="start-btn" type="submit">
-                Submit Payment
+            <button 
+              className="start-btn" 
+              type="submit"
+              disabled={processing}
+            >
+              {processing ? 'Processing...' : 'Submit Payment'}
             </button>
+
+            {error && (
+              <div style={{color: '#ff6b6b', marginTop: '12px', textAlign: 'center'}}>
+                {error}
+              </div>
+            )}
 
             {/* FOOTER */}
             <p className="legal">
