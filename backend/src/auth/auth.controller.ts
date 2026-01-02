@@ -65,12 +65,7 @@ export class AuthController {
   async register(@Body() registerDto: RegisterDto) {
     try {
       const result = await this.authService.register(registerDto);
-      return {
-        data: result,
-        message: 'Success',
-        statusCode: 201,
-        timestamp: new Date().toISOString()
-      };
+      return result;
     } catch (error) {
       // Log the error for debugging
       console.error('Registration controller error:', error);
@@ -140,12 +135,7 @@ export class AuthController {
   async login(@Body() loginDto: LoginDto) {
     try {
       const result = await this.authService.login(loginDto);
-      return {
-        data: result,
-        message: 'Success',
-        statusCode: 200,
-        timestamp: new Date().toISOString()
-      };
+      return result;
     } catch (error) {
       console.error('Login controller error:', error);
       throw error;
@@ -238,12 +228,7 @@ export class AuthController {
   async createDemo() {
     try {
       const result = await this.authService.createDemoAccount();
-      return {
-        data: result,
-        message: 'Success',
-        statusCode: 201,
-        timestamp: new Date().toISOString()
-      };
+      return result;
     } catch (error) {
       console.error('Demo account creation error:', error);
       throw error;
@@ -333,12 +318,7 @@ export class AuthController {
     } else if (!user.id) {
       console.error('GET /auth/me - User missing id field:', Object.keys(user));
     }
-    return { 
-      data: { user },
-      message: 'Success',
-      statusCode: 200,
-      timestamp: new Date().toISOString()
-    };
+    return { user };
   }
 
   @Get('test')
@@ -398,12 +378,7 @@ export class AuthController {
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     try {
       const result = await this.authService.forgotPassword(forgotPasswordDto);
-      return {
-        data: result,
-        message: 'Success',
-        statusCode: 200,
-        timestamp: new Date().toISOString()
-      };
+      return result;
     } catch (error) {
       console.error('Forgot password error:', error);
       throw error;
@@ -445,12 +420,7 @@ export class AuthController {
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     try {
       const result = await this.authService.resetPassword(resetPasswordDto);
-      return {
-        data: result,
-        message: 'Success',
-        statusCode: 200,
-        timestamp: new Date().toISOString()
-      };
+      return result;
     } catch (error) {
       console.error('Reset password error:', error);
       throw error;

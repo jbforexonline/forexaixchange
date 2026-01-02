@@ -8,6 +8,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -27,7 +28,8 @@ $border-color: rgba(100, 200, 255, 0.2);
   padding: 40px 20px;
   animation: fadeIn 0.5s ease;
 
-  .loading, .error-message {
+  .loading,
+  .error-message {
     text-align: center;
     padding: 60px 20px;
     font-size: 18px;
@@ -219,71 +221,192 @@ $border-color: rgba(100, 200, 255, 0.2);
     }
   }
 
-  .earnings-history {
+  .referrals-list,
+  .earnings-history,
+  .table-section {
+    margin-top: 2.5rem;
+    background: rgba(30, 41, 59, 0.4);
+    padding: 2rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+
     h2 {
-      font-size: 28px;
-      font-weight: 700;
-      color: #fff;
-      margin-bottom: 24px;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: #f1f5f9;
     }
 
-    .earnings-table {
-      background: $card-bg;
-      border: 1px solid $border-color;
-      border-radius: 12px;
-      overflow: hidden;
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
 
-      .earning-row {
-        display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: 16px;
-        padding: 16px 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      h2 {
+        margin-bottom: 0;
+      }
+
+      .table-info {
+        font-size: 0.85rem;
+        color: rgba(255, 255, 255, 0.5);
+      }
+    }
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      opacity: 0.3;
+    }
+
+    p {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.95rem;
+      margin: 0;
+    }
+  }
+
+  .referrals-table,
+  .earnings-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0 0.75rem;
+    margin-top: -0.75rem; // Adjust for spacing
+
+    thead th {
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      text-align: left;
+
+      &:first-child { border-radius: 12px 0 0 12px; }
+      &:last-child { border-radius: 0 12px 12px 0; }
+    }
+
+    tbody tr {
+      background: rgba(255, 255, 255, 0.02);
+      transition: all 0.3s ease;
+      
+      &:hover {
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateX(5px);
+        
+        td {
+          border-color: rgba(100, 200, 255, 0.3);
+        }
+      }
+
+      td {
+        padding: 1.25rem 1rem;
+        border-top: 1px solid transparent;
+        border-bottom: 1px solid transparent;
+        vertical-align: middle;
+
+        &:first-child { 
+          border-left: 1px solid transparent;
+          border-radius: 12px 0 0 12px; 
+        }
+        &:last-child { 
+          border-right: 1px solid transparent;
+          border-radius: 0 12px 12px 0; 
+        }
+      }
+    }
+
+    .ref-user {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+
+      .user-icon {
+        width: 40px;
+        height: 40px;
+        background: rgba(100, 200, 255, 0.1);
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 50%;
+        display: flex;
         align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        flex-shrink: 0;
+      }
 
-        &:last-child {
-          border-bottom: none;
-        }
-
-        &:hover {
-          background: rgba(100, 200, 255, 0.05);
-        }
-
-        .earning-user {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          color: #fff;
-          font-weight: 500;
-
-          .user-icon {
-            font-size: 20px;
-          }
-        }
-
-        .earning-tier {
-          color: rgba(255, 255, 255, 0.6);
-          font-size: 14px;
-        }
-
-        .earning-amount {
-          color: $success-color;
+      .user-info {
+        .username {
           font-weight: 600;
-          font-size: 16px;
+          color: #f8fafc;
+          font-size: 1rem;
+          margin-bottom: 2px;
         }
-
-        .earning-status {
-          font-size: 14px;
-          font-weight: 600;
-
-          &.paid {
-            color: $success-color;
-          }
-
-          &.pending {
-            color: $warning-color;
-          }
+        .email {
+          font-size: 0.8rem;
+          color: rgba(255, 255, 255, 0.4);
         }
+      }
+    }
+
+    .ref-date {
+      color: #94a3b8;
+      font-size: 0.9rem;
+    }
+
+    .amount-cell {
+      font-weight: 700;
+      color: #fff;
+      font-family: 'Inter', monospace;
+    }
+
+    .ref-commission {
+      color: #d4af37; // Gold for commission
+    }
+
+    .ref-status {
+      font-size: 0.75rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+
+      &.active {
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        border: 1px solid rgba(16, 185, 129, 0.2);
+      }
+
+      &.inactive {
+        background: rgba(148, 163, 184, 0.1);
+        color: #94a3b8;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .referral-page {
+
+    .referrals-table,
+    .earnings-table {
+      .table-header {
+        display: none;
+      }
+
+      .referral-row,
+      .earning-row {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 0.5rem;
       }
     }
   }

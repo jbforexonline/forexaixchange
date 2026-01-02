@@ -12,6 +12,7 @@ export type WebSocketEvent =
   | 'betPlaced'
   | 'totalsUpdated'
   | 'walletUpdated'
+  | 'roundOpened'
   | 'roundStateChanged'
   | 'heartbeat'
   | 'connected'
@@ -34,6 +35,7 @@ class WebSocketClient {
       'betPlaced',
       'totalsUpdated',
       'walletUpdated',
+      'roundOpened',
       'roundStateChanged',
       'heartbeat',
       'connected',

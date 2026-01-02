@@ -4,6 +4,7 @@ import { TransactionType, TransactionStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { inspect } from 'util';
+import { AffiliateService } from '../affiliate/affiliate.service';
 
 @Injectable()
 export class WalletService {
@@ -27,6 +28,7 @@ export class WalletService {
   constructor(
     private prisma: PrismaService,
     private gateway: RealtimeGateway,
+    private affiliateService: AffiliateService,
   ) { }
 
   private enableDemoMode(reason?: any) {
@@ -262,6 +264,14 @@ export class WalletService {
               },
             },
           });
+
+          // Process affiliate commission for deposit
+          try {
+            await this.affiliateService.processAffiliateCommission(userId, amount);
+          } catch (affiliateError) {
+            this.logger.error(`Failed to process affiliate commission for deposit: ${affiliateError.message}`);
+            // Don't fail the deposit if affiliate processing fails
+          }
 
           return {
             transaction,
@@ -537,6 +547,19 @@ export class WalletService {
       this.logger.log(
         `💰 Withdrawal ${approved ? 'APPROVED' : 'REJECTED'} - User: ${updatedTransaction.userId}, Balance updated in real-time`,
       );
+
+      // Process affiliate commission if approved
+      if (approved) {
+        try {
+          await this.affiliateService.processWithdrawalCommission(
+            updatedTransaction.userId,
+            updatedTransaction.amount,
+          );
+        } catch (error) {
+          this.logger.error(`Error processing affiliate commission for withdrawal ${transactionId}:`, error);
+        }
+      }
+
       return updatedTransaction;
     });
   }

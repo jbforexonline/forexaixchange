@@ -277,4 +277,14 @@ export class WalletController {
   async rejectTransfer(@Param('id') id: string, @CurrentUser() user: any) {
     return this.walletService.processTransfer(id, false, user.id);
   }
+  
+  @Post('demo/reset')
+  @ApiOperation({ summary: 'Reset demo wallet balance to starting amount' })
+  @ApiResponse({ status: 200, description: 'Demo balance reset successfully' })
+  async resetDemoBalance(
+    @CurrentUser() user: any,
+    @Body('amount') amount: number,
+  ) {
+    return this.walletService.resetDemoBalance(user.id, amount || 10000);
+  }
 }

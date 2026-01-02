@@ -242,6 +242,82 @@ export default function ReferralPage() {
                             </div>
                         </div>
                     </div>
+
+                    <div className="table-section overview-referrals" style={{ marginTop: '2rem' }}>
+                        <div className="section-header">
+                            <h2>Your Referrals</h2>
+                        </div>
+                        
+                        {safeReferrals.length > 0 ? (
+                            <div className="table-container">
+                                <table className="referrals-table">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Joined Date</th>
+                                            <th>Total Deposits</th>
+                                            <th>Your Commission</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {safeReferrals.slice(0, 10).map((referral, index) => (
+                                            <tr key={referral.id || `referral-${index}`} className="referral-row">
+                                                <td className="ref-user-cell" data-label="User">
+                                                    <div className="ref-user">
+                                                        <div className="user-icon">👤</div>
+                                                        <div className="user-info">
+                                                            <div className="username">{referral.username || 'Unknown User'}</div>
+                                                            <div className="email">{referral.email || 'No email'}</div>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="ref-date" data-label="Joined Date">
+                                                    {referral.createdAt 
+                                                        ? new Date(referral.createdAt).toLocaleDateString() 
+                                                        : 'N/A'}
+                                                </td>
+                                                <td className="amount-cell ref-activity" data-label="Total Deposits">
+                                                    ${(referral.totalDeposited || 0).toFixed(2)}
+                                                </td>
+                                                <td className="amount-cell commission-cell ref-commission" data-label="Your Commission">
+                                                    ${(referral.yourCommission || 0).toFixed(2)}
+                                                </td>
+                                                <td className="ref-status-cell" data-label="Status">
+                                                    <span className={`ref-status ${referral.status === 'Active' ? 'active' : 'inactive'}`}>
+                                                        {referral.status || 'Inactive'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {safeReferrals.length > 10 && (
+                                    <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                                        <button 
+                                            onClick={() => setActiveTab('referrals')}
+                                            className="view-all-btn"
+                                            style={{ 
+                                                background: 'transparent', 
+                                                color: '#64c8ff', 
+                                                border: '1px solid #64c8ff',
+                                                padding: '8px 16px',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer'
+                                            }}
+                                        >
+                                            View All Referrals
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="empty-state">
+                                <div className="empty-icon">👥</div>
+                                <p>No referrals yet. Share your link above to start earning commissions!</p>
+                            </div>
+                        )}
+                    </div>
                 </>
             )}
 

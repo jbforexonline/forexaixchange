@@ -63,13 +63,13 @@ export function useRound() {
       console.log('useRound: Fetching current round...');
       const data = await getCurrentRound();
       console.log('useRound: Got response:', data);
-      
+
       if (data.round) {
         console.log('useRound: Round found:', data.round.roundNumber, data.round.state);
         roundRef.current = data.round;
         const calculated = calculateState(data.round);
         console.log('useRound: Calculated state:', calculated);
-        
+
         setRoundState(prev => ({
           ...prev,
           round: data.round!,
@@ -77,7 +77,7 @@ export function useRound() {
           error: null,
           ...calculated,
         }));
-        
+
         // Fetch totals in background
         if (data.round.id) {
           getRoundTotals(data.round.id)
@@ -148,7 +148,7 @@ export function useRound() {
   // Setup WebSocket listeners
   useEffect(() => {
     const client = getWebSocketClient();
-    
+
     // Connect if not already connected
     if (client.getState() === 'CLOSED') {
       client.connect();
@@ -201,34 +201,11 @@ export function useRound() {
     };
   }, [fetchRound]);
 
-  // Polling fallback (every 10s) to ensure sync if socket misses
+  // Consolidate periodic sync (every 10s) to ensure state stays valid if WebSocket misses an event
   useEffect(() => {
-    // We keep a slow poll as a backup to websockets to prevent getting stuck
     const pollInterval = setInterval(fetchRound, 10000);
     return () => clearInterval(pollInterval);
   }, [fetchRound]);
-
-  // Polling fallback (every 10s) to ensure sync if socket misses
-  useEffect(() => {
-    // We keep a slow poll as a backup to websockets to prevent getting stuck
-    const pollInterval = setInterval(fetchRound, 10000);
-    return () => clearInterval(pollInterval);
-  }, [fetchRound]);
-
-  // Update countdown every second
-  useEffect(() => {
-    if (roundState.round) {
-      intervalRef.current = setInterval(() => {
-        updateCountdown(roundState.round);
-      }, 1000);
-
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
-    }
-  }, [roundState.round, updateCountdown]);
 
   // Removed periodic polling — now relies on Socket.IO events:
   // - roundSettled: triggers fetchRound() to get new round

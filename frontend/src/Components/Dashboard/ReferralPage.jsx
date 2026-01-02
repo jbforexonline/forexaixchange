@@ -16,7 +16,8 @@ export default function ReferralPage() {
     const loadData = async () => {
         try {
             setLoading(true);
-            const data = await getReferralData();
+            const result = await getReferralData();
+            const data = result?.data ?? result;
             setStats(data);
         } catch (err) {
             console.error("Failed to load referral data:", err);
@@ -138,15 +139,61 @@ export default function ReferralPage() {
                 </div>
             </div>
 
+            <div className="referrals-list">
+                <h2>Referred Users</h2>
+                {stats?.referrals && stats.referrals.length > 0 ? (
+                    <div className="referrals-table">
+                        <div className="table-header">
+                            <div>User</div>
+                            <div>Joined</div>
+                            <div>Total Activity</div>
+                            <div>Total Commission</div>
+                            <div>Status</div>
+                        </div>
+                        {stats.referrals.map((ref) => (
+                            <div key={ref.id} className="referral-row">
+                                <div className="ref-user">
+                                    <span className="user-icon">👤</span>
+                                    {ref.username}
+                                </div>
+                                <div className="ref-date">
+                                    {new Date(ref.createdAt).toLocaleDateString()}
+                                </div>
+                                <div className="ref-activity">
+                                    ${(ref.totalDeposited || 0).toFixed(2)}
+                                </div>
+                                <div className="ref-commission">
+                                    ${((ref.yourCommission || 0)).toFixed(2)}
+                                </div>
+                                <div className={`ref-status ${ref.status.toLowerCase()}`}>
+                                    {ref.status}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="empty-state-container">
+                        <div className="empty-icon">👥</div>
+                        <p>No referrals yet. Share your link above to start earning commissions!</p>
+                    </div>
+                )}
+            </div>
+
             {stats?.earnings && stats.earnings.length > 0 && (
                 <div className="earnings-history">
                     <h2>Recent Earnings</h2>
                     <div className="earnings-table">
+                        <div className="table-header">
+                            <div>Source</div>
+                            <div>Type</div>
+                            <div>Amount</div>
+                            <div>Status</div>
+                        </div>
                         {stats.earnings.slice(0, 10).map((earning) => (
                             <div key={earning.id} className="earning-row">
                                 <div className="earning-user">
-                                    <span className="user-icon">👤</span>
-                                    {earning.referredUser?.username || 'Unknown'}
+                                    <span className="user-icon">💰</span>
+                                    {earning.description || 'Commission'}
                                 </div>
                                 <div className="earning-tier">{earning.tier}</div>
                                 <div className="earning-amount">${earning.amount.toFixed(2)}</div>

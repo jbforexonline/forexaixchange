@@ -85,6 +85,17 @@ export async function subscribeToPlan(planId: string) {
 }
 
 /**
+ * Upgrade or change current subscription plan
+ */
+export async function upgradeSubscription(planId: string) {
+  const response = await fetch(`${API_URL}/premium/change/${planId}`, {
+    method: 'POST',
+    headers: getHeaders(),
+  });
+  return handleResponse(response);
+}
+
+/**
  * Get active subscription
  */
 export async function getActiveSubscription() {

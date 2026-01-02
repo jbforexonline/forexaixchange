@@ -9,13 +9,13 @@ export class PremiumController {
   constructor(
     private readonly premiumService: PremiumService,
     private readonly jwtService: JwtService,
-  ) {}
+  ) { }
 
   private extractUserId(headers: any): string | null {
     try {
       const authHeader = headers.authorization || headers.Authorization;
       if (!authHeader) return null;
-      
+
       const token = authHeader.replace('Bearer ', '');
       const decoded = this.jwtService.decode(token) as any;
       return decoded?.userId || decoded?.sub || decoded?.id || null;
@@ -77,6 +77,21 @@ export class PremiumController {
       throw new UnauthorizedException('Authentication required');
     }
     return this.premiumService.getUserSubscription(userId);
+  }
+
+  @Post('change/:planId')
+  @ApiOperation({ summary: 'Change or upgrade premium plan (handles prorated credit)' })
+  @ApiResponse({ status: 200, description: 'Subscription updated successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  async changeSubscription(
+    @Param('planId') planId: string,
+    @Headers() headers: any,
+  ) {
+    const userId = this.extractUserId(headers);
+    if (!userId) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return this.premiumService.changeSubscription(userId, planId);
   }
 
   @Delete('subscription')

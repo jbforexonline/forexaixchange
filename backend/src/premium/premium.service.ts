@@ -16,10 +16,75 @@ export class PremiumService {
    */
   async getPlans() {
     try {
-      const plans = await this.prisma.premiumPlan.findMany({
+      let plans = await this.prisma.premiumPlan.findMany({
         where: { isActive: true },
         orderBy: { duration: 'asc' },
       });
+
+      // Auto-seed if empty
+      if (plans.length === 0) {
+        console.log('No plans found, auto-seeding...');
+        const initialPlans = [
+          {
+            name: '1 Month Premium',
+            duration: 1,
+            price: new Decimal(10),
+            features: [
+              'Verification badge',
+              'Auto-press orders',
+              'Unlimited withdrawals',
+              'No withdrawal fees',
+              'Access to member chatroom',
+              'Early access to crypto & stock spin',
+              '5/10/20 min spin cycles',
+              'Auto-spin option',
+            ],
+          },
+          {
+            name: '6 Months Premium',
+            duration: 6,
+            price: new Decimal(50),
+            features: [
+              'Verification badge',
+              'Auto-press orders',
+              'Unlimited withdrawals',
+              'No withdrawal fees',
+              'Access to member chatroom',
+              'Early access to crypto & stock spin',
+              '5/10/20 min spin cycles',
+              'Auto-spin option',
+              '17% savings',
+            ],
+          },
+          {
+            name: '1 Year Premium',
+            duration: 12,
+            price: new Decimal(90),
+            features: [
+              'Verification badge',
+              'Auto-press orders',
+              'Unlimited withdrawals',
+              'No withdrawal fees',
+              'Access to member chatroom',
+              'Early access to crypto & stock spin',
+              '5/10/20 min spin cycles',
+              'Auto-spin option',
+              '25% savings',
+            ],
+          },
+        ];
+
+        for (const plan of initialPlans) {
+          await this.prisma.premiumPlan.create({
+            data: plan,
+          });
+        }
+
+        plans = await this.prisma.premiumPlan.findMany({
+          where: { isActive: true },
+          orderBy: { duration: 'asc' },
+        });
+      }
       
       return plans;
     } catch (error) {

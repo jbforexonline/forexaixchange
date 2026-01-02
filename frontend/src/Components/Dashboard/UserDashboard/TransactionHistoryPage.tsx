@@ -51,7 +51,7 @@ export default function TransactionHistoryPage() {
   // Refresh when navigating to this page or when window gains focus (e.g., after making a deposit)
   useEffect(() => {
     const handleFocus = () => {
-      const isHistoryPage = pathname === "/history" || pathname === "/user-dashboard/history";
+      const isHistoryPage = pathname === "/history" || pathname === "/dashboard/history";
       if (isHistoryPage) {
         fetchTransactions();
       }

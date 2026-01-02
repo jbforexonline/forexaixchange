@@ -127,15 +127,15 @@ export default function UserDashboard() {
             <div className="quick-actions">
               <h3>Quick Actions</h3>
               <div className="action-buttons">
-                <a href="/user-dashboard/deposit" className="action-btn primary">
+                <a href="/dashboard/deposit" className="action-btn primary">
                   <span className="btn-icon">💸</span>
                   Deposit
                 </a>
-                <a href="/user-dashboard/transfer" className="action-btn">
+                <a href="/dashboard/transfer" className="action-btn">
                   <span className="btn-icon">💳</span>
                   Transfer
                 </a>
-                <a href="/user-dashboard/spin" className="action-btn">
+                <a href="/dashboard/spin" className="action-btn">
                   <span className="btn-icon">🎰</span>
                   Place Bet
                 </a>
@@ -148,14 +148,14 @@ export default function UserDashboard() {
           <div className="investments-content">
             <div className="investments-header">
               <h3>Active Bets</h3>
-              <a href="/user-dashboard/spin" className="add-investment-btn">+ Place New Bet</a>
+              <a href="/dashboard/spin" className="add-investment-btn">+ Place New Bet</a>
             </div>
             
             <div className="investments-grid">
               {loading ? (
                 <div>Loading bets...</div>
               ) : bets.length === 0 ? (
-                <div className="empty-state">No active bets. <a href="/user-dashboard/spin">Place your first bet!</a></div>
+                <div className="empty-state">No active bets. <a href="/dashboard/spin">Place your first bet!</a></div>
               ) : (
                 bets.slice(0, 6).map(bet => (
                   <div key={bet.id} className="investment-card">

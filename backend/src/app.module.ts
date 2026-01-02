@@ -16,6 +16,8 @@ import { ChatModule } from './chat/chat.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { AppThrottlerModule } from './common/throttler.module';
 
+import { RealtimeModule } from './realtime/realtime.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -31,8 +33,9 @@ import { AppThrottlerModule } from './common/throttler.module';
     RoundsModule,
     ChatModule,
     PreferencesModule,
+    RealtimeModule,
   ],
   controllers: [HealthController],
-  providers: [PrismaService, RealtimeGateway],
+  providers: [PrismaService],
 })
 export class AppModule {}
