@@ -201,9 +201,10 @@ export function useRound() {
     };
   }, [fetchRound]);
 
-  // Polling fallback (every 5s) to ensure sync if socket misses
+  // Polling fallback (every 10s) to ensure sync if socket misses
   useEffect(() => {
-    const pollInterval = setInterval(fetchRound, 5000);
+    // We keep a slow poll as a backup to websockets to prevent getting stuck
+    const pollInterval = setInterval(fetchRound, 10000);
     return () => clearInterval(pollInterval);
   }, [fetchRound]);
 

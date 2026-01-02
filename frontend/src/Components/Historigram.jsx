@@ -13,7 +13,8 @@ import {
 import React from "react";
 import "../Components/Styles/Historigram.scss";
 import { getRoundHistory } from "../lib/api/spin";
-import { useEffect, useState } from "react";
+import { getWebSocketClient } from "../lib/websocket";
+import { useEffect, useState, useRef } from "react";
 
 const DEFAULT_KEYS = [
   "Buy",
@@ -128,9 +129,21 @@ export default function Histogram({
     };
 
     fetchHistory();
-    // Refresh every minute
-    const interval = setInterval(fetchHistory, 60000);
-    return () => clearInterval(interval);
+    
+    // Connect to WebSocket for real-time updates (instead of polling)
+    const socket = getWebSocketClient();
+    if (socket.getState() === 'CLOSED') {
+      socket.connect();
+    }
+
+    const unsubscribe = socket.on('roundSettled', (data) => {
+      console.log('Round settled, refreshing history:', data.roundNumber);
+      fetchHistory();
+    });
+
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   // Use real history if available, else fallback slightly or just show loading

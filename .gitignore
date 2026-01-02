@@ -1,7 +1,0 @@
-node_modules/
-.env
-.env.*
-frontend/.env*
-backend/.env
-backend/infra/.env
-algorithm.txt

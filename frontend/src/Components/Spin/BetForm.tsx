@@ -24,6 +24,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
   const {
     round,
     state: roundState,
+    countdown,
     timeUntilFreeze,
     loading: roundLoading,
   } = useRound();
@@ -124,51 +125,77 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
   const canBet = roundState === 'open' && roundId && !isSubmitting;
 
   return (
-    <div className="bet-form-container">
-      <div className="bet-form-header">
-        <h3>Place Your Order</h3>
-        {isPremium && <span className="premium-badge">⭐ Premium</span>}
-      </div>
+    <div className={`bet-bar ${isExpanded ? "expanded" : ""}`}>
+      <button
+        className="bet-bar-toggle"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        {isExpanded 
+          ? "▼ COLLAPSE BET PANEL" 
+          : (
+            <span>
+              ▲ PLACE BET 
+              {round && !isFrozen && <span style={{marginLeft: '10px', opacity: 0.8}}>⏳ {timeUntilFreeze}s</span>}
+              {round && isFrozen && <span style={{marginLeft: '10px', opacity: 0.8}}>⏳ Next round: {countdown}s</span>}
+            </span>
+          )
+        }
+      </button>
 
-      <form onSubmit={handleSubmit} className="bet-form">
-        {/* Market Selection */}
-        <div className="form-group">
-          <label className="form-label">Select Market</label>
-          <div className="market-buttons">
-            <button
-              type="button"
-              className={`market-btn ${selectedMarket === 'OUTER' ? 'active' : ''}`}
-              onClick={() => setSelectedMarket('OUTER')}
-            >
-              OUTER
-              <span className="market-subtitle">Direction</span>
-            </button>
-            <button
-              type="button"
-              className={`market-btn ${selectedMarket === 'MIDDLE' ? 'active' : ''}`}
-              onClick={() => setSelectedMarket('MIDDLE')}
-            >
-              MIDDLE
-              <span className="market-subtitle">Color Mode</span>
-            </button>
-            <button
-              type="button"
-              className={`market-btn ${selectedMarket === 'INNER' ? 'active' : ''}`}
-              onClick={() => setSelectedMarket('INNER')}
-            >
-              INNER
-              <span className="market-subtitle">Volatility</span>
-            </button>
-            <button
-              type="button"
-              className={`market-btn ${selectedMarket === 'GLOBAL' ? 'active' : ''}`}
-              onClick={() => setSelectedMarket('GLOBAL')}
-            >
-              GLOBAL
-              <span className="market-subtitle">Indecision</span>
-            </button>
+      <div className="bet-bar-content">
+        <div className="bet-bar-header">
+          <div className="balance-display">
+            <span className="label">Balance:</span>
+            <span className="amount">
+              ${(wallet?.available || 0).toFixed(2)}
+            </span>
           </div>
+          {!canPlaceBet && (
+            <div className="status-warning">
+              {roundLoading && "🔄 Fetching round data..."}
+              {isFrozen && "❌ Betting closed (round frozen)"}
+            </div>
+          )}
+          {round && !isFrozen && (
+            <div className={`timer-display ${timeUntilFreeze < 10 ? 'urgent' : ''}`}>
+               ⏳ Closing in: <strong>{timeUntilFreeze}s</strong>
+            </div>
+          )}
+          {round && isFrozen && (
+             <div className="timer-display waiting">
+               Next round in: <strong>{countdown}s</strong>
+             </div>
+          )}
         </div>
+
+        <form onSubmit={handleSubmit} className="bet-bar-form">
+          <div className="form-row">
+            <div className="form-section">
+              <label>Market</label>
+              <div className="btn-group">
+                <button
+                  type="button"
+                  className={market === "OUTER" ? "active" : ""}
+                  onClick={() => setMarket("OUTER")}
+                >
+                  Direction
+                </button>
+                <button
+                  type="button"
+                  className={market === "MIDDLE" ? "active" : ""}
+                  onClick={() => setMarket("MIDDLE")}
+                >
+                  Color
+                </button>
+                <button
+                  type="button"
+                  className={market === "INNER" ? "active" : ""}
+                  onClick={() => setMarket("INNER")}
+                >
+                  Volatility
+                </button>
+              </div>
+            </div>
 
         {/* Selection Buttons */}
         <div className="form-group">
@@ -219,12 +246,14 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
 
             <button
               type="submit"
-              className={`submit-btn ${loading ? "disabled" : "active"}`}
-              disabled={loading}
+              className={`submit-btn ${isButtonDisabled ? "disabled" : "active"} ${timeUntilFreeze < 10 ? 'pulsing' : ''}`}
+              disabled={isButtonDisabled}
             >
               {loading
                 ? "⏳ PLACING..."
-                : "🎯 PLACE BET"}
+                : isFrozen 
+                  ? "❌ CLOSED" 
+                  : `🎯 PLACE BET (${timeUntilFreeze}s)`}
             </button>
           </div>
           {!isPremium && (

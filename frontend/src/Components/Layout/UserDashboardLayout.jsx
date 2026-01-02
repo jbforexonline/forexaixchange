@@ -1,62 +1,34 @@
-"use client"
-
-import Link from 'next/link'
-import { useState, useEffect, useMemo } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
-import { logout } from '@/lib/auth'
-import { useUserData } from '@/hooks/useUserData'
-import { useDemo } from '@/context/DemoContext'
-import './UserDashboardLayout.scss'
+"use client";
+import React, { useState, useEffect } from "react";
+import { MotionConfig, motion } from "framer-motion";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, RotateCw, DollarSign, Crown, Gift } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { isPremiumUser } from "@/lib/api/spin";
 
 export default function UserDashboardLayout({ children }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isDarkMode, setIsDarkMode] = useState(false)
-  const pathname = usePathname()
-  const router = useRouter()
-  const { isDemo, toggleDemo } = useDemo()
-  const { user, wallet, subscription, loading, refresh, error } = useUserData() // Move useUserData up to destructure refresh
+  const [open, setOpen] = useState(true);
+  const [user, setUser] = useState(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const router = useRouter();
 
-  const handleReset = async (amount) => {
-    if (confirm(`Reset demo balance to ${amount}?`)) {
-      try {
-        await import('@/lib/api/wallet').then(m => m.resetDemoBalance(amount));
-        refresh();
-        alert('Balance reset!');
-      } catch (e) {
-        alert('Failed to reset: ' + e.message);
-      }
-    }
-  }
-
-  // Redirect to login if not authenticated (only after initial load completes)
   useEffect(() => {
-    if (!loading && !user && typeof window !== 'undefined') {
-      router.replace('/login')
-    }
-  }, [loading, user, router])
+    const currentUser = getCurrentUser();
+    setUser(currentUser);
+    setIsPremium(isPremiumUser());
+  }, []);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode)
-  }
+  const menuItems = [
+    { icon: Home, label: "Dashboard", href: "/dashboard" },
+    { icon: User, label: "Users", href: "/users" },
+    { icon: RotateCw, label: "Spin", href: "/dashboard/spin" },
+    { icon: DollarSign, label: "Withdraw", href: "/dashboard/withdraw" },
+    { icon: Crown, label: "Premium", href: "/dashboard/premium" },
+    { icon: Gift, label: "Referrals", href: "/dashboard/referrals" },
+    { icon: Settings, label: "Logout", href: "/login" },
+  ];
 
-  const handleLogout = () => {
-    logout()
-    router.push('/login')
-  }
-
-  // Memoized balance formatting to avoid unnecessary recalculations
-  const formattedBalance = useMemo(() => {
-    if (!wallet?.available) return '0.00'
-    return typeof wallet.available === 'number' ? wallet.available.toFixed(2) : '0.00'
-  }, [wallet?.available])
-
-  // Memoized user display info
-  const userDisplayInfo = useMemo(() => ({
-    avatar: user?.username?.charAt(0)?.toUpperCase() || 'U',
-    name: user?.username || 'User',
-    isPremium: !!subscription?.plan,
-    planName: subscription?.plan?.name || 'Free',
-  }), [user?.username, subscription?.plan])
+  const goBackToLogin = () => router.push("/login");
 
   return (
     <div className={`dashboard-root ${isDarkMode ? 'dark' : 'light'}`}>
@@ -283,14 +255,45 @@ export default function UserDashboardLayout({ children }) {
             })}
           </nav>
 
-          {/* <div className="eo-footer">
-            <div className="status-dot" />
-            {open && <div className="status-text">Online</div>}
-          </div> */}
+          {open && user && (
+            <div className="eo-footer">
+              <div className="user-info">
+                <div className="user-avatar">
+                  {user.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="user-details">
+                  <div className="user-name">{user.username}</div>
+                  {isPremium && <div className="premium-badge">👑 Premium</div>}
+                </div>
+              </div>
+            </div>
+          )}
         </motion.aside>
       </MotionConfig>
 
-      <main className="eo-main">{children}</main>
+      <main className="eo-main">
+        {user && (
+          <div className="dashboard-header">
+            <div className="header-left">
+              <h2>Welcome back, {user.username}!</h2>
+            </div>
+            <div className="header-right">
+              {isPremium && (
+                <div className="premium-status">
+                  <Crown size={18} />
+                  <span>Premium Member</span>
+                </div>
+              )}
+              <div className="user-menu">
+                <div className="user-avatar-header">
+                  {user.username?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {children}
+      </main>
     </div>
   );
 }

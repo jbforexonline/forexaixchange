@@ -1,0 +1,346 @@
+// ==========================================
+// PREMIUM PAGE DESIGN
+// Modern, Professional Pricing Page
+// ==========================================
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+$primary-color: #64c8ff;
+$success-color: #4ade80;
+$danger-color: #ff6b6b;
+$warning-color: #fbbf24;
+$dark-bg: #0a0f1e;
+$card-bg: rgba(20, 30, 50, 0.8);
+$border-color: rgba(100, 200, 255, 0.2);
+
+.premium-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  animation: fadeIn 0.5s ease;
+
+  .loading {
+    text-align: center;
+    padding: 60px 20px;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .premium-header {
+    text-align: center;
+    margin-bottom: 50px;
+
+    h1 {
+      font-size: 48px;
+      font-weight: 800;
+      background: linear-gradient(135deg, $primary-color, #a5d5ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+
+    p {
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
+  .error-banner,
+  .success-banner {
+    padding: 16px 24px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    font-weight: 600;
+    text-align: center;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .error-banner {
+    background: rgba(255, 107, 107, 0.1);
+    border: 1px solid rgba(255, 107, 107, 0.3);
+    color: $danger-color;
+  }
+
+  .success-banner {
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: $success-color;
+  }
+
+  .active-subscription {
+    background: linear-gradient(135deg, rgba(100, 200, 255, 0.1), rgba(100, 200, 255, 0.05));
+    border: 2px solid $primary-color;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: fadeIn 0.5s ease;
+
+    .subscription-badge {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+
+      .badge-icon {
+        font-size: 48px;
+      }
+
+      .badge-content {
+        h3 {
+          font-size: 24px;
+          color: $primary-color;
+          margin-bottom: 8px;
+        }
+
+        .plan-name {
+          font-size: 18px;
+          font-weight: 600;
+          color: #fff;
+          margin-bottom: 4px;
+        }
+
+        .expiry {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.6);
+        }
+
+        .simulated-badge {
+          display: inline-block;
+          background: rgba(251, 191, 36, 0.2);
+          color: $warning-color;
+          padding: 4px 12px;
+          border-radius: 6px;
+          font-size: 12px;
+          font-weight: 600;
+          margin-top: 8px;
+        }
+      }
+    }
+
+    .cancel-btn {
+      padding: 12px 24px;
+      background: rgba(255, 107, 107, 0.1);
+      border: 2px solid $danger-color;
+      border-radius: 8px;
+      color: $danger-color;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+
+      &:hover:not(:disabled) {
+        background: rgba(255, 107, 107, 0.2);
+        transform: translateY(-2px);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+    margin-bottom: 60px;
+
+    .plan-card {
+      background: $card-bg;
+      border: 2px solid $border-color;
+      border-radius: 16px;
+      padding: 32px;
+      transition: all 0.3s ease;
+      animation: fadeIn 0.5s ease;
+
+      &:hover {
+        transform: translateY(-8px);
+        border-color: $primary-color;
+        box-shadow: 0 10px 40px rgba(100, 200, 255, 0.2);
+      }
+
+      &.active {
+        border-color: $success-color;
+        background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(74, 222, 128, 0.05));
+      }
+
+      .plan-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+
+        h3 {
+          font-size: 28px;
+          font-weight: 700;
+          color: $primary-color;
+          margin-bottom: 16px;
+        }
+
+        .price {
+          display: flex;
+          align-items: baseline;
+          justify-content: center;
+          gap: 4px;
+
+          .amount {
+            font-size: 48px;
+            font-weight: 800;
+            color: #fff;
+          }
+
+          .period {
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.6);
+          }
+        }
+      }
+
+      .features-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 32px 0;
+
+        li {
+          padding: 12px 0;
+          color: rgba(255, 255, 255, 0.8);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+
+          .check {
+            color: $success-color;
+            font-weight: 700;
+            font-size: 18px;
+          }
+        }
+      }
+
+      .subscribe-btn {
+        width: 100%;
+        padding: 16px;
+        background: linear-gradient(135deg, $primary-color, #3b82f6);
+        border: none;
+        border-radius: 10px;
+        color: #000;
+        font-size: 16px;
+        font-weight: 700;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 5px 20px rgba(100, 200, 255, 0.3);
+
+        &:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 30px rgba(100, 200, 255, 0.5);
+          animation: pulse 1s infinite;
+        }
+
+        &:disabled {
+          background: linear-gradient(135deg, rgba(100, 200, 255, 0.3), rgba(59, 130, 246, 0.3));
+          color: rgba(255, 255, 255, 0.5);
+          cursor: not-allowed;
+          box-shadow: none;
+        }
+
+        &.active {
+          background: linear-gradient(135deg, $success-color, #22c55e);
+        }
+      }
+    }
+  }
+
+  .premium-features {
+    text-align: center;
+    margin-top: 80px;
+
+    h2 {
+      font-size: 36px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 40px;
+    }
+
+    .features-showcase {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 30px;
+
+      .feature-item {
+        padding: 32px;
+        background: $card-bg;
+        border: 1px solid $border-color;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+
+        &:hover {
+          transform: translateY(-4px);
+          border-color: $primary-color;
+        }
+
+        .feature-icon {
+          font-size: 48px;
+          margin-bottom: 16px;
+        }
+
+        h4 {
+          font-size: 20px;
+          font-weight: 600;
+          color: $primary-color;
+          margin-bottom: 12px;
+        }
+
+        p {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.7);
+          line-height: 1.6;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .premium-page {
+    padding: 20px 16px;
+
+    .premium-header h1 {
+      font-size: 32px;
+    }
+
+    .active-subscription {
+      flex-direction: column;
+      gap: 20px;
+      text-align: center;
+
+      .cancel-btn {
+        width: 100%;
+      }
+    }
+
+    .plans-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}
