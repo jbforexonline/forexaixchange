@@ -1,23 +1,31 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsPhoneNumber, ValidateIf } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString, MinLength, IsOptional, ValidateIf, MaxLength, Matches } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class RegisterDto {
   @ApiProperty({
-    description: 'User email address (required if phone not provided)',
+    description: 'User email address (optional if phone is provided)',
     example: 'user@example.com',
     required: false,
   })
-  @ValidateIf((o) => !o.phone)
-  @IsEmail({}, { message: 'Please provide a valid email address or phone number' })
+  @IsOptional()
+  @IsEmail({}, { message: 'Please provide a valid email address' })
+  @Transform(({ value }) => value?.toLowerCase().trim())
   email?: string;
 
   @ApiProperty({
-    description: 'User phone number (required if email not provided)',
-    example: '+1234567890',
+    description: 'User phone number (optional if email is provided)',
+    example: '+250788781558',
     required: false,
   })
-  @ValidateIf((o) => !o.email)
-  @IsPhoneNumber(undefined, { message: 'Please provide a valid phone number or email address' })
+  @IsOptional()
+  @IsString()
+  @Transform(({ value }) => {
+    if (!value) return value;
+    // Remove all non-digit characters
+    const cleaned = value.replace(/\D/g, '');
+    return cleaned;
+  })
   phone?: string;
 
   @ApiProperty({
@@ -27,6 +35,9 @@ export class RegisterDto {
   })
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+  })
   password: string;
 
   @ApiProperty({
@@ -34,6 +45,9 @@ export class RegisterDto {
     example: 'johndoe',
   })
   @IsString()
+  @MinLength(3, { message: 'Username must be at least 3 characters long' })
+  @MaxLength(20, { message: 'Username must be at most 20 characters long' })
+  @Matches(/^[a-zA-Z0-9_]+$/, { message: 'Username can only contain letters, numbers, and underscores' })
   username: string;
 
   @ApiProperty({
@@ -54,7 +68,7 @@ export class RegisterDto {
   @IsString()
   lastName?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Referral code from referring user',
     example: 'abc123def456',
     required: false,

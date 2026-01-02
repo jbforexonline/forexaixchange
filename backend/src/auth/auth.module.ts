@@ -5,28 +5,22 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-// import { GoogleStrategy } from './strategies/google.strategy';
 import { PrismaService } from '../database/prisma.service';
 import { OtpService } from './services/otp.service';
 
 @Module({
   imports: [
     PassportModule,
-  JwtModule.registerAsync({
-    imports: [ConfigModule],
-    useFactory: (configService: ConfigService) => {
-      const secret = configService.get<string>('JWT_SECRET', 'your-secret-key');
-      const expiresIn = configService.get<string>('JWT_EXPIRES_IN', '24h');
-      
-      return {
-        secret,
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('JWT_SECRET', 'your-secret-key'),
         signOptions: { 
-          expiresIn: expiresIn as any
+          expiresIn: configService.get<string>('JWT_EXPIRES_IN', '24h') as any,
         },
-      };
-    },
-    inject: [ConfigService],
-  }),
+      }),
+      inject: [ConfigService],
+    }),
   ],
   controllers: [AuthController],
   providers: [AuthService, JwtStrategy, PrismaService, OtpService],

@@ -449,14 +449,7 @@ export class BetsService {
       ];
 
       const totals: any = {};
-      const totals: any = {};
 
-      for (const key of keys) {
-        const value = await this.redis.get(`round:${roundId}:${key}`);
-        const [market, selection] = key.split(':');
-        if (!totals[market]) totals[market] = {};
-        totals[market][selection] = parseFloat(value || '0');
-      }
       for (const key of keys) {
         const value = await this.redis.get(`round:${roundId}:${key}`);
         const [market, selection] = key.split(':');

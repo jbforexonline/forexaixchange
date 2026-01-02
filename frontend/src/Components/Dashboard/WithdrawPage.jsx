@@ -56,7 +56,7 @@ export default function WithdrawPage() {
     setLoading(true);
     try {
       const method = withdrawMethod === "bank" ? "Bank" : mobileMoneyDetails.provider || "MTN";
-      const reference = withdrawMethod === "bank" 
+      const reference = withdrawMethod === "bank"
         ? `BANK-${bankDetails.accountNumber}-${Date.now()}`
         : `MOBILE-${mobileMoneyDetails.phoneNumber}-${Date.now()}`;
 
@@ -187,6 +187,8 @@ export default function WithdrawPage() {
                 <label>Withdrawal Method</label>
                 <div style={{ display: "flex", gap: "0.75rem", marginBottom: "1rem" }}>
                   <button
+                    className={`method-btn ${withdrawMethod === "bank" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("bank")}
                     style={{
                       flex: 1,
@@ -203,6 +205,8 @@ export default function WithdrawPage() {
                     🏦 Bank
                   </button>
                   <button
+                    className={`method-btn ${withdrawMethod === "mobile" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("mobile")}
                     style={{
                       flex: 1,
@@ -287,9 +291,9 @@ export default function WithdrawPage() {
               </div>
 
               <button
-                onClick={handleWithdraw}
-                disabled={loading || walletLoading || !amount || parseFloat(amount) <= 0}
-                className="primary-button"
+                className="withdraw-btn"
+                onClick={handleRequest}
+                disabled={loading || walletLoading}
               >
                 {loading ? "⏳ Processing..." : "💸 Request Withdrawal"}
               </button>
@@ -313,7 +317,7 @@ export default function WithdrawPage() {
                     day: "numeric",
                     year: "numeric",
                   });
-                  
+
                   return (
                     <div key={tx.id} className="transaction-item">
                       <div style={{
