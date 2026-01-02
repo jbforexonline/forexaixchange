@@ -1,24 +1,272 @@
-import { Controller, Get, Body } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { 
+  Controller, 
+  Get, 
+  Post, 
+  Body, 
+  Query, 
+  Headers, 
+  UnauthorizedException,
+  BadRequestException,
+  UseGuards
+} from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { AuthGuard } from '@nestjs/passport';
 import { AffiliateService } from './affiliate.service';
 
 @ApiTags('Affiliate')
 @Controller('affiliate')
+@UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth()
 export class AffiliateController {
   constructor(private readonly affiliateService: AffiliateService) {}
 
   @Get()
   @ApiOperation({ summary: 'Get user affiliate data' })
-  @ApiResponse({ status: 200, description: 'Affiliate data retrieved successfully' })
-  async getUserAffiliateData(@Body() body: any) {
-    const userId = body.userId || 'default-user';
-    return this.affiliateService.getUserAffiliateData(userId);
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Affiliate data retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            affiliateCode: { type: 'string' },
+            totalReferrals: { type: 'number' },
+            activeReferrals: { type: 'number' },
+            totalEarnings: { type: 'number' },
+            totalPaid: { type: 'number' },
+            pendingPayout: { type: 'number' },
+            referrals: { type: 'array' },
+            earnings: { type: 'array' },
+          }
+        }
+      }
+    }
+  })
+  async getUserAffiliateData(@Headers('authorization') authorization: string) {
+    try {
+      // Extract user ID from JWT token
+      const userId = this.extractUserIdFromToken(authorization);
+      const data = await this.affiliateService.getUserAffiliateData(userId);
+      
+      return {
+        success: true,
+        data,
+      };
+    } catch (error) {
+      console.error('Error in getUserAffiliateData endpoint:', error);
+      
+      // Return default data if there's an error
+      return {
+        success: false,
+        data: {
+          affiliateCode: '',
+          totalReferrals: 0,
+          activeReferrals: 0,
+          totalEarnings: 0,
+          totalPaid: 0,
+          pendingPayout: 0,
+          referrals: [],
+          earnings: [],
+        },
+        error: error.message,
+      };
+    }
+  }
+
+  @Get('referrals')
+  @ApiOperation({ summary: 'Get user referrals list' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Referrals list retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: { type: 'array' }
+      }
+    }
+  })
+  async getUserReferrals(@Headers('authorization') authorization: string) {
+    try {
+      const userId = this.extractUserIdFromToken(authorization);
+      const referrals = await this.affiliateService.getUserReferrals(userId);
+      
+      return {
+        success: true,
+        data: referrals,
+      };
+    } catch (error) {
+      console.error('Error in getUserReferrals endpoint:', error);
+      return {
+        success: false,
+        data: [],
+        error: error.message,
+      };
+    }
+  }
+
+  // REMOVE WITHDRAWAL ENDPOINT FOR NOW
+  // @Post('withdraw')
+  // @ApiOperation({ summary: 'Withdraw affiliate earnings' })
+  // async withdrawCommission(
+  //   @Headers('authorization') authorization: string,
+  //   @Body() body: { amount: number },
+  // ) {
+  //   // Remove for now
+  // }
+
+  @Post('generate-code')
+  @ApiOperation({ summary: 'Generate affiliate code' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Affiliate code generated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        affiliateCode: { type: 'string' }
+      }
+    }
+  })
+  async generateAffiliateCode(@Headers('authorization') authorization: string) {
+    try {
+      const userId = this.extractUserIdFromToken(authorization);
+      const code = await this.affiliateService.generateAffiliateCode(userId);
+      
+      return {
+        success: true,
+        affiliateCode: code,
+      };
+    } catch (error) {
+      console.error('Error in generateAffiliateCode endpoint:', error);
+      return {
+        success: false,
+        affiliateCode: '',
+        error: error.message,
+      };
+    }
   }
 
   @Get('stats')
   @ApiOperation({ summary: 'Get affiliate statistics' })
-  @ApiResponse({ status: 200, description: 'Statistics retrieved successfully' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        totalAffiliates: { type: 'number' },
+        totalReferrals: { type: 'number' },
+        totalCommissions: { type: 'number' },
+        paidCommissions: { type: 'number' },
+        pendingCommissions: { type: 'number' },
+        timestamp: { type: 'string' }
+      }
+    }
+  })
   async getAffiliateStats() {
-    return this.affiliateService.getAffiliateStats();
+    try {
+      const stats = await this.affiliateService.getAffiliateStats();
+      
+      return {
+        success: true,
+        ...stats,
+      };
+    } catch (error) {
+      console.error('Error in getAffiliateStats endpoint:', error);
+      return {
+        success: false,
+        totalAffiliates: 0,
+        totalReferrals: 0,
+        totalCommissions: 0,
+        paidCommissions: 0,
+        pendingCommissions: 0,
+        timestamp: new Date().toISOString(),
+        error: error.message,
+      };
+    }
+  }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Service is healthy',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string' },
+        timestamp: { type: 'string' },
+        service: { type: 'string' }
+      }
+    }
+  })
+  async healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'affiliate-service',
+    };
+  }
+
+  @Get('test')
+  @ApiOperation({ summary: 'Test endpoint' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Test successful',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' },
+        userId: { type: 'string' },
+        timestamp: { type: 'string' }
+      }
+    }
+  })
+  async testEndpoint(@Headers('authorization') authorization: string) {
+    try {
+      const userId = this.extractUserIdFromToken(authorization);
+      
+      return {
+        success: true,
+        message: 'Affiliate service is working',
+        userId,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: 'Authentication failed',
+        error: error.message,
+      };
+    }
+  }
+
+  private extractUserIdFromToken(authorization: string): string {
+    if (!authorization || !authorization.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    try {
+      const token = authorization.replace('Bearer ', '');
+      const base64Url = token.split('.')[1];
+      
+      if (!base64Url) {
+        throw new Error('Invalid token format');
+      }
+      
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      const decoded = JSON.parse(Buffer.from(base64, 'base64').toString());
+      
+      return decoded.sub || decoded.userId || decoded.id;
+    } catch (error) {
+      console.error('Error extracting user ID from token:', error);
+      throw new UnauthorizedException('Invalid token');
+    }
   }
 }

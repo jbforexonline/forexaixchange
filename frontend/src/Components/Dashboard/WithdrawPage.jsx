@@ -29,9 +29,12 @@ export default function WithdrawPage() {
     const fetchTransactions = async () => {
       try {
         const response = await getTransactions(1, 10);
-        setTransactions(response.data || []);
+        // Ensure transactions is always an array
+        const transactionsData = response?.data || response || [];
+        setTransactions(Array.isArray(transactionsData) ? transactionsData : []);
       } catch (err) {
         console.error("Failed to fetch transactions:", err);
+        setTransactions([]); // Ensure it's an empty array on error
       }
     };
     fetchTransactions();
@@ -58,7 +61,7 @@ export default function WithdrawPage() {
     setLoading(true);
     try {
       const method = withdrawMethod === "bank" ? "Bank" : mobileMoneyDetails.provider || "MTN";
-      const reference = withdrawMethod === "bank" 
+      const reference = withdrawMethod === "bank"
         ? `BANK-${bankDetails.accountNumber}-${Date.now()}`
         : `MOBILE-${mobileMoneyDetails.phoneNumber}-${Date.now()}`;
 
@@ -177,18 +180,16 @@ export default function WithdrawPage() {
                 <label> Method</label>
                 <div className="method-selector">
                   <button
-                    className={`method-btn ${
-                      withdrawMethod === "bank" ? "active" : ""
-                    }`}
+                    className={`method-btn ${withdrawMethod === "bank" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("bank")}
                     type="button"
                   >
                     🏦 Bank Transfer
                   </button>
                   <button
-                    className={`method-btn ${
-                      withdrawMethod === "mobile" ? "active" : ""
-                    }`}
+                    className={`method-btn ${withdrawMethod === "mobile" ? "active" : ""
+                      }`}
                     onClick={() => setWithdrawMethod("mobile")}
                     type="button"
                   >
@@ -295,8 +296,8 @@ export default function WithdrawPage() {
                 </div>
               )}
 
-              <button 
-                className="withdraw-btn" 
+              <button
+                className="withdraw-btn"
                 onClick={handleRequest}
                 disabled={loading || walletLoading}
               >
@@ -309,7 +310,7 @@ export default function WithdrawPage() {
           <div className="transaction-section">
             <h3>Recent Transactions</h3>
             <div className="transaction-list">
-              {(!transactions || transactions.length === 0) ? (
+              {!Array.isArray(transactions) || transactions.length === 0 ? (
                 <div style={{ padding: "2rem", textAlign: "center", color: "#999" }}>
                   No transactions yet
                 </div>
@@ -322,7 +323,7 @@ export default function WithdrawPage() {
                     day: "numeric",
                     year: "numeric",
                   });
-                  
+
                   return (
                     <div key={tx.id} className="transaction-item">
                       <div className="transaction-info">
