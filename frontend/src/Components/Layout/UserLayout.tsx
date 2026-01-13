@@ -43,6 +43,9 @@ export default function UserLayout({
   const router = useRouter();
   const pathname = usePathname();
   
+  // Check if we're on the spin page - render full screen without left sidebar
+  const isSpinPage = pathname === "/dashboard/spin" || pathname === "/spin";
+  
   // Auto-expand wallet menu if on wallet pages
   const isWalletPage = pathname === "/deposit" || pathname === "/withdraw" || pathname === "/history";
   const [expandedMenus, setExpandedMenus] = useState<string[]>(isWalletPage ? ["wallet"] : []);
@@ -55,7 +58,8 @@ export default function UserLayout({
   }, [pathname]);
 
   const userMenuItems: MenuItem[] = [
-    { icon: Home, label: "Spin", href: "/spin" },
+    // Home removed; Spin is the primary entry point
+    { icon: AppWindow, label: "Spin", href: "/spin" },
     { icon: History, label: "Spin History", href: "/spin-history" },
     { icon: BarChart3, label: "Statistics", href: "/statistics" },
     {
@@ -108,6 +112,11 @@ export default function UserLayout({
         return "free";
     }
   };
+
+  // For spin page, render full screen without sidebar (SpinPage has its own layout)
+  if (isSpinPage) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="user-layout">

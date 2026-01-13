@@ -1,0 +1,240 @@
+Got it. Here’s a **precise, end-to-end spec** for your spin logic, matching what you described (3 independent two-option layers + a global “Indecision” override that wins if **any** layer ties). I’ll keep this framework-agnostic but map it cleanly to your NestJS + Postgres + Redis design.
+
+# Spin V1 — Conceptual Algorithm
+
+## 1) Entities (per round)
+
+* **Round**: `id`, `state ∈ {OPEN, FROZEN, SETTLING, SETTLED}`, `openedAt`, `freezeAt`, `settleAt`.
+* **Markets (3 layers)** — each independent:
+
+  1. **Outer**: `BUY` vs `SELL`
+  2. **Middle**: `BLUE` vs `RED`
+  3. **Inner**: `HIGH_VOL` vs `LOW_VOL`
+* **Global outcome**: `INDECISION` (special, not a layer).
+  Users **can bet on Indecision**. If **any layer** ties at settlement time, **Indecision wins globally** and **all layer bets lose**.
+* **Bets**: `{userId, roundId, market ∈ {OUTER|MIDDLE|INNER|GLOBAL}, selection, amountUsd, status}`
+
+  * For layer markets, `selection` is one of the two options (e.g., `BUY`, `BLUE`, `HIGH_VOL`).
+  * For the global market, `selection = INDECISION`.
+* **Totals** (for settlement): per round keep **final USD totals**:
+
+  * `outer.buy`, `outer.sell`
+  * `middle.blue`, `middle.red`
+  * `inner.highVol`, `inner.lowVol`
+  * `global.indecision`
+* **Wallet & Ledger**: append-only money log; wallet has `available`, `held`.
+
+> Currency rule: **USD is the base unit** for all internal math. Display conversions are cosmetic.
+
+---
+
+## 2) Timeline & states
+
+* **OPEN** (20 minutes: configurable `roundDuration`):
+
+  * Accept bets on all 3 layers and on **Indecision**.
+  * (Premium vs Regular) Apply **privilege windows** (e.g., premium cutoff closer to freeze, higher limits, etc.).
+* **FROZEN** (final minute(s), configurable `freezeOffset`):
+
+  * **No new bets**; the UI keeps spinning but order entry is disabled.
+* **SETTLING**:
+
+  * Compute winners and payouts.
+* **SETTLED**:
+
+  * Payouts posted; publish audit/fairness artifacts.
+
+---
+
+## 3) Acceptance phase (OPEN)
+
+### placeBet (command)
+
+**Prechecks**
+
+* `round.state === OPEN` and `now < freezeAt`.
+* User limits (KYC tier), per-market min/max stake, rate limit (Redis).
+* Wallet `available ≥ amountUsd`.
+* Idempotency: reject duplicates by `Idempotency-Key`.
+
+**Atomic DB transaction**
+
+1. Insert `Bet(status=ACCEPTED, market, selection, amountUsd)`.
+2. Ledger `HOLD`: move `amountUsd` from `available → held`.
+3. Update **running totals mirror in Redis**:
+
+   * `INCRBY round:<id>:outer:buy|sell`
+   * `INCRBY round:<id>:middle:blue|red`
+   * `INCRBY round:<id>:inner:high|low`
+   * `INCRBY round:<id>:global:indecision`
+4. Emit WS events: `betAccepted`, `totalsUpdated`.
+
+> Note: The **source of truth** totals still live in Postgres; Redis is for realtime UI.
+
+---
+
+## 4) Freeze
+
+At `freezeAt` (or earlier for Regular users if you enforce staggered cutoff):
+
+* Transition to **FROZEN**.
+* Stop accepting new bets.
+* Snapshot **authoritative totals** from Postgres into a `RoundTotals` table (or compute them inside settlement).
+
+---
+
+## 5) Settlement logic (heart of the system)
+
+### 5.1 Tie detection
+
+For each **layer market**:
+
+* Let `A` and `B` be the two outcomes' USD totals from **DB**.
+* **Tie** if `A == B` (to the cent), including the case where both are 0.
+  *(Note: If both sides are 0, this is treated as a tie and triggers Indecision globally.)*
+
+### 5.2 Global Indecision override
+
+* If **tie on any one (or more) layers** ⇒ set `indecisionTriggered = true`.
+
+**If `indecisionTriggered`:**
+
+* **Only winner** across the whole round is `INDECISION`.
+* All layer bets (`BUY/SELL`, `BLUE/RED`, `HIGH/LOW`) **lose**, regardless of tie status on their own layer.
+* Payout pool: **sum of all non-Indecision stakes** (across all three layers).
+* Winners pool: sum of **Indecision** stakes.
+* House fee: apply configured bps to the losers pool.
+* **Payout ratio**:
+
+  ```
+  losersPool = Σ(all layer totals)
+  winnersPool = global.indecision
+  houseFee   = losersPool * feeBps / 10000
+  distributable = losersPool - houseFee
+  payoutPerDollar = winnersPool > 0 ? distributable / winnersPool : 0
+  ```
+* Each **Indecision** bet gets: `stake + stake * payoutPerDollar`.
+* All layer holds are released as **lost** (stake goes to the pot/fee as configured).
+
+**Else (no ties on any layer):**
+
+* Each layer settles **independently** by minority rule:
+
+  * For a layer with totals `X` vs `Y`, winner = side with **less** USD.
+  * `losersPool_layer = max(X, Y)`, `winnersPool_layer = min(X, Y)`.
+  * `houseFee_layer = losersPool_layer * feeBps / 10000`.
+  * `distributable_layer = losersPool_layer - houseFee_layer`.
+  * `payoutPerDollar_layer = winnersPool_layer > 0 ? distributable_layer / winnersPool_layer : 0`.
+  * Each winning bet on that layer receives `stake + stake * payoutPerDollar_layer`.
+* **Indecision** bets **lose** (since no tie occurred).
+
+> In both paths, the math ensures **Σ winners’ net + houseFee = Σ losers’ stakes** (cent-perfect).
+
+### 5.3 Atomic settlement transaction
+
+Guard with a **Redis lock** `lock:settle:round:<id>`.
+
+Inside **one DB transaction**:
+
+1. `SELECT ... FOR UPDATE` the round (must be `FROZEN`).
+2. Compute **final totals** from DB (ignore Redis).
+3. Run the algorithm above to determine winners and per-bet payouts.
+4. For each bet:
+
+   * If **win**: ledger entries
+     `HELD → AVAILABLE` (return stake) + `PAYOUT` (profit)
+     (some teams model it as one combined `SETTLEMENT_PAYOUT`).
+   * If **lose**: ledger entries
+     `HELD → HOUSE` (or pot), account for `FEE`.
+5. Update round to `SETTLED`, persist **fairness artifact** (see §7).
+6. Commit, then emit WS `roundSettled`, `leaderboardUpdated`.
+
+---
+
+## 6) Premium vs Regular (privileges)
+
+(Parameters you can tune in config; examples)
+
+* **Bet cutoff**: Regular stops at `freezeAt - 60s`, Premium at `freezeAt - 5s`.
+* **Stake limits**: Premium higher max per round/outcome.
+* **Rate limits**: Looser for Premium.
+* **UI perks**: richer analytics, priority sockets, etc.
+
+> All enforced in `placeBet` prechecks via role-aware policy.
+
+---
+
+## 7) Fairness & audit (visual spin + verifiability)
+
+* **Visual spinner** is **cosmetic**; the outcome is **deterministic** from totals.
+* To prevent “we changed it after seeing totals” accusations:
+
+  * At **OPEN**, publish `commit = SHA256(roundId || secretS)`.
+  * At **SETTLED**, publish `S` and:
+
+    * A JSON artifact with final totals, tie flags, winners, fees, and (optionally) a deterministic animation seed derived as `HMAC_SHA256(S, "anim")`.
+  * Store `(roundId, commit, S, artifactHash)` in DB.
+  * Anyone can verify that `SHA256(roundId || S) == commit`.
+
+---
+
+## 8) Example (numbers)
+
+**No tie → per-layer settlement**
+
+* Outer: BUY=$100, SELL=$60 ⇒ **SELL** wins
+  losersPool=$100, winnersPool=$60, fee 2% → fee=$2, distributable=$98
+  payoutPerDollar=$98/$60=1.6333…
+  A $10 SELL bet returns $10 + $16.333… = $26.33
+
+* Middle: BLUE=$50, RED=$20 ⇒ **RED** wins (same math)
+
+* Inner: HIGH=$0, LOW=$0 ⇒ **tie** (both equal) ⇒ triggers **INDECISION wins globally**
+
+* Indecision bets **win** (tie occurred on Inner layer).
+
+**Tie occurs on any layer (say Middle)**
+
+* Middle is BLUE=$40, RED=$40 → tie ⇒ **INDECISION wins globally**
+* Losers = all layer stakes: Outer($160) + Middle($80) + Inner($0) = $240
+* Indecision pool = $30
+* fee 2%: $4.80, distributable $235.20
+* payoutPerDollar = 235.20 / 30 = 7.84
+* A $5 Indecision bet returns $5 + $39.20 = **$44.20**
+* All layer bets (Outer/Middle/Inner) **lose**.
+
+---
+
+## 9) Edge cases
+
+* **Zero-zero layer:** Treat as tie (triggers Indecision). Define explicitly: *tie = both sides equal to the cent (including 0-0 case)*.
+* **WinnersPool = 0:** If nobody bet the winning side, `payoutPerDollar = 0`. House collects losersPool (minus fee handling as per your policy). Document this clearly.
+* **Tiny rounding remainders:** Use banker’s rounding to 2 decimals; allocate any leftover cent to house (or highest stake) deterministically.
+* **Late webhooks / retries:** All mutations must be **idempotent**.
+
+---
+
+## 10) Minimal function catalog (to implement)
+
+* `openNewRound()` → sets `OPEN`, initializes Redis counters.
+* `placeBet(user, roundId, market, selection, amountUsd, idemKey)`
+* `freezeRound(roundId)` → transitions to `FROZEN`.
+* `settleRound(roundId)` → runs the algorithm above in one DB txn.
+* `computeTotals(roundId)` → authoritative from DB.
+* `computeWinners(totals)` → returns `{indecisionTriggered, winnersByLayer}`.
+* `computePayouts(totals, winners)` → per bet amounts + fees.
+* `applySettlement(txn, payouts)` → writes ledger & bet statuses.
+* `publishFairnessArtifacts(roundId)` → commits `(commit,S,artifact)`.
+
+---
+
+in nutshell
+
+* **Indecision is a separate global market** a user may bet on. It **wins for the whole round** if **any** single layer is tied (both sides > 0 and equal).
+* If `indecisionTriggered=true`, **all non-Indecision bets lose** (even on layers that weren’t tied).
+* If **no ties**, each layer settles **independently by minority rule**, and Indecision **loses**.
+
+* One round covers **all three layers at once** (single 20-minute cycle).
+* Premium/Regular enforcement is via **policy parameters** at bet time (cutoff, limits, etc.).
+
+

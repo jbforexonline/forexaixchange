@@ -17,8 +17,22 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  User
+  User,
+  PlayCircle,
+  TestTube,
+  Clock,
+  CalendarClock,
+  Home,
+  History,
+  BarChart3,
+  AppWindow,
+  BookOpen,
+  ArrowUpCircle,
+  ArrowDownCircle,
+  FileText,
+  ChevronUp
 } from "lucide-react";
+import { useDemo } from "@/context/DemoContext";
 
 type MarketOption = {
   market: BetMarket;
@@ -38,10 +52,14 @@ const MARKET_OPTIONS: MarketOption[] = [
   { market: 'GLOBAL', selection: 'INDECISION', label: 'INDECISION', icon: '◈', color: '#fbbf24' },
 ];
 
+// Round duration options for premium users (in minutes)
+const ROUND_DURATIONS = [5, 10, 15, 20];
+
 export default function SpinPage() {
   const router = useRouter();
   const { round, totals, state: roundState, countdown, timeUntilFreeze, loading, error } = useRound();
   const { wallet, refresh: refreshWallet } = useWallet();
+  const { isDemo, toggleDemo } = useDemo();
   const [userBets, setUserBets] = useState<Bet[]>([]);
   const [selectedOption, setSelectedOption] = useState<MarketOption>(MARKET_OPTIONS[0]);
   const [betAmount, setBetAmount] = useState<string>('10');
@@ -50,9 +68,33 @@ export default function SpinPage() {
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
   
+  // Premium features state
+  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  const [showSchedulePanel, setShowSchedulePanel] = useState(false);
+  const [scheduledRounds, setScheduledRounds] = useState<number>(0); // 0 = no scheduling
+  
+  // Navigation menu state
+  const [activeNavPopup, setActiveNavPopup] = useState<string | null>(null);
+  
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (activeNavPopup && !target.closest('.nav-btn-wrapper')) {
+        setActiveNavPopup(null);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [activeNavPopup]);
+  
   const user = getCurrentUser();
   const isPremium = isPremiumUser();
   const maxBet = isPremium ? 200 : 1000;
+  
+  // Normal users always get 20-minute rounds
+  const effectiveRoundDuration = isPremium ? selectedRoundDuration : 20;
 
   const handleLogout = () => {
     logout();
@@ -131,9 +173,10 @@ export default function SpinPage() {
         selection: selectedOption.selection,
         amountUsd: amount,
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
+        isDemo: isDemo,
       });
 
-      setBetSuccess(`$${amount} on ${selectedOption.label}`);
+      setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${amount} on ${selectedOption.label}`);
       refreshWallet();
       
       // Refresh bets
@@ -178,7 +221,10 @@ export default function SpinPage() {
     };
   }, [roundState, round]);
 
-  const displayCountdown = roundState === 'open' ? timeUntilFreeze : countdown;
+  // Use full round countdown (total time until settlement) for the center timer.
+  // Backend already enforces a 1-minute freeze (no market) via freezeAt,
+  // and useRound exposes that through roundState/timeUntilFreeze for bet disabling.
+  const displayCountdown = countdown;
   const canBet = roundState === 'open' && round && !isPlacingBet;
 
   // Calculate totals for display (ensure userBets is array)
@@ -202,7 +248,8 @@ export default function SpinPage() {
           <SpinWheel 
             state={roundState} 
             countdownSec={displayCountdown} 
-            winners={winners} 
+            winners={winners}
+            roundDurationMin={effectiveRoundDuration}
           />
         </div>
 
@@ -219,9 +266,98 @@ export default function SpinPage() {
           </div>
         )}
 
-        {/* Recent Results Table - Bottom Right, above order bar */}
-        <div className="recent-results-container">
-          <RecentSpinsTable maxResults={5} />
+      </div>
+
+      {/* Bottom Left Panel - Navigation + Results */}
+      <div className="bottom-left-panel">
+        {/* Vertical Navigation Bar */}
+        <nav className="vertical-nav">
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/dashboard')}
+            title="Dashboard"
+          >
+            <Home size={18} />
+            <span>Home</span>
+          </button>
+          
+          <button 
+            className="nav-btn active"
+            title="Spin"
+          >
+            <AppWindow size={18} />
+            <span>Spin</span>
+          </button>
+          
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/dashboard/history')}
+            title="History"
+          >
+            <History size={18} />
+            <span>History</span>
+          </button>
+          
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/dashboard/settings')}
+            title="Statistics"
+          >
+            <BarChart3 size={18} />
+            <span>Stats</span>
+          </button>
+          
+          {/* Wallet with popup submenu */}
+          <div className="nav-btn-wrapper">
+            <button 
+              className={`nav-btn ${activeNavPopup === 'wallet' ? 'expanded' : ''}`}
+              onClick={() => setActiveNavPopup(activeNavPopup === 'wallet' ? null : 'wallet')}
+              title="Wallet"
+            >
+              <Wallet size={18} />
+              <span>Wallet</span>
+              <ChevronUp size={14} className={`chevron ${activeNavPopup === 'wallet' ? 'open' : ''}`} />
+            </button>
+            {activeNavPopup === 'wallet' && (
+              <div className="nav-popup">
+                <button onClick={() => { router.push('/dashboard/deposit'); setActiveNavPopup(null); }}>
+                  <ArrowUpCircle size={16} />
+                  <span>Deposit</span>
+                </button>
+                <button onClick={() => { router.push('/dashboard/wallet'); setActiveNavPopup(null); }}>
+                  <ArrowDownCircle size={16} />
+                  <span>Withdraw</span>
+                </button>
+                <button onClick={() => { router.push('/dashboard/history'); setActiveNavPopup(null); }}>
+                  <FileText size={16} />
+                  <span>Transactions</span>
+                </button>
+              </div>
+            )}
+          </div>
+          
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/premium')}
+            title="Premium"
+          >
+            <Crown size={18} />
+            <span>Premium</span>
+          </button>
+          
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/dashboard/affiliate')}
+            title="Affiliate"
+          >
+            <BookOpen size={18} />
+            <span>Affiliate</span>
+          </button>
+        </nav>
+        
+        {/* Recent Results Table */}
+        <div className="results-panel">
+          <RecentSpinsTable maxResults={4} />
         </div>
       </div>
 
@@ -271,6 +407,25 @@ export default function SpinPage() {
           )}
         </div>
 
+        {/* Demo/Live Toggle */}
+        <div className="mode-toggle-section">
+          <button 
+            className={`mode-toggle-btn ${isDemo ? 'demo' : 'live'}`}
+            onClick={toggleDemo}
+            title={isDemo ? 'Switch to Live Mode' : 'Switch to Demo Mode'}
+          >
+            {isDemo ? <TestTube size={18} /> : <PlayCircle size={18} />}
+            {sidebarExpanded && (
+              <span className="mode-label">{isDemo ? 'Demo Mode' : 'Live Mode'}</span>
+            )}
+          </button>
+          {sidebarExpanded && (
+            <span className="mode-hint">
+              {isDemo ? 'Practice with virtual funds' : 'Real money trading'}
+            </span>
+          )}
+        </div>
+
         {/* Balance Display */}
         <div className="balance-section">
           <div className="balance-icon">
@@ -278,8 +433,10 @@ export default function SpinPage() {
           </div>
           {sidebarExpanded && (
             <div className="balance-content">
-              <span className="balance-label">Balance</span>
-              <span className="balance-value">${wallet?.available.toFixed(2) || '0.00'}</span>
+              <span className="balance-label">{isDemo ? 'Demo Balance' : 'Balance'}</span>
+              <span className={`balance-value ${isDemo ? 'demo' : ''}`}>
+                ${wallet?.available.toFixed(2) || '0.00'}
+              </span>
               {wallet && wallet.held > 0 && (
                 <span className="balance-held">In play: ${wallet.held.toFixed(2)}</span>
               )}
@@ -287,11 +444,73 @@ export default function SpinPage() {
           )}
         </div>
 
+        {/* Premium Round Duration Selector */}
+        {isPremium && sidebarExpanded && (
+          <div className="premium-controls">
+            <div className="control-header">
+              <Clock size={14} />
+              <span>Round Duration</span>
+            </div>
+            <div className="duration-selector">
+              {ROUND_DURATIONS.map(duration => (
+                <button
+                  key={duration}
+                  className={`duration-btn ${selectedRoundDuration === duration ? 'active' : ''}`}
+                  onClick={() => setSelectedRoundDuration(duration)}
+                >
+                  {duration}m
+                </button>
+              ))}
+            </div>
+            
+            {/* Scheduling Control */}
+            <div className="control-header" style={{ marginTop: '12px' }}>
+              <CalendarClock size={14} />
+              <span>Schedule Ahead</span>
+            </div>
+            <div className="schedule-selector">
+              <select
+                value={scheduledRounds}
+                onChange={(e) => setScheduledRounds(Number(e.target.value))}
+                className="schedule-dropdown"
+              >
+                <option value={0}>No scheduling</option>
+                <option value={3}>3 rounds (~{3 * selectedRoundDuration}min)</option>
+                <option value={6}>6 rounds (~{6 * selectedRoundDuration}min)</option>
+                <option value={12}>12 rounds (~{Math.min(120, 12 * selectedRoundDuration)}min)</option>
+                <option value={24}>Up to 2 hours</option>
+              </select>
+            </div>
+            {scheduledRounds > 0 && (
+              <span className="schedule-info">
+                Auto-betting for {scheduledRounds} rounds
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Non-premium round info */}
+        {!isPremium && sidebarExpanded && (
+          <div className="round-info-section">
+            <div className="round-duration-display">
+              <Clock size={14} />
+              <span>20 min rounds</span>
+            </div>
+            <button 
+              className="upgrade-hint"
+              onClick={() => router.push('/premium')}
+            >
+              <Crown size={12} />
+              Upgrade for flexible timing
+            </button>
+          </div>
+        )}
+
         {/* Settings Button */}
         <nav className="sidebar-menu">
           <button 
             className="menu-item"
-            onClick={() => router.push('/settings')}
+            onClick={() => router.push('/dashboard/settings')}
             title="Settings"
           >
             <Settings size={18} />
@@ -354,7 +573,13 @@ export default function SpinPage() {
               onClick={() => setSelectedOption(option)}
             >
               <span className="market-icon" style={{ color: option.color }}>{option.icon}</span>
-              <span className="market-label">{option.label}</span>
+              <span className="market-label">
+                {option.selection === 'HIGH_VOL'
+                  ? 'HIGH VOLATILE'
+                  : option.selection === 'LOW_VOL'
+                  ? 'LOW VOLATILE'
+                  : option.label}
+              </span>
               {totals && (
                 <span className="market-total">
                   {option.market === 'OUTER' && option.selection === 'BUY' && `$${totals.outer?.BUY || 0}`}

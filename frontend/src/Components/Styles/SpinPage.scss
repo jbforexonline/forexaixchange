@@ -26,7 +26,8 @@
   position: fixed;
   top: 0;
   right: 0;
-  height: 100vh;
+  bottom: 80px; // Stop above betting bar, similar to left panel
+  height: auto;
   background: linear-gradient(180deg, rgba(10, 20, 35, 0.98) 0%, rgba(5, 15, 30, 1) 100%);
   border-left: 1px solid rgba(100, 200, 255, 0.15);
   display: flex;
@@ -34,7 +35,6 @@
   z-index: 100;
   transition: width 0.3s ease;
   backdrop-filter: blur(20px);
-  padding-bottom: 90px; // Space for betting bar
 
   &.expanded {
     width: 240px;
@@ -164,6 +164,61 @@
     }
   }
 
+  // Demo/Live Mode Toggle
+  .mode-toggle-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(100, 200, 255, 0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+
+    .mode-toggle-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+
+      &.demo {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(217, 119, 6, 0.15) 100%);
+        border-color: rgba(251, 191, 36, 0.4);
+        color: #fbbf24;
+
+        &:hover {
+          background: linear-gradient(135deg, rgba(251, 191, 36, 0.3) 0%, rgba(217, 119, 6, 0.25) 100%);
+          border-color: rgba(251, 191, 36, 0.6);
+        }
+      }
+
+      &.live {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.15) 100%);
+        border-color: rgba(34, 197, 94, 0.4);
+        color: #4ade80;
+
+        &:hover {
+          background: linear-gradient(135deg, rgba(34, 197, 94, 0.3) 0%, rgba(22, 163, 74, 0.25) 100%);
+          border-color: rgba(34, 197, 94, 0.6);
+        }
+      }
+
+      .mode-label {
+        font-weight: 600;
+      }
+    }
+
+    .mode-hint {
+      font-size: 10px;
+      color: rgba(165, 213, 255, 0.5);
+      text-align: center;
+    }
+  }
+
   .balance-section {
     padding: 16px;
     border-bottom: 1px solid rgba(100, 200, 255, 0.1);
@@ -199,11 +254,131 @@
         font-size: 18px;
         font-weight: 700;
         color: #4ade80;
+
+        &.demo {
+          color: #fbbf24;
+        }
       }
 
       .balance-held {
         font-size: 11px;
         color: #fbbf24;
+      }
+    }
+  }
+
+  // Premium Controls Section
+  .premium-controls {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(100, 200, 255, 0.1);
+    background: linear-gradient(180deg, rgba(251, 191, 36, 0.05) 0%, transparent 100%);
+
+    .control-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #fbbf24;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .duration-selector {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 4px;
+
+      .duration-btn {
+        padding: 6px 4px;
+        background: rgba(100, 200, 255, 0.05);
+        border: 1px solid rgba(100, 200, 255, 0.15);
+        border-radius: 4px;
+        color: rgba(165, 213, 255, 0.7);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(100, 200, 255, 0.1);
+          border-color: rgba(100, 200, 255, 0.3);
+        }
+
+        &.active {
+          background: rgba(251, 191, 36, 0.2);
+          border-color: #fbbf24;
+          color: #fbbf24;
+        }
+      }
+    }
+
+    .schedule-selector {
+      .schedule-dropdown {
+        width: 100%;
+        padding: 8px 10px;
+        background: rgba(10, 20, 35, 0.8);
+        border: 1px solid rgba(100, 200, 255, 0.2);
+        border-radius: 6px;
+        color: #a5d5ff;
+        font-size: 12px;
+        cursor: pointer;
+        outline: none;
+
+        &:focus {
+          border-color: rgba(251, 191, 36, 0.5);
+        }
+
+        option {
+          background: #0a1423;
+          color: #a5d5ff;
+        }
+      }
+    }
+
+    .schedule-info {
+      display: block;
+      margin-top: 6px;
+      font-size: 10px;
+      color: rgba(251, 191, 36, 0.7);
+      text-align: center;
+    }
+  }
+
+  // Non-premium round info
+  .round-info-section {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(100, 200, 255, 0.1);
+
+    .round-duration-display {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: rgba(165, 213, 255, 0.7);
+      margin-bottom: 8px;
+    }
+
+    .upgrade-hint {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      border-radius: 6px;
+      color: #fbbf24;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba(251, 191, 36, 0.2);
+        border-color: rgba(251, 191, 36, 0.4);
       }
     }
   }
@@ -324,7 +499,7 @@
 }
 
 // ===========================================
-// MAIN GAMING AREA - Wheel Centered
+// MAIN GAMING AREA - Wheel Centered (FIXED position)
 // ===========================================
 
 .spin-gaming-main {
@@ -334,22 +509,10 @@
   justify-content: center;
   position: relative;
   padding: 20px;
-  padding-bottom: 100px; // Space for betting bar
-  padding-right: 260px; // Space for right sidebar (expanded)
+  padding-bottom: 80px; // Reduced space for smaller betting bar
+  // REMOVED padding-right - wheel should NOT shift with sidebar
   overflow: hidden;
-  transition: padding-right 0.3s ease;
-
-  @media (max-width: 768px) {
-    padding-right: 220px;
-  }
-
-  .sidebar-collapsed & {
-    padding-right: 80px;
-
-    @media (max-width: 768px) {
-      padding-right: 70px;
-    }
-  }
+  // NO transition - wheel stays fixed
 }
 
 .wheel-area {
@@ -361,35 +524,57 @@
   position: relative;
 
   .wheel-container {
-    width: min(85vh, 85vw, 650px);
-    height: min(85vh, 85vw, 650px);
+    /* Maximized wheel: use almost entire viewport on large screens */
+    width: min(100vh, 100vw, 2200px);
+    height: min(100vh, 100vw, 2200px);
     position: relative;
 
+    @media (max-width: 2200px) {
+      width: min(100vh, 100vw, 1600px);
+      height: min(100vh, 100vw, 1600px);
+    }
+
+    @media (max-width: 1600px) {
+      width: min(98vh, 98vw, 1280px);
+      height: min(98vh, 98vw, 1280px);
+    }
+
+    @media (max-width: 1400px) {
+      width: min(96vh, 96vw, 1080px);
+      height: min(96vh, 96vw, 1080px);
+    }
+
+    @media (max-width: 1200px) {
+      width: min(92vh, 96vw, 920px);
+      height: min(92vh, 96vw, 920px);
+    }
+
     @media (max-width: 1024px) {
-      width: min(75vh, 80vw, 500px);
-      height: min(75vh, 80vw, 500px);
+      width: min(88vh, 96vw, 820px);
+      height: min(88vh, 96vw, 820px);
     }
 
     @media (max-width: 768px) {
-      width: min(65vh, 90vw, 400px);
-      height: min(65vh, 90vw, 400px);
+      /* Mobile: large but respects viewport */
+      width: min(86vh, 98vw, 760px);
+      height: min(86vh, 98vw, 760px);
     }
 
-    .spin-wheel-svg {
+      .spin-wheel-svg {
       width: 100%;
       height: 100%;
       display: block;
-      filter: drop-shadow(0 0 60px rgba(100, 200, 255, 0.2));
+      filter: drop-shadow(0 0 220px rgba(100, 200, 255, 0.26));
 
       .spin-cw {
         animation: spinClockwise 20s linear infinite;
-        transform-origin: 300px 300px;
+        transform-origin: 50% 50%;
         will-change: transform;
       }
 
       .spin-ccw {
         animation: spinCounterClockwise 18s linear infinite;
-        transform-origin: 300px 300px;
+        transform-origin: 50% 50%;
         will-change: transform;
       }
     }
@@ -481,41 +666,29 @@
 .betting-bar {
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 240px; // Account for expanded sidebar
+  left: 0; // Full width from left corner
+  right: 0;
   height: auto;
-  min-height: 80px;
+  min-height: 70px;
   background: linear-gradient(180deg, rgba(10, 20, 35, 0.98) 0%, rgba(5, 15, 25, 1) 100%);
   border-top: 1px solid rgba(100, 200, 255, 0.15);
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  gap: 20px;
-  z-index: 500;
+  justify-content: center;
+  padding: 10px 20px;
+  gap: 16px;
+  z-index: 95; // Above bottom-left panel (80)
   backdrop-filter: blur(20px);
-  transition: right 0.3s ease;
-
-  .sidebar-collapsed & {
-    right: 60px;
-  }
 
   @media (max-width: 1200px) {
-    flex-wrap: wrap;
-    padding: 12px 16px;
+    padding: 10px 16px;
     gap: 12px;
   }
 
   @media (max-width: 768px) {
-    right: 200px;
-    flex-direction: column;
+    padding: 10px 12px;
     min-height: auto;
-    padding: 12px;
-    gap: 10px;
-
-    .sidebar-collapsed & {
-      right: 50px;
-    }
+    gap: 8px;
   }
 }
 
@@ -523,7 +696,7 @@
 .amount-section {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 
   @media (max-width: 768px) {
     width: 100%;
@@ -531,13 +704,13 @@
   }
 
   .amount-adjust {
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     background: rgba(100, 200, 255, 0.1);
     border: 1px solid rgba(100, 200, 255, 0.2);
     border-radius: 6px;
     color: #a5d5ff;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -561,15 +734,15 @@
     align-items: center;
     background: rgba(10, 20, 35, 0.8);
     border: 1px solid rgba(100, 200, 255, 0.2);
-    border-radius: 8px;
-    padding: 8px 16px;
-    min-width: 100px;
+    border-radius: 6px;
+    padding: 6px 12px;
+    min-width: 90px;
 
     .amount-currency {
       position: absolute;
-      left: 12px;
+      left: 10px;
       color: rgba(165, 213, 255, 0.6);
-      font-size: 14px;
+      font-size: 12px;
     }
 
     .amount-input {
@@ -577,10 +750,10 @@
       border: none;
       outline: none;
       color: #ffffff;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: 700;
       text-align: center;
-      width: 80px;
+      width: 70px;
 
       &::-webkit-inner-spin-button,
       &::-webkit-outer-spin-button {
@@ -590,7 +763,7 @@
     }
 
     .amount-label {
-      font-size: 10px;
+      font-size: 9px;
       color: rgba(165, 213, 255, 0.5);
       text-transform: uppercase;
       letter-spacing: 0.5px;
@@ -599,20 +772,20 @@
 
   .quick-amounts {
     display: flex;
-    gap: 4px;
-    margin-left: 8px;
+    gap: 3px;
+    margin-left: 6px;
 
-    @media (max-width: 1024px) {
+    @media (max-width: 1300px) {
       display: none;
     }
 
     .quick-btn {
-      padding: 6px 12px;
+      padding: 5px 10px;
       background: rgba(100, 200, 255, 0.05);
       border: 1px solid rgba(100, 200, 255, 0.15);
       border-radius: 4px;
       color: rgba(165, 213, 255, 0.7);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -635,14 +808,14 @@
 // Markets Section
 .markets-section {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
   justify-content: center;
   flex-wrap: wrap;
 
   @media (max-width: 768px) {
     width: 100%;
-    gap: 6px;
+    gap: 4px;
   }
 
   .market-btn {
@@ -650,53 +823,53 @@
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 10px 16px;
-    min-width: 70px;
+    padding: 8px 12px;
+    min-width: 65px;
     background: rgba(100, 200, 255, 0.05);
     border: 2px solid transparent;
-    border-radius: 8px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
 
     @media (max-width: 768px) {
-      padding: 8px 10px;
-      min-width: 55px;
+      padding: 6px 8px;
+      min-width: 50px;
     }
 
     &:hover {
       background: rgba(100, 200, 255, 0.1);
-      transform: translateY(-2px);
+      transform: translateY(-1px);
     }
 
     &.selected {
       background: rgba(var(--btn-color-rgb, 100, 200, 255), 0.15);
       border-color: var(--btn-color);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(var(--btn-color-rgb, 100, 200, 255), 0.3);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(var(--btn-color-rgb, 100, 200, 255), 0.3);
     }
 
     .market-icon {
-      font-size: 18px;
+      font-size: 16px;
       line-height: 1;
 
       @media (max-width: 768px) {
-        font-size: 16px;
+        font-size: 14px;
       }
     }
 
     .market-label {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       color: rgba(165, 213, 255, 0.9);
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
 
       @media (max-width: 768px) {
-        font-size: 9px;
+        font-size: 8px;
       }
     }
 
     .market-total {
-      font-size: 9px;
+      font-size: 8px;
       color: rgba(165, 213, 255, 0.5);
     }
   }
@@ -706,7 +879,7 @@
 .action-section {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 
   @media (max-width: 768px) {
     width: 100%;
@@ -716,13 +889,13 @@
   .place-bet-btn {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 14px 28px;
+    gap: 8px;
+    padding: 10px 20px;
     background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     color: white;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -732,12 +905,12 @@
     @media (max-width: 768px) {
       flex: 1;
       justify-content: center;
-      padding: 12px 20px;
+      padding: 10px 16px;
     }
 
     &:hover:not(.disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(34, 197, 94, 0.4);
     }
 
     &:active:not(.disabled) {
@@ -751,14 +924,14 @@
     }
 
     .btn-icon {
-      font-size: 18px;
+      font-size: 16px;
     }
 
     .btn-amount {
-      padding: 4px 10px;
+      padding: 3px 8px;
       background: rgba(255, 255, 255, 0.2);
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 12px;
     }
 
     .btn-loading {
@@ -811,15 +984,15 @@
   }
 
   .wheel-area .wheel-container {
-    width: min(55vh, 80vw, 400px);
-    height: min(55vh, 80vw, 400px);
+    width: min(88vh, 96vw, 1100px);
+    height: min(88vh, 96vw, 1100px);
   }
 }
 
 @media (max-height: 600px) {
   .wheel-area .wheel-container {
-    width: min(45vh, 80vw, 350px);
-    height: min(45vh, 80vw, 350px);
+    width: min(80vh, 96vw, 880px);
+    height: min(80vh, 96vw, 880px);
   }
 }
 
@@ -827,36 +1000,174 @@
 // RECENT RESULTS TABLE - Right Bottom Corner
 // ===========================================
 
-.recent-results-container {
-  position: absolute;
-  bottom: 100px; // Above betting bar
-  right: 260px; // Account for sidebar
-  z-index: 50;
-  transition: right 0.3s ease;
+// ===========================================
+// BOTTOM LEFT PANEL - Navigation + Results
+// ===========================================
 
-  .sidebar-collapsed & {
-    right: 80px;
-  }
+.bottom-left-panel {
+  position: fixed;
+  bottom: 80px; // Above betting bar (70px + 10px gap)
+  left: 10px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column; // Menu on top, results below
+  align-items: stretch;
+  gap: 8px;
+  width: auto; // Fit content width
+  max-width: calc(50vw - 100px); // Expand to use space near spin wheel
 
   @media (max-width: 1200px) {
-    right: 20px;
-    bottom: 180px;
+    max-width: calc(50vw - 80px);
   }
 
   @media (max-width: 768px) {
-    display: none; // Hide on mobile to avoid clutter
+    display: none; // Hide on mobile
+  }
+}
+
+// Vertical Navigation Bar
+.vertical-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(10, 20, 35, 0.95) 0%, rgba(5, 15, 30, 0.98) 100%);
+  border: 1px solid rgba(100, 200, 255, 0.15);
+  border-radius: 10px;
+  padding: 8px 6px;
+  backdrop-filter: blur(15px);
+  width: auto; // Fit content width
+  align-self: flex-start; // Align to left, don't stretch
+
+  .nav-btn-wrapper {
+    position: relative;
+  }
+
+  .nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    width: 100%;
+    background: rgba(100, 200, 255, 0.05);
+    border: 1px solid rgba(100, 200, 255, 0.1);
+    border-radius: 6px;
+    color: rgba(165, 213, 255, 0.8);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background: rgba(100, 200, 255, 0.15);
+      border-color: rgba(100, 200, 255, 0.3);
+      color: #a5d5ff;
+    }
+
+    &.active {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.4);
+      color: #4ade80;
+    }
+
+    &.expanded {
+      background: rgba(100, 200, 255, 0.2);
+      border-color: rgba(100, 200, 255, 0.4);
+    }
+
+    .chevron {
+      transition: transform 0.2s ease;
+      opacity: 0.6;
+
+      &.open {
+        transform: rotate(180deg);
+      }
+    }
+
+    svg {
+      flex-shrink: 0;
+    }
+
+    span {
+      font-size: 11px;
+    }
+  }
+
+  // Popup submenu
+  .nav-popup {
+    position: absolute;
+    top: 0;
+    left: calc(100% + 8px); // Appear to the right of nav, over results but not covering all
+    background: linear-gradient(135deg, rgba(15, 25, 40, 0.98) 0%, rgba(10, 20, 35, 1) 100%);
+    border: 1px solid rgba(100, 200, 255, 0.2);
+    border-radius: 8px;
+    padding: 6px;
+    min-width: 150px;
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+    animation: popupSlideUp 0.2s ease;
+    z-index: 100;
+
+    button {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 10px 12px;
+      background: transparent;
+      border: none;
+      border-radius: 6px;
+      color: rgba(165, 213, 255, 0.8);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+
+      &:hover {
+        background: rgba(100, 200, 255, 0.1);
+        color: #a5d5ff;
+      }
+
+      svg {
+        flex-shrink: 0;
+        color: rgba(100, 200, 255, 0.6);
+      }
+    }
+  }
+}
+
+@keyframes popupSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// Results Panel (table container)
+.results-panel {
+  width: 100%; // Full width of parent
+  min-width: 400px; // Minimum width for readability
+  
+  .recent-spins-table {
+    width: 100%;
+    max-width: none; // Remove max-width constraint, expand as wide as possible
   }
 }
 
 .recent-spins-table {
-  width: 320px;
-  background: linear-gradient(135deg, rgba(10, 20, 35, 0.95) 0%, rgba(5, 15, 30, 0.98) 100%);
-  border: 1px solid rgba(100, 200, 255, 0.2);
-  border-radius: 12px;
-  backdrop-filter: blur(20px);
+  width: 100%;
+  max-width: none; // Allow expansion within parent
+  background: linear-gradient(135deg, rgba(10, 20, 35, 0.92) 0%, rgba(5, 15, 30, 0.95) 100%);
+  border: 1px solid rgba(100, 200, 255, 0.15);
+  border-radius: 10px;
+  backdrop-filter: blur(15px);
   box-shadow: 
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    0 0 60px rgba(100, 200, 255, 0.1);
+    0 4px 20px rgba(0, 0, 0, 0.3),
+    0 0 30px rgba(100, 200, 255, 0.08);
   overflow: hidden;
 
   &.loading, &.empty {
@@ -869,12 +1180,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 16px;
-    background: linear-gradient(90deg, rgba(100, 200, 255, 0.1) 0%, transparent 100%);
-    border-bottom: 1px solid rgba(100, 200, 255, 0.15);
+    padding: 8px 12px;
+    background: linear-gradient(90deg, rgba(100, 200, 255, 0.08) 0%, transparent 100%);
+    border-bottom: 1px solid rgba(100, 200, 255, 0.12);
 
     .header-title {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 700;
       color: #a5d5ff;
       letter-spacing: 0.5px;
@@ -883,15 +1194,15 @@
     .header-live {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 10px;
+      gap: 5px;
+      font-size: 9px;
       font-weight: 700;
       color: #22c55e;
       letter-spacing: 1px;
 
       .live-dot {
-        width: 6px;
-        height: 6px;
+        width: 5px;
+        height: 5px;
         background: #22c55e;
         border-radius: 50%;
         animation: pulse-live 1.5s ease-in-out infinite;
@@ -920,11 +1231,11 @@
   }
 
   .table-content {
-    max-height: 240px;
+    max-height: 160px;
     overflow-y: auto;
 
     &::-webkit-scrollbar {
-      width: 4px;
+      width: 3px;
     }
 
     &::-webkit-scrollbar-track {
@@ -940,8 +1251,8 @@
   .result-row {
     display: flex;
     align-items: center;
-    padding: 10px 12px;
-    gap: 12px;
+    padding: 8px 10px;
+    gap: 10px;
     border-bottom: 1px solid rgba(100, 200, 255, 0.08);
     transition: all 0.3s ease;
 

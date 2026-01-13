@@ -56,11 +56,11 @@ export default function RoleBasedLayout({ children }) {
           router.replace('/admin/dashboard');
           break;
         case UserRole.MODERATOR:
-          router.replace('/moderator/dashboard');
+          router.replace('/dashboard/spin');
           break;
         case UserRole.USER:
         default:
-          router.replace('/spin');
+          router.replace('/dashboard/spin');
           break;
       }
       return;

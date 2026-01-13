@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { BetType, VolatilityType, ColorType, SpinOutcome } from '@prisma/client';
+import { BetType, VolatilityType, ColorType, SpinOutcome, TransactionType, TransactionStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 @Injectable()
@@ -89,9 +89,9 @@ export class SpinsService {
       await tx.transaction.create({
         data: {
           userId,
-          type: isWin ? 'SPIN_WIN' : 'SPIN_LOSS',
+          type: TransactionType.SPIN_LOSS,
           amount: isWin ? winAmount : betAmount,
-          status: 'COMPLETED',
+          status: TransactionStatus.COMPLETED,
           description: `Spin ${isWin ? 'win' : 'loss'} - ${betType}`,
           isDemo,
         },

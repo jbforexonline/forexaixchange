@@ -59,4 +59,3 @@ services:
       - key: THROTTLE_LIMIT
         value: 100
     autoDeploy: true
-

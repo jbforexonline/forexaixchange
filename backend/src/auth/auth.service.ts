@@ -551,16 +551,7 @@ export class AuthService {
           affiliateCode,
           wallet: {
             create: {
-              available: 10000,
-              held: 0,
-              totalDeposited: 0,
-              totalLost: 0,
-              totalWithdrawn: 0,
-              totalWon: 0,
               demoAvailable: 10000,
-              demoHeld: 0,
-              demoTotalWon: 0,
-              demoTotalLost: 0,
             },
           },
         },

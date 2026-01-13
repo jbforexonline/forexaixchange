@@ -14,15 +14,16 @@ type Props = {
   state: WheelState;
   countdownSec: number;
   winners?: WinnerFlags;
+  roundDurationMin?: number; // Round duration in minutes (5, 10, 15, 20)
 };
 
-const cx = 300, cy = 300;
+const cx = 700, cy = 700;
 const R = {
-  core: [0, 60],
-  vol: [75, 125],
-  color: [140, 190],
-  curr: [205, 235],
-  dir: [250, 300],
+  core: [0, 160],
+  vol: [190, 330],
+  color: [360, 460],
+  curr: [480, 540],
+  dir: [560, 660],
 };
 
 // Currency pairs and trading instruments
@@ -71,8 +72,12 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-export default function SpinWheel({ state, countdownSec, winners }: Props) {
+export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
+  
+  // Calculate progress percentage for visual indicator
+  const totalSeconds = roundDurationMin * 60;
+  const progressPercent = totalSeconds > 0 ? Math.max(0, Math.min(100, ((totalSeconds - countdownSec) / totalSeconds) * 100)) : 0;
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
@@ -107,17 +112,17 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
   return (
     <div className="wheel-container">
-      <svg viewBox="0 0 600 600" className="spin-wheel-svg">
+      <svg viewBox="0 0 1400 1400" className="spin-wheel-svg">
         <defs>
           <filter id="glow">
-            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="6" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
           <filter id="strongGlow">
-            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="8" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -146,98 +151,91 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
         {/* Ring separators - Fixed, don't spin */}
         <g className="ring-separators">
-          <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.curr[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.color[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
-          <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.18)" strokeWidth={4} />
+          <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.16)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.16)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.curr[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.color[1]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
         </g>
 
         {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
         <g className="ring-direction spin-cw">
-          <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
-          <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
+          <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.6} />
+          <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.6} />
           
           {/* Curved SELL label */}
-          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+          <text fill="#e5f2ff" fontSize={56} fontWeight={900} letterSpacing={3}>
             <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
               SELL
             </textPath>
           </text>
           
           {/* Curved BUY label */}
-          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
+          <text fill="#e5f2ff" fontSize={56} fontWeight={900} letterSpacing={3}>
             <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
               BUY
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 285} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>DIRECTION</text>
         </g>
 
         {/* Currency Ring - 2nd Circle: Counter-clockwise */}
         <g className="ring-currency spin-ccw">
-          <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
+          <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.12)" />
           {CURRENCIES.map((ccy, i) => {
             const angle = -180 + i * (360 / CURRENCIES.length);
             const rr = (R.curr[0] + R.curr[1]) / 2;
             const x = cx + rr * Math.cos(deg2rad(angle));
             const y = cy + rr * Math.sin(deg2rad(angle));
-            return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
+            return <text key={ccy + "-" + i} x={x} y={y} fill="#eaf9ff" opacity={1} fontSize={24} fontWeight={800} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
           })}
-          <text x={cx} y={cy - 230} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>ASSETS</text>
         </g>
 
         {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
         <g className="ring-color spin-cw">
-          <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
-          <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
+          <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.7} />
+          <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.7} />
           
           {/* Curved RED label */}
-          <text fill="#ef4444" fontSize={16} fontWeight={700} letterSpacing={2}>
+          <text fill="#ef4444" fontSize={44} fontWeight={900} letterSpacing={2}>
             <textPath href="#redPath" startOffset="50%" textAnchor="middle">
               RED
             </textPath>
           </text>
           
           {/* Curved BLUE label */}
-          <text fill="#3b82f6" fontSize={16} fontWeight={700} letterSpacing={2}>
+          <text fill="#3b82f6" fontSize={44} fontWeight={900} letterSpacing={2}>
             <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
               BLUE
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 185} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>COLOR MODE</text>
         </g>
 
         {/* Volatility Ring (LOW/HIGH) - 4th Circle: Counter-clockwise */}
         <g className="ring-volatility spin-ccw">
-          <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
-          <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
+          <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.7} />
+          <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.7} />
           
           {/* Curved LOW VOLATILE label */}
-          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+          <text fill="#e5f2ff" fontSize={36} fontWeight={900} letterSpacing={1}>
             <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
               LOW VOLATILE
             </textPath>
           </text>
           
           {/* Curved HIGH VOLATILE label */}
-          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
+          <text fill="#e5f2ff" fontSize={36} fontWeight={900} letterSpacing={1}>
             <textPath href="#highPath" startOffset="50%" textAnchor="middle">
               HIGH VOLATILE
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 140} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>VOLATILITY</text>
         </g>
 
         {/* Winner glow (on spinning rings) */}
         {showWinners && (
-          <g fill="rgba(255, 255, 255, 0.2)" filter="url(#glow)">
+          <g fill="rgba(255, 255, 255, 0.28)" filter="url(#glow)">
             {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
             {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
             {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
@@ -250,21 +248,21 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
         {/* FIXED GROUP - Core and Indecision Needles (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
         <g className="fixed-center">
           {/* TWO VERTICAL INDECISION NEEDLES - FIXED, GOLDEN, ON TOP OF EVERYTHING */}
-          <g opacity={win.indecision ? 1 : 0.9}>
+          <g opacity={win.indecision ? 1 : 0.95}>
             {/* Top needle (pointing up) - single continuous golden path */}
             <path d={indecisionNeedles.top} fill="url(#goldGrad)" filter="url(#strongGlow)" />
             
             {/* INDECISION label - VERTICAL text along top needle, perfectly centered */}
             <text
               x={cx}
-              y={cy - 150}
+              y={cy - 250}
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={18}
+              fontSize={28}
               fontWeight={900}
-              letterSpacing={4}
-              transform={`rotate(-90, ${cx}, ${cy - 150})`}
+              letterSpacing={6}
+              transform={`rotate(-90, ${cx}, ${cy - 250})`}
               filter="url(#strongGlow)"
             >
               INDECISION
@@ -276,14 +274,14 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
             {/* INDECISION label - VERTICAL text along bottom needle, perfectly centered */}
             <text
               x={cx}
-              y={cy + 150}
+              y={cy + 250}
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={18}
+              fontSize={28}
               fontWeight={900}
-              letterSpacing={4}
-              transform={`rotate(-90, ${cx}, ${cy + 150})`}
+              letterSpacing={6}
+              transform={`rotate(-90, ${cx}, ${cy + 250})`}
               filter="url(#strongGlow)"
             >
               INDECISION
@@ -291,20 +289,25 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           </g>
 
           {/* Core (countdown + state) - FIXED, no separator circle here */}
-          <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
-          
+          <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.35)" strokeWidth={3} filter="url(#glow)" />
+
+          {/* Round Duration Label - shows the total round time */}
+          <text x={cx} y={cy - 48} fill="rgba(165, 213, 255, 0.85)" textAnchor="middle" fontSize={16} fontWeight={700} letterSpacing={0.8}>
+            {roundDurationMin} MIN ROUND
+          </text>
+
           {/* Timer Display - Minutes:Seconds format */}
-          <text x={cx} y={cy - 15} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
+          <text x={cx} y={cy - 10} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={50} fontWeight={900} fontFamily="monospace">
             {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
-          
+
           {/* AI Market Analysis Text */}
-          <text x={cx} y={cy + 2} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={8} fontWeight={600} letterSpacing={0.5}>
+          <text x={cx} y={cy + 20} fill="rgba(165, 213, 255, 0.9)" textAnchor="middle" fontSize={14} fontWeight={700} letterSpacing={0.6}>
             Market AI Analysing
           </text>
-          
+
           {/* State Label */}
-          <text x={cx} y={cy + 16} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.7)"} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={1}>
+          <text x={cx} y={cy + 48} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.85)"} textAnchor="middle" fontSize={16} fontWeight={800} letterSpacing={1}>
             {state === "open" ? "MARKET OPEN" : state === "frozen" ? "FROZEN" : state === "settled" ? "SETTLED" : "WAITING"}
           </text>
         </g>
@@ -312,10 +315,10 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
       {/* State indicator */}
       <div className="state-indicator">
-        {state === "preopen" && "Connecting to server..."}
-        {state === "open" && `Round open • ${countdownSec}s remaining`}
-        {state === "frozen" && "Market closed • Settling..."}
-        {state === "settled" && "Round complete • Next round starting..."}
+        {state === "preopen" && `Waiting for ${roundDurationMin}-min round...`}
+        {state === "open" && `${roundDurationMin}-min round • ${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s left`}
+        {state === "frozen" && `${roundDurationMin}-min round • Settling...`}
+        {state === "settled" && `Round complete • Next ${roundDurationMin}-min round starting...`}
       </div>
     </div>
   );
