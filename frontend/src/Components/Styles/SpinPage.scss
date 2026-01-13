@@ -32,16 +32,33 @@
   border-left: 1px solid rgba(100, 200, 255, 0.15);
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 150; // Higher than betting bar (95) to always be on top
   transition: width 0.3s ease;
   backdrop-filter: blur(20px);
+  min-height: calc(100vh - 80px); // Ensure full height above betting bar
 
   &.expanded {
     width: 240px;
+    
+    @media (max-width: 1400px) {
+      width: 220px;
+    }
+    
+    @media (max-width: 1200px) {
+      width: 200px;
+    }
+    
+    @media (max-width: 1024px) {
+      width: 180px;
+    }
   }
 
   &.collapsed {
     width: 60px;
+    
+    @media (max-width: 768px) {
+      width: 50px;
+    }
   }
 
   .sidebar-toggle {
@@ -487,13 +504,30 @@
     }
   }
 
+  // Responsive adjustments for smaller screens
   @media (max-width: 768px) {
+    bottom: 70px; // Adjust for smaller betting bar on mobile
+    min-height: calc(100vh - 70px);
+    
     &.expanded {
-      width: 200px;
+      width: 180px;
     }
 
     &.collapsed {
       width: 50px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    bottom: 60px;
+    min-height: calc(100vh - 60px);
+    
+    &.expanded {
+      width: 160px;
+    }
+    
+    &.collapsed {
+      width: 45px;
     }
   }
 }
@@ -523,7 +557,7 @@
   justify-content: center;
   position: relative;
 
-  .wheel-container {
+    .wheel-container {
     /* Maximized wheel: use almost entire viewport on large screens */
     width: min(100vh, 100vw, 2200px);
     height: min(100vh, 100vw, 2200px);
@@ -558,6 +592,14 @@
       /* Mobile: large but respects viewport */
       width: min(86vh, 98vw, 760px);
       height: min(86vh, 98vw, 760px);
+    }
+    
+    @media (max-width: 480px) {
+      width: min(80vh, 98vw, 720px);
+      height: min(80vh, 98vw, 720px);
+    }
+    
+    
     }
 
       .spin-wheel-svg {
@@ -677,7 +719,7 @@
   justify-content: center;
   padding: 10px 20px;
   gap: 16px;
-  z-index: 95; // Above bottom-left panel (80)
+  z-index: 95; // Below right sidebar (150) but above bottom-left panel (80)
   backdrop-filter: blur(20px);
 
   @media (max-width: 1200px) {
@@ -982,7 +1024,6 @@
   .spin-gaming-main {
     padding-bottom: 120px;
   }
-
   .wheel-area .wheel-container {
     width: min(88vh, 96vw, 1100px);
     height: min(88vh, 96vw, 1100px);

@@ -169,61 +169,6 @@ export default function LoginPage() {
     }
   }
 
-  const handleDemoLogin = async () => {
-    setError('')
-    setLoading(true)
-
-    try {
-      console.log('🎯 Creating demo account...')
-
-      const response = await fetch(`${apiUrl}/auth/demo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-
-      console.log('Demo response status:', response.status)
-
-      const responseBody = await response.json()
-      console.log('Demo response data:', responseBody)
-
-      if (!response.ok) {
-        setError(responseBody.message || 'Failed to create demo account. Please try again.')
-        return
-      }
-
-      // Robust payload extraction to handle potential double-nesting (e.g. data.data.token)
-      let payload = responseBody
-      // Drill down into data property if it exists and doesn't contain what we need directly
-      while (payload && payload.data && (!payload.token || !payload.user)) {
-        payload = payload.data
-      }
-
-      if (!payload?.token || !payload?.user) {
-        throw new Error('Invalid response from server')
-      }
-
-      // Store token and user data in localStorage
-      localStorage.setItem('token', payload.token)
-      localStorage.setItem('user', JSON.stringify(payload.user))
-
-      console.log('✅ Demo account created!')
-      console.log('📋 User:', payload.user.username)
-      console.log('💰 Starting balance:', payload.user.wallet?.available)
-
-      // Demo users go straight to spin/game
-      router.replace('/dashboard/spin')
-      window.history.replaceState(null, '', '/dashboard/spin')
-    } catch (err) {
-      console.error('Demo login error:', err)
-      const message = err instanceof Error ? err.message : 'Unexpected error'
-      setError(`Failed to create demo account: ${message}`)
-    } finally {
-      setLoading(false)
-    }
-  }
-
   if (checkingAuth) {
     return (
       <div style={{
@@ -319,31 +264,6 @@ export default function LoginPage() {
           <div className="login-divider">
             <span>OR</span>
           </div>
-
-          <button
-            type="button"
-            className="demo-btn"
-            onClick={handleDemoLogin}
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.8rem',
-              marginBottom: '1rem',
-              backgroundColor: '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '1rem',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              opacity: loading ? 0.7 : 1,
-              transition: 'all 0.3s ease',
-            }}
-            onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#5568d3')}
-            onMouseOut={(e) => (e.target.style.backgroundColor = '#667eea')}
-          >
-            {loading ? 'Creating Demo Account...' : '🎮 Try Demo Account'}
-          </button>
 
           <button
             type="button"
