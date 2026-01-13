@@ -93,12 +93,8 @@ export class BetsService {
 
       const isPremium = user.premium && user.premiumExpiresAt && user.premiumExpiresAt > new Date();
       
-      // Enforce Demo-First Policy: Live betting requires Premium
-      if (!dto.isDemo && !isPremium) {
-        throw new ForbiddenException(
-          'Live trading is available only for Premium subscribers. Please upgrade your account.',
-        );
-      }
+      // All users can place bets (both demo and live)
+      // Premium status only affects timing cutoffs and bet limits
 
       // 4. Check timing constraints (premium vs regular)
       const now = new Date();

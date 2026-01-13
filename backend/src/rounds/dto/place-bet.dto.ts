@@ -1,4 +1,4 @@
-import { IsEnum, IsNumber, IsString, IsOptional, Min } from 'class-validator';
+import { IsEnum, IsNumber, IsString, IsOptional, Min, IsBoolean } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { BetMarket } from '@prisma/client';
@@ -23,4 +23,9 @@ export class PlaceBetDto {
   @IsOptional()
   @IsString()
   idempotencyKey?: string;
+
+  @ApiProperty({ required: false, description: 'Whether this is a demo bet', default: false })
+  @IsOptional()
+  @IsBoolean()
+  isDemo?: boolean;
 }

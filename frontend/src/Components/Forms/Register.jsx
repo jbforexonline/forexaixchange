@@ -179,9 +179,10 @@ export default function Register() {
       }
 
       const role = (payload.user.role || 'USER').toUpperCase()
+      // After registration, go directly to spin/game
       const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-        ? '/dashboard'
-        : '/spin'
+        ? '/admin/dashboard'
+        : '/dashboard/spin'
 
       router.replace(nextRoute)
     } catch (err) {
@@ -374,8 +375,8 @@ export default function Register() {
                       if (user?.id) {
                         localStorage.setItem('user', JSON.stringify(user));
                         const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
-                          ? '/dashboard'
-                          : '/spin';
+                          ? '/admin/dashboard'
+                          : '/dashboard/spin';
                         router.replace(nextRoute);
                       }
                     })

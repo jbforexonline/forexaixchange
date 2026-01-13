@@ -18,32 +18,38 @@ export class RoundsService {
 
   /**
    * Open a new round with cryptographic commitment
-   * Development: 1 minute rounds for testing
-   * Production: 20 minute rounds
+   *
+   * Unified behaviour (dev + prod):
+   * - Round duration: 20 minutes (1200 seconds) by default
+   *   - Override via env ROUND_DURATION_MINUTES (allowed: 5, 10, 15, 20)
+   *   - Or via explicit roundDuration param (in seconds)
+   * - Freeze window: last 60 seconds of the round (no new orders)
+   * - Premium cutoff: 5 seconds before freeze
+   * - Regular cutoff: 60 seconds before freeze
    */
   async openNewRound(
     roundDuration?: number, // User's preferred duration or default
     freezeOffset?: number,  // Freeze period before settlement
   ) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    
-    // Development: 1 minute rounds (60 seconds)
-    // Production: 20 minute rounds (1200 seconds)
+    // Determine default round duration (can be overridden by env)
     if (!roundDuration) {
-      roundDuration = isProduction ? 1200 : 60;
-      this.logger.log(`⏰ Round Duration: ${isProduction ? '20 minutes' : '1 minute (dev)'}`);
+      const envMinutes = Number(process.env.ROUND_DURATION_MINUTES || '20');
+      const allowedMinutes = [5, 10, 15, 20];
+      const useMinutes = allowedMinutes.includes(envMinutes) ? envMinutes : 20;
+      roundDuration = useMinutes * 60;
+      this.logger.log(`⏰ Round Duration: ${useMinutes} minutes (env/ default)`);
     }
-    
-    // Freeze offset: 5 seconds for dev, 60 seconds for production
+
+    // Freeze window: last 60 seconds of the round
     if (!freezeOffset) {
-      freezeOffset = isProduction ? 60 : 5;
+      freezeOffset = 60;
     }
-    
+
     // Order cutoffs: time before freeze when orders must be placed
-    // In dev: both premium and regular users can order until freeze (0 seconds cutoff)
-    // In production: premium 5 seconds, regular 60 seconds before freeze
-    const premiumCutoff = isProduction ? 5 : 0;
-    const regularCutoff = isProduction ? 60 : 0;
+    // Premium users: 5 seconds before freeze
+    // Regular users: 60 seconds before freeze
+    const premiumCutoff = 5;
+    const regularCutoff = 60;
     
     const openedAt = new Date();
     const freezeAt = new Date(openedAt.getTime() + (roundDuration - freezeOffset) * 1000);
@@ -260,10 +266,12 @@ export class RoundsService {
     };
 
     // Aggregate by market and selection
+    // EXCLUDE demo bets from totals - they don't affect who wins
     const bets = await tx.bet.findMany({
       where: {
         roundId,
         status: 'ACCEPTED',
+        isDemo: false, // Only count live bets for winner determination
       },
       select: {
         market: true,

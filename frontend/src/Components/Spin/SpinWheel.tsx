@@ -14,6 +14,7 @@ type Props = {
   state: WheelState;
   countdownSec: number;
   winners?: WinnerFlags;
+  roundDurationMin?: number; // Round duration in minutes (5, 10, 15, 20)
 };
 
 const cx = 300, cy = 300;
@@ -71,8 +72,12 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-export default function SpinWheel({ state, countdownSec, winners }: Props) {
+export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
+  
+  // Calculate progress percentage for visual indicator
+  const totalSeconds = roundDurationMin * 60;
+  const progressPercent = totalSeconds > 0 ? Math.max(0, Math.min(100, ((totalSeconds - countdownSec) / totalSeconds) * 100)) : 0;
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
@@ -174,8 +179,6 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
               BUY
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 285} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>DIRECTION</text>
         </g>
 
         {/* Currency Ring - 2nd Circle: Counter-clockwise */}
@@ -188,7 +191,6 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
             const y = cy + rr * Math.sin(deg2rad(angle));
             return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
           })}
-          <text x={cx} y={cy - 230} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>ASSETS</text>
         </g>
 
         {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
@@ -209,8 +211,6 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
               BLUE
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 185} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>COLOR MODE</text>
         </g>
 
         {/* Volatility Ring (LOW/HIGH) - 4th Circle: Counter-clockwise */}
@@ -231,8 +231,6 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
               HIGH VOLATILE
             </textPath>
           </text>
-
-          <text x={cx} y={cy - 140} fill="rgba(229, 242, 255, 0.6)" textAnchor="middle" fontSize={11} fontWeight={600}>VOLATILITY</text>
         </g>
 
         {/* Winner glow (on spinning rings) */}
@@ -293,18 +291,23 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
           {/* Core (countdown + state) - FIXED, no separator circle here */}
           <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
           
+          {/* Round Duration Label - shows the total round time */}
+          <text x={cx} y={cy - 28} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={600} letterSpacing={0.5}>
+            {roundDurationMin} MIN ROUND
+          </text>
+          
           {/* Timer Display - Minutes:Seconds format */}
-          <text x={cx} y={cy - 15} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
+          <text x={cx} y={cy - 8} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
             {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
           
           {/* AI Market Analysis Text */}
-          <text x={cx} y={cy + 2} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={8} fontWeight={600} letterSpacing={0.5}>
+          <text x={cx} y={cy + 10} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={8} fontWeight={600} letterSpacing={0.5}>
             Market AI Analysing
           </text>
           
           {/* State Label */}
-          <text x={cx} y={cy + 16} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.7)"} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={1}>
+          <text x={cx} y={cy + 24} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.7)"} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={1}>
             {state === "open" ? "MARKET OPEN" : state === "frozen" ? "FROZEN" : state === "settled" ? "SETTLED" : "WAITING"}
           </text>
         </g>
@@ -312,10 +315,10 @@ export default function SpinWheel({ state, countdownSec, winners }: Props) {
 
       {/* State indicator */}
       <div className="state-indicator">
-        {state === "preopen" && "Connecting to server..."}
-        {state === "open" && `Round open • ${countdownSec}s remaining`}
-        {state === "frozen" && "Market closed • Settling..."}
-        {state === "settled" && "Round complete • Next round starting..."}
+        {state === "preopen" && `Waiting for ${roundDurationMin}-min round...`}
+        {state === "open" && `${roundDurationMin}-min round • ${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s left`}
+        {state === "frozen" && `${roundDurationMin}-min round • Settling...`}
+        {state === "settled" && `Round complete • Next ${roundDurationMin}-min round starting...`}
       </div>
     </div>
   );

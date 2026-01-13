@@ -30,7 +30,7 @@ export default function LoginPage() {
           const role = (user.role || 'USER').toUpperCase()
           const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
             ? '/admin/dashboard'
-            : '/dashboard'
+            : '/dashboard/spin'
           router.replace(nextRoute)
           return
         }
@@ -60,7 +60,7 @@ export default function LoginPage() {
         const role = (user.role || 'USER').toUpperCase()
         const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
           ? '/admin/dashboard'
-          : '/dashboard'
+          : '/dashboard/spin'
         router.replace(nextRoute)
       }
     }
@@ -139,7 +139,7 @@ export default function LoginPage() {
       const role = (payload.user.role || 'USER').toUpperCase()
 
       // Determine redirect route based on role
-      let nextRoute = '/dashboard'  // Default for regular users
+      let nextRoute = '/dashboard/spin'  // Default for regular users - go directly to spin/game
 
       if (role === 'SUPER_ADMIN') {
         console.log('🔴 Super Admin detected - redirecting to admin dashboard')
@@ -148,11 +148,11 @@ export default function LoginPage() {
         console.log('🔵 Admin detected - redirecting to admin dashboard')
         nextRoute = '/admin/dashboard'
       } else if (role === 'MODERATOR') {
-        console.log('🟣 Moderator detected - redirecting to dashboard')
-        nextRoute = '/dashboard'
+        console.log('🟣 Moderator detected - redirecting to spin')
+        nextRoute = '/dashboard/spin'
       } else {
-        console.log('🔷 Regular user - redirecting to user dashboard')
-        nextRoute = '/dashboard'
+        console.log('🔷 Regular user - redirecting to spin/game')
+        nextRoute = '/dashboard/spin'
       }
 
       console.log('🚀 Redirecting to:', nextRoute)
@@ -212,8 +212,9 @@ export default function LoginPage() {
       console.log('📋 User:', payload.user.username)
       console.log('💰 Starting balance:', payload.user.wallet?.available)
 
-      router.replace('/dashboard')
-      window.history.replaceState(null, '', '/dashboard')
+      // Demo users go straight to spin/game
+      router.replace('/dashboard/spin')
+      window.history.replaceState(null, '', '/dashboard/spin')
     } catch (err) {
       console.error('Demo login error:', err)
       const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -386,7 +387,7 @@ export default function LoginPage() {
                         localStorage.setItem('user', JSON.stringify(user));
                         const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
                           ? '/admin/dashboard'
-                          : '/dashboard';
+                          : '/dashboard/spin';
                         router.replace(nextRoute);
                       }
                     })

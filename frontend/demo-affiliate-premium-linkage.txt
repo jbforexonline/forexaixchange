@@ -1,0 +1,60 @@
+Demo / Affiliate / Premium linkage review (frontend)
+----------------------------------------------------
+Scope: current code in frontend/src as of this branch.
+
+Demo mode ✅ UPDATED
+- Context: DemoProvider stores isDemo in localStorage and exposes toggleDemo (`context/DemoContext.tsx`).
+- Usage: Bet placement sends isDemo flag (`Spin/BetForm.tsx`), wallet display swaps balances for demo (`hooks/useWallet.ts`).
+- UI entry points: 
+  - Login has "Try Demo Account" creating a demo user via /auth/demo.
+  - Premium page has a Demo/Live toggle + demo balance reset.
+  - SpinPage right sidebar: NOW HAS Demo/Live toggle - users can switch modes without leaving the game.
+
+Affiliate ✅ WORKING
+- Route: /dashboard/affiliate renders `Components/Dashboard/UserDashboard/AffiliatePage.tsx`.
+- Data: Uses `lib/api/affiliate` (stats, referrals, leaderboard) with auth headers.
+- UI: Shows referral code copy, stats grid, recent referrals, commission tiers, leaderboard. No known broken links.
+- Note: Relies on nav to dashboard/affiliate (no deep-link from spin).
+
+Premium purchase ✅ ENHANCED
+- Route: /premium (and /premiums) renders `Components/Dashboard/PremiumPage.jsx`.
+- Data: Uses `lib/api/premium` (plans, subscribe/upgrade, active subscription, cancel) and refreshUserData to update local user role/tier.
+- UI: Plan cards, wallet-based checkout, simulated subscription, cancellation, success/error banners.
+- SpinPage: Premium users now have round duration selector (5/10/15/20 min) and scheduling UI in sidebar.
+- Normal users: Fixed 20-minute rounds with upgrade prompt shown in sidebar.
+
+CHANGES IMPLEMENTED
+===================
+
+1. Demo Toggle in SpinPage ✅
+   - Added Demo/Live toggle button in right sidebar
+   - Users can switch modes without leaving the game
+   - Visual indicator shows current mode (Demo=yellow, Live=green)
+   - Balance display reflects the active mode
+
+2. Spin Layout Fixed ✅
+   - Wheel no longer shifts when right sidebar toggles
+   - Main game area stays centered regardless of sidebar state
+   - Betting bar also fixed (doesn't shift with sidebar)
+   - Recent results moved to left side to avoid sidebar overlap
+
+3. Auth Flow Corrected ✅
+   - Landing page (/) → Login (/login)
+   - Login page has "Sign-up" link → Register (/register)
+   - After login: Regular users → /dashboard/spin (game)
+   - After login: Admins → /admin/dashboard
+   - Demo account creation → /dashboard/spin
+   - Google OAuth → /dashboard/spin for users
+
+4. Round Timing & Premium Features ✅
+   - Normal users: Fixed 20-minute rounds (displayed in sidebar with upgrade prompt)
+   - Premium users: Round duration selector (5, 10, 15, 20 minutes)
+   - Premium users: Scheduling dropdown (3, 6, 12, 24 rounds ahead / up to 2 hours)
+   - Backend already supports 20-min rounds in production mode
+
+Overall Status
+==============
+- Demo: Fully integrated with in-game toggle ✅
+- Affiliate: API wired and functional ✅
+- Premium: Enhanced with round controls in SpinPage ✅
+- Auth flow: Corrected to go directly to spin/game ✅
