@@ -32,16 +32,33 @@
   border-left: 1px solid rgba(100, 200, 255, 0.15);
   display: flex;
   flex-direction: column;
-  z-index: 100;
+  z-index: 150; // Higher than betting bar (95) to always be on top
   transition: width 0.3s ease;
   backdrop-filter: blur(20px);
+  min-height: calc(100vh - 80px); // Ensure full height above betting bar
 
   &.expanded {
     width: 240px;
+    
+    @media (max-width: 1400px) {
+      width: 220px;
+    }
+    
+    @media (max-width: 1200px) {
+      width: 200px;
+    }
+    
+    @media (max-width: 1024px) {
+      width: 180px;
+    }
   }
 
   &.collapsed {
     width: 60px;
+    
+    @media (max-width: 768px) {
+      width: 50px;
+    }
   }
 
   .sidebar-toggle {
@@ -487,13 +504,30 @@
     }
   }
 
+  // Responsive adjustments for smaller screens
   @media (max-width: 768px) {
+    bottom: 70px; // Adjust for smaller betting bar on mobile
+    min-height: calc(100vh - 70px);
+    
     &.expanded {
-      width: 200px;
+      width: 180px;
     }
 
     &.collapsed {
       width: 50px;
+    }
+  }
+  
+  @media (max-width: 480px) {
+    bottom: 60px;
+    min-height: calc(100vh - 60px);
+    
+    &.expanded {
+      width: 160px;
+    }
+    
+    &.collapsed {
+      width: 45px;
     }
   }
 }
@@ -524,18 +558,35 @@
   position: relative;
 
   .wheel-container {
-    width: min(85vh, 85vw, 650px);
-    height: min(85vh, 85vw, 650px);
+    // Maintain large size across all screens - use viewport units with better scaling
+    // Use clamp to ensure it stays relatively large but doesn't overflow
+    width: clamp(450px, min(85vh, 85vw), 650px);
+    height: clamp(450px, min(85vh, 85vw), 650px);
     position: relative;
 
+    @media (max-width: 1400px) {
+      width: clamp(480px, min(80vh, 80vw), 600px);
+      height: clamp(480px, min(80vh, 80vw), 600px);
+    }
+
+    @media (max-width: 1200px) {
+      width: clamp(460px, min(75vh, 75vw), 550px);
+      height: clamp(460px, min(75vh, 75vw), 550px);
+    }
+
     @media (max-width: 1024px) {
-      width: min(75vh, 80vw, 500px);
-      height: min(75vh, 80vw, 500px);
+      width: clamp(440px, min(70vh, 70vw), 500px);
+      height: clamp(440px, min(70vh, 70vw), 500px);
     }
 
     @media (max-width: 768px) {
-      width: min(65vh, 90vw, 400px);
-      height: min(65vh, 90vw, 400px);
+      width: clamp(380px, min(65vh, 90vw), 450px);
+      height: clamp(380px, min(65vh, 90vw), 450px);
+    }
+    
+    @media (max-width: 480px) {
+      width: clamp(320px, min(60vh, 95vw), 400px);
+      height: clamp(320px, min(60vh, 95vw), 400px);
     }
 
     .spin-wheel-svg {
@@ -655,7 +706,7 @@
   justify-content: center;
   padding: 10px 20px;
   gap: 16px;
-  z-index: 95; // Above bottom-left panel (80)
+  z-index: 95; // Below right sidebar (150) but above bottom-left panel (80)
   backdrop-filter: blur(20px);
 
   @media (max-width: 1200px) {
@@ -962,15 +1013,15 @@
   }
 
   .wheel-area .wheel-container {
-    width: min(55vh, 80vw, 400px);
-    height: min(55vh, 80vw, 400px);
+    width: clamp(380px, min(55vh, 80vw), 450px);
+    height: clamp(380px, min(55vh, 80vw), 450px);
   }
 }
 
 @media (max-height: 600px) {
   .wheel-area .wheel-container {
-    width: min(45vh, 80vw, 350px);
-    height: min(45vh, 80vw, 350px);
+    width: clamp(340px, min(50vh, 85vw), 400px);
+    height: clamp(340px, min(50vh, 85vw), 400px);
   }
 }
 
