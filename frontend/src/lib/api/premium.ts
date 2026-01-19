@@ -107,6 +107,14 @@ export async function getActiveSubscription() {
 }
 
 /**
+ * Backward-compat shim used by useUserData hook.
+ * Maps to the active subscription endpoint.
+ */
+export async function getUserSubscription() {
+  return getActiveSubscription();
+}
+
+/**
  * Cancel active subscription
  */
 export async function cancelSubscription() {
