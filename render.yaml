@@ -1,21 +1,18 @@
-services:
-  # PostgreSQL Database
-  - type: pspg
-    name: forexaixchange-db
+databases:
+  - name: forexaixchange-db
     databaseName: forexaixchange
     user: fx
-    plan: starter  # You can change to free, starter, standard, etc.
-    region: oregon  # Change to your preferred region
+    plan: starter
+    region: oregon
     postgresMajorVersion: 15
 
-  # Redis Cache (Optional)
+services:
   - type: redis
     name: forexaixchange-redis
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
 
-  # Backend API Service
   - type: web
     name: forexaixchange-backend
     env: node
@@ -27,6 +24,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Render will set PORT automatically; we keep 4000 as the default locally.
       - key: PORT
         value: 4000
       - key: DATABASE_URL
@@ -52,10 +50,26 @@ services:
         generateValue: true
       - key: JWT_EXPIRES_IN
         value: 24h
+      # IMPORTANT: set this to your actual frontend Render URL after the frontend deploy is created.
       - key: FRONTEND_URL
         value: https://your-frontend-domain.onrender.com
       - key: THROTTLE_TTL
         value: 60000
       - key: THROTTLE_LIMIT
         value: 100
+    autoDeploy: true
+
+  - type: web
+    name: forexaixchange-frontend
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: cd frontend && npm ci && npm run build
+    startCommand: cd frontend && npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # IMPORTANT: set this to the backend public URL after the backend deploy is created.
+      - key: NEXT_PUBLIC_BACKEND_URL
+        value: https://your-backend-domain.onrender.com
     autoDeploy: true
