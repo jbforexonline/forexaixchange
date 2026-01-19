@@ -24,6 +24,8 @@ services:
     startCommand: cd backend && npm run start:prod
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
       - key: NODE_ENV
         value: production
       # Render will set PORT automatically; we keep 4000 as the default locally.
@@ -66,9 +68,11 @@ services:
     env: node
     region: oregon
     plan: starter
-    buildCommand: cd frontend && npm ci && npm run build
-    startCommand: cd frontend && npm run start
+    buildCommand: corepack enable && corepack prepare pnpm@9.0.0 --activate && cd frontend && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: cd frontend && pnpm run start
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
       - key: NODE_ENV
         value: production
       # IMPORTANT: set this to the backend public URL after the backend deploy is created.
