@@ -2,7 +2,7 @@ databases:
   - name: forexaixchange-db
     databaseName: forexaixchange
     user: fx
-    plan: starter
+    plan: free
     region: oregon
     postgresMajorVersion: 15
     ipAllowList: []  # required by Render blueprint validation
