@@ -25,11 +25,11 @@
   border-radius: 32px;
   background:
     linear-gradient(135deg, rgba(0, 213, 255, 0.25), rgba(46, 242, 163, 0.2)),
-    url("/image/Login.png") center/cover no-repeat,
+    url("/image/login.jpeg") center/cover no-repeat,
     var(--expert-bg-alt);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 25px 80px rgba(3, 5, 21, 0.85);
+  // box-shadow: 0 25px 80px rgba(3, 5, 21, 0.85);
 
   &::after {
     content: "";

@@ -330,6 +330,59 @@ export class AffiliateService {
     }
   }
 
+  async getAffiliateLeaderboard(period: 'daily' | 'weekly' | 'monthly' | 'allTime' = 'allTime', limit = 10) {
+    try {
+      const now = new Date();
+      let where: any = {};
+
+      if (period === 'daily') {
+        const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        where = { createdAt: { gte: since } };
+      } else if (period === 'weekly') {
+        const since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        where = { createdAt: { gte: since } };
+      } else if (period === 'monthly') {
+        const since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        where = { createdAt: { gte: since } };
+      }
+
+      // Group earnings by affiliate (userId) and sum amounts
+      const grouped = await this.prisma.affiliateEarning.groupBy({
+        by: ['userId'],
+        where,
+        _sum: { amount: true },
+        orderBy: { _sum: { amount: 'desc' } },
+        take: limit,
+      });
+
+      // Fetch user info for the top entries
+      const results = [] as any[];
+      let rank = 1;
+      for (const g of grouped) {
+        const user = await this.prisma.user.findUnique({ where: { id: g.userId }, select: { id: true, username: true } });
+        results.push({
+          rank: rank++,
+          userId: g.userId,
+          username: user?.username || 'Unknown',
+          totalCommissionsEarned: g._sum.amount?.toNumber() || 0,
+          totalReferrals: 0,
+          period,
+        });
+      }
+
+      // Optionally fill totalReferrals counts
+      for (const r of results) {
+        const count = await this.prisma.user.count({ where: { referredBy: r.userId } });
+        r.totalReferrals = count;
+      }
+
+      return results;
+    } catch (error) {
+      console.error('Error in getAffiliateLeaderboard:', error);
+      return [];
+    }
+  }
+
   async processAffiliateCommission(
     referredUserId: string,
     depositAmount: Decimal,
