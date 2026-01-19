@@ -8,14 +8,25 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       useFactory: () => {
-        const redis = new Redis({
-          host: process.env.REDIS_HOST || 'localhost',
-          port: parseInt(process.env.REDIS_PORT || '6379'),
-          password: process.env.REDIS_PASSWORD || undefined,
-          maxRetriesPerRequest: 3,
-          lazyConnect: true, // Don't connect immediately
-          connectTimeout: 5000,
-        });
+        const redisUrl = process.env.REDIS_URL;
+        const host = process.env.REDIS_HOST || 'localhost';
+        const port = parseInt(process.env.REDIS_PORT || '6379', 10);
+        const password = process.env.REDIS_PASSWORD || undefined; // kept for local/dev
+
+        const redis = redisUrl
+          ? new Redis(redisUrl, {
+              maxRetriesPerRequest: 3,
+              lazyConnect: true,
+              connectTimeout: 5000,
+            })
+          : new Redis({
+              host,
+              port,
+              password,
+              maxRetriesPerRequest: 3,
+              lazyConnect: true, // Don't connect immediately
+              connectTimeout: 5000,
+            });
 
         // Handle connection errors gracefully
         redis.on('error', (err) => {
