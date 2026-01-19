@@ -68,7 +68,7 @@ services:
     env: node
     region: oregon
     plan: starter
-    buildCommand: corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter frontend run build
+    buildCommand: corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter frontend install --frozen-lockfile --prod=false && pnpm --filter frontend run build
     startCommand: cd frontend && pnpm run start
     envVars:
       - key: NODE_VERSION
