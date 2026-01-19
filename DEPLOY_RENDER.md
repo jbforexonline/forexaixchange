@@ -35,10 +35,11 @@ Update environment variables:
 
 ### Backend (`forexaixchange-backend`)
 
-- `FRONTEND_URL`: set to your **frontend** Render URL
+- `FRONTEND_URL`: set to your **frontend** Render URL  
   - Example: `https://forexaixchange-frontend.onrender.com`
+- `REDIS_URL`: auto-set from Render via `connectionString` (no change needed)
 
-This is used for CORS in `backend/src/main.ts`.
+This is used for CORS in `backend/src/main.ts`. `REDIS_URL` is consumed in `backend/src/cache/redis.module.ts`.
 
 ### Frontend (`forexaixchange-frontend`)
 
@@ -82,7 +83,7 @@ Optional deeper checks:
 Render will automatically inject:
 
 - `DATABASE_URL` (from the managed Postgres instance)
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (from the managed Redis instance)
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_URL` (from the managed Redis instance)
 - `JWT_SECRET` (generated value from `render.yaml`)
 
 You must set manually after URLs exist:

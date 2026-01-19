@@ -5,6 +5,7 @@ databases:
     plan: starter
     region: oregon
     postgresMajorVersion: 15
+    ipAllowList: []  # required by Render blueprint validation
 
 services:
   - type: redis
@@ -12,6 +13,7 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # required by Render blueprint validation
 
   - type: web
     name: forexaixchange-backend
@@ -35,17 +37,17 @@ services:
         fromService:
           type: redis
           name: forexaixchange-redis
-          property: hostname
+          property: host
       - key: REDIS_PORT
         fromService:
           type: redis
           name: forexaixchange-redis
           property: port
-      - key: REDIS_PASSWORD
+      - key: REDIS_URL
         fromService:
           type: redis
           name: forexaixchange-redis
-          property: password
+          property: connectionString
       - key: JWT_SECRET
         generateValue: true
       - key: JWT_EXPIRES_IN
