@@ -1,3 +1,33 @@
+/* Back to Landing Button */
+.back-to-landing {
+  margin-bottom: 20px;
+  
+  .landing-button {
+    background: rgba(0, 217, 255, 0.1);
+    border: 1px solid rgba(0, 217, 255, 0.3);
+    color: #00d9ff;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    &:hover {
+      background: rgba(0, 217, 255, 0.2);
+      border-color: #00d9ff;
+      transform: translateY(-2px);
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+  }
+}
+
 .register-container {
   min-height: 100vh;
   width: 100%;

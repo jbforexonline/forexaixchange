@@ -4,6 +4,7 @@ import Link from "next/link";
 import SpinWheel from "../Components/Spin/SpinWheel";
 import Historigram from "./Historigram";
 import TradingViewWidget from "./TradingViewWidget";
+import { useRound } from "@/hooks/useRound";
 import "./Styles/Landing.scss";
 
 export default function Landing() {
@@ -11,6 +12,9 @@ export default function Landing() {
   const [premiumSlideIndex, setPremiumSlideIndex] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const carouselIntervalRef = useRef(null);
+  
+  // Use the same round hook as the logged-in version for synchronization
+  const { round, state: roundState, countdown, loading, error } = useRound();
   const premiumFeatures = [
     "✅ Verification Badge",
     "✅ Internal Transfers between users",
@@ -272,9 +276,10 @@ export default function Landing() {
           <div className="spinner-area">
             <div className="spinner-container">
               <SpinWheel
-                state="open"
-                countdownSec={30}
+                state={roundState}
+                countdownSec={countdown}
                 winners={undefined}
+                roundDurationMin={20}
               />
             </div>
           </div>
@@ -305,7 +310,7 @@ export default function Landing() {
                 <tr>
                   <td>
                     <Link href="/login" className="cell-link">
-                      <button type="button">Blue (x2) stock</button>
+                      <button type="button">Blue (x2) order</button>
                     </Link>
                   </td>
                   <td>
@@ -353,7 +358,9 @@ export default function Landing() {
 
           <div className="footer-brand">
             <h4>Forexaiexchange</h4>
-            <p>Buy and sell. Secure crypto services built for everyone.</p>
+            <p className="tagline-text">Forexaiexchange where market-trading meet with ai.</p>
+            <p className="warning-text">⚠️ WARNING: Trading forex and related services is Risky.</p>
+            <p className="age-restriction">🔞 18+</p>
             <div className="socials">
               <span className="dot">●</span>
               <span className="dot">●</span>
@@ -364,27 +371,31 @@ export default function Landing() {
           <div className="footer-col">
             <h5>Our Products</h5>
             <ul>
-              <li>Demo</li>
-              <li>Buy & Sell</li>
-              <li>Red and Blue</li>
+              <li><Link href="/register">Demo</Link></li>
+              <li><Link href="/register">Buy & Sell</Link></li>
+              <li><Link href="/register">Red and Blue</Link></li>
+              <li><Link href="/register">High Volatile</Link></li>
+              <li><Link href="/register">Low Volatile</Link></li>
+              <li><Link href="/register">Indecision</Link></li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h5>Pages</h5>
             <ul>
-              <li>Register</li>
-              <li>Spin</li>
-              <li>Withdraw</li>
+              <li><Link href="/register">Register</Link></li>
+              <li><Link href="/register">Spin</Link></li>
+              <li><Link href="/register">Withdraw</Link></li>
+              <li><Link href="/register">Deposite</Link></li>
             </ul>
           </div>
 
           <div className="footer-col">
             <h5>Contact</h5>
             <ul>
-              <li>forexaiexchange@gmail.com</li>
-              <li>+250 782 444 243</li>
-              <li>Support Center</li>
+              <li><Link href="/register">forexaiexchange@gmail.com</Link></li>
+              <li><Link href="/register">+250 782 444 243</Link></li>
+              <li><Link href="/register">Support Center</Link></li>
             </ul>
           </div>
 

@@ -883,15 +883,19 @@
     }
 
     .state-indicator {
-      position: absolute;
-      bottom: -30px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: rgba(165, 213, 255, 0.6);
-      font-size: 12px;
-      font-weight: 500;
-      white-space: nowrap;
+      display: none !important; // Hide this to prevent duplicate timer text
     }
+  }
+
+  /* Hide any potential duplicate timer elements that might appear on the right side */
+  .timer-sidebar, .timer-right, .right-timer {
+    display: none !important;
+  }
+
+  /* Ensure timer text below spin wheel is always visible */
+  .timer-text-below {
+    display: block !important;
+    visibility: visible !important;
   }
 
   .loading-overlay {

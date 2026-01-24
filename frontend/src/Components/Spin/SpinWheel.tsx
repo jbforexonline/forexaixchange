@@ -161,8 +161,8 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
         </g>
 
-        {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
-        <g className="ring-direction spin-cw">
+        {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Counter-clockwise like inner */}
+        <g className="ring-direction spin-ccw">
           <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
           <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
           
@@ -193,8 +193,8 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           })}
         </g>
 
-        {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
-        <g className="ring-color spin-cw">
+        {/* Color Ring (BLUE/RED) - 3rd Circle: Counter-clockwise like inner */}
+        <g className="ring-color spin-ccw">
           <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
           <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
           
@@ -241,7 +241,7 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
             {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
             {win.colorRight && <path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
             {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
-            {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
+            {win.volRight && <path d={arcPath(R.vol[1], R.vol[1], 0, 180)} />}
           </g>
         )}
 
@@ -296,30 +296,20 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
             {roundDurationMin} MIN ROUND
           </text>
           
-          {/* Timer Display - Minutes:Seconds format */}
-          <text x={cx} y={cy - 8} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
+          {/* Timer Display - Minutes:Seconds format - Always Green */}
+          <text x={cx} y={cy - 8} fill="#22c55e" textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
             {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
           
-          {/* AI Market Analysis Text */}
-          <text x={cx} y={cy + 10} fill="rgba(165, 213, 255, 0.8)" textAnchor="middle" fontSize={8} fontWeight={600} letterSpacing={0.5}>
-            Market AI Analysing
-          </text>
-          
-          {/* State Label */}
-          <text x={cx} y={cy + 24} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.7)"} textAnchor="middle" fontSize={10} fontWeight={700} letterSpacing={1}>
-            {state === "open" ? "MARKET OPEN" : state === "frozen" ? "FROZEN" : state === "settled" ? "SETTLED" : "WAITING"}
+          {/* Market status under timer */}
+          <text x={cx} y={cy + 20} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={500}>
+            {state === "settled" ? "Round Complete" : 
+             state === "frozen" ? "Market Frozen" : 
+             state === "preopen" ? "Market Opening Soon" : 
+             "Market AI Analysing"}
           </text>
         </g>
       </svg>
-
-      {/* State indicator */}
-      <div className="state-indicator">
-        {state === "preopen" && `Waiting for ${roundDurationMin}-min round...`}
-        {state === "open" && `${roundDurationMin}-min round • ${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s left`}
-        {state === "frozen" && `${roundDurationMin}-min round • Settling...`}
-        {state === "settled" && `Round complete • Next ${roundDurationMin}-min round starting...`}
-      </div>
     </div>
   );
 }

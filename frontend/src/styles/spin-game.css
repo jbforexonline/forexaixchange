@@ -1781,3 +1781,73 @@
   }
 }
 
+/* ========================================
+   Timer Text Below Spin Wheel
+   ======================================== */
+
+.wheel-container {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spin-wheel-svg {
+  width: 100%;
+  height: auto;
+  max-width: 600px;
+}
+
+.timer-text-below {
+  position: relative;
+  z-index: 10;
+  margin-top: 20px;
+  text-align: center;
+  padding: 16px 24px;
+  background: rgba(0, 12, 22, 0.85);
+  border: 1px solid rgba(100, 200, 255, 0.25);
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  max-width: 300px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.round-duration {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #00d9ff;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.timer-status {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(165, 213, 255, 0.8);
+  letter-spacing: 0.3px;
+}
+
+/* Hide any potential duplicate timer elements that might appear on the right side */
+.state-indicator {
+  display: none !important;
+}
+
+/* Ensure no timer text appears in incorrect positions */
+.timer-sidebar, .timer-right, .right-timer {
+  display: none !important;
+}
+
+/* Ensure timer text below is always visible */
+.timer-text-below {
+  display: block !important;
+  visibility: visible !important;
+}
+
