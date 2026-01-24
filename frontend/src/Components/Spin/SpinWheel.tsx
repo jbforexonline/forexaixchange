@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 
 type WheelState = "preopen" | "open" | "frozen" | "settled";
 
@@ -75,9 +75,21 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
 export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
   
+  // Text position state - changes every 3 seconds to create dynamic effect
+  const [textRotation, setTextRotation] = useState(0);
+  
   // Calculate progress percentage for visual indicator
   const totalSeconds = roundDurationMin * 60;
   const progressPercent = totalSeconds > 0 ? Math.max(0, Math.min(100, ((totalSeconds - countdownSec) / totalSeconds) * 100)) : 0;
+  
+  // Effect to change text positions every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTextRotation(prev => (prev + 45) % 360); // Rotate by 45 degrees every 3 seconds
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
@@ -161,19 +173,19 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
         </g>
 
-        {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Counter-clockwise like inner */}
-        <g className="ring-direction spin-ccw">
+        {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
+        <g className="ring-direction spin-cw">
           <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
           <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
           
-          {/* Curved SELL label */}
+          {/* Curved SELL label - FIXED position */}
           <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
             <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
               SELL
             </textPath>
           </text>
           
-          {/* Curved BUY label */}
+          {/* Curved BUY label - FIXED position */}
           <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
             <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
               BUY
@@ -185,27 +197,28 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
         <g className="ring-currency spin-ccw">
           <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
           {CURRENCIES.map((ccy, i) => {
-            const angle = -180 + i * (360 / CURRENCIES.length);
+            const baseAngle = -180 + i * (360 / CURRENCIES.length);
+            const dynamicAngle = baseAngle + textRotation; // Add rotation to create position changes
             const rr = (R.curr[0] + R.curr[1]) / 2;
-            const x = cx + rr * Math.cos(deg2rad(angle));
-            const y = cy + rr * Math.sin(deg2rad(angle));
+            const x = cx + rr * Math.cos(deg2rad(dynamicAngle));
+            const y = cy + rr * Math.sin(deg2rad(dynamicAngle));
             return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
           })}
         </g>
 
-        {/* Color Ring (BLUE/RED) - 3rd Circle: Counter-clockwise like inner */}
-        <g className="ring-color spin-ccw">
+        {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
+        <g className="ring-color spin-cw">
           <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
           <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
           
-          {/* Curved RED label */}
+          {/* Curved RED label - FIXED position */}
           <text fill="#ef4444" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#redPath" startOffset="50%" textAnchor="middle">
               RED
             </textPath>
           </text>
           
-          {/* Curved BLUE label */}
+          {/* Curved BLUE label - FIXED position */}
           <text fill="#3b82f6" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
               BLUE
@@ -218,14 +231,14 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
           <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
           
-          {/* Curved LOW VOLATILE label */}
+          {/* Curved LOW VOLATILE label - FIXED position */}
           <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
             <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
               LOW VOLATILE
             </textPath>
           </text>
           
-          {/* Curved HIGH VOLATILE label */}
+          {/* Curved HIGH VOLATILE label - FIXED position */}
           <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
             <textPath href="#highPath" startOffset="50%" textAnchor="middle">
               HIGH VOLATILE

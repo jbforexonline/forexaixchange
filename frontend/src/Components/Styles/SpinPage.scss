@@ -880,6 +880,45 @@
         transform-origin: 300px 300px;
         will-change: transform;
       }
+
+      // Different speeds for each ring to create more independent motion illusion
+      .ring-direction {
+        animation: spinClockwise 22s linear infinite;
+      }
+
+      .ring-currency {
+        animation: spinCounterClockwise 16s linear infinite;
+      }
+
+      .ring-color {
+        animation: spinClockwise 19s linear infinite;
+      }
+
+      .ring-volatility {
+        animation: spinCounterClockwise 15s linear infinite;
+      }
+
+      // Smooth transitions for dynamic text rotation
+      text {
+        transition: transform 0.8s ease-in-out;
+      }
+
+      // Additional visual effects for ring independence
+      .ring-direction {
+        filter: drop-shadow(0 0 8px rgba(100, 200, 255, 0.3));
+      }
+
+      .ring-color {
+        filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.25));
+      }
+
+      .ring-volatility {
+        filter: drop-shadow(0 0 4px rgba(165, 213, 255, 0.2));
+      }
+
+      .ring-currency {
+        filter: drop-shadow(0 0 5px rgba(100, 180, 255, 0.15));
+      }
     }
 
     .state-indicator {
