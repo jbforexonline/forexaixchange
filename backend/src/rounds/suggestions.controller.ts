@@ -13,10 +13,11 @@ import {
 } from '@nestjs/swagger';
 import { SuggestionsService } from './suggestions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 
 @ApiTags('Suggestions')
 @Controller('suggestions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, LegalComplianceGuard)
 @ApiBearerAuth('JWT-auth')
 export class SuggestionsController {
   constructor(private readonly suggestionsService: SuggestionsService) {}

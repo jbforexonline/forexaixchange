@@ -12,10 +12,11 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { AffiliateService } from './affiliate.service';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 
 @ApiTags('Affiliate')
 @Controller('affiliate')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), LegalComplianceGuard)
 @ApiBearerAuth()
 export class AffiliateController {
   constructor(private readonly affiliateService: AffiliateService) {}

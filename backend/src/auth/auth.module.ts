@@ -7,10 +7,12 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PrismaService } from '../database/prisma.service';
 import { OtpService } from './services/otp.service';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
   imports: [
     PassportModule,
+    LegalModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService): JwtModuleOptions => ({

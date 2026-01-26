@@ -14,11 +14,12 @@ import {
 import { PreferencesService } from './preferences.service';
 import type { UpdatePreferencesDto } from './preferences.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @ApiTags('Preferences')
 @Controller('preferences')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, LegalComplianceGuard)
 @ApiBearerAuth('JWT-auth')
 export class PreferencesController {
   constructor(private readonly preferencesService: PreferencesService) {}

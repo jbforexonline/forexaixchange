@@ -1,4 +1,4 @@
-import { IsEmail, IsString, MinLength, IsOptional, ValidateIf, MaxLength, Matches } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, MaxLength, Matches, IsBoolean } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 
@@ -76,4 +76,19 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   referredBy?: string;
+
+  @ApiProperty({ description: 'User confirms 18+', example: true })
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  is18Plus: boolean;
+
+  @ApiProperty({ description: 'User accepted Terms & Conditions', example: true })
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  acceptedTerms: boolean;
+
+  @ApiProperty({ description: 'User accepted Privacy Policy', example: true })
+  @IsBoolean()
+  @Transform(({ value }) => value === true || value === 'true')
+  acceptedPrivacy: boolean;
 }

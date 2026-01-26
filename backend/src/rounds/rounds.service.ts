@@ -47,9 +47,9 @@ export class RoundsService {
 
     // Order cutoffs: time before freeze when orders must be placed
     // Premium users: 5 seconds before freeze
-    // Regular users: 60 seconds before freeze
+    // Regular users: 5 seconds before freeze (same as premium for betting window)
     const premiumCutoff = 5;
-    const regularCutoff = 60;
+    const regularCutoff = 5;
     
     const openedAt = new Date();
     const freezeAt = new Date(openedAt.getTime() + (roundDuration - freezeOffset) * 1000);
@@ -481,5 +481,92 @@ export class RoundsService {
 
       return cancelled;
     });
+  }
+
+  /**
+   * Capture market state checkpoint for sub-round settlements
+   */
+  async captureCheckpoint(roundId: string, checkpointMinutes: number) {
+    const round = await this.prisma.round.findUnique({
+      where: { id: roundId },
+      include: {
+        artifact: {
+          select: {
+            secret: true,
+          },
+        },
+      },
+    });
+
+    if (!round) {
+      throw new NotFoundException('Round not found');
+    }
+
+    // Determine market winners at this checkpoint based on totals
+    const outerWinner = this.determineWinner(round.outerBuy, round.outerSell, ['BUY', 'SELL']);
+    const middleWinner = this.determineWinner(round.middleBlue, round.middleRed, ['BLUE', 'RED']);
+    const innerWinner = this.determineWinner(round.innerHighVol, round.innerLowVol, ['HIGH_VOL', 'LOW_VOL']);
+
+    // Check if indecision is triggered (global INDECISION bets exist)
+    const indecisionTriggered = round.globalIndecision.gt(0);
+
+    const checkpoint = {
+      timestamp: new Date().toISOString(),
+      roundMinuteMark: checkpointMinutes,
+      outerWinner: outerWinner.winner,
+      outerTied: outerWinner.tied,
+      middleWinner: middleWinner.winner,
+      middleTied: middleWinner.tied,
+      innerWinner: innerWinner.winner,
+      innerTied: innerWinner.tied,
+      indecisionTriggered,
+      totals: {
+        outerBuy: round.outerBuy.toString(),
+        outerSell: round.outerSell.toString(),
+        middleBlue: round.middleBlue.toString(),
+        middleRed: round.middleRed.toString(),
+        innerHighVol: round.innerHighVol.toString(),
+        innerLowVol: round.innerLowVol.toString(),
+        globalIndecision: round.globalIndecision.toString(),
+      },
+    };
+
+    // Store checkpoint in the appropriate field
+    const updateData: any = {};
+    if (checkpointMinutes === 15) {
+      updateData.checkpoint15min = checkpoint;
+    } else if (checkpointMinutes === 10) {
+      updateData.checkpoint10min = checkpoint;
+    } else if (checkpointMinutes === 5) {
+      updateData.checkpoint5min = checkpoint;
+    }
+
+    await this.prisma.round.update({
+      where: { id: roundId },
+      data: updateData,
+    });
+
+    this.logger.log(
+      `📸 Checkpoint captured for Round ${round.roundNumber} at ${checkpointMinutes} min mark`,
+    );
+
+    return checkpoint;
+  }
+
+  /**
+   * Helper to determine winner between two sides
+   */
+  private determineWinner(
+    sideA: Decimal,
+    sideB: Decimal,
+    labels: [string, string],
+  ): { winner: string | null; tied: boolean } {
+    if (sideA.eq(sideB)) {
+      return { winner: null, tied: true };
+    }
+    return {
+      winner: sideA.gt(sideB) ? labels[0] : labels[1],
+      tied: false,
+    };
   }
 }

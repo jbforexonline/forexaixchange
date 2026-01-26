@@ -23,6 +23,7 @@ import {
 import { ChatService } from './chat.service';
 import type { CreateMessageDto } from './chat.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -30,7 +31,7 @@ import { ChatRoomType } from '@prisma/client';
 
 @ApiTags('Chat')
 @Controller('chat')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, LegalComplianceGuard)
 @ApiBearerAuth('JWT-auth')
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}

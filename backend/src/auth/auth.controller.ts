@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Req, Res, Query, HttpException } from '@nestjs/common';
+import { Controller, Post, Body, Get, UseGuards, Req, Res, Query, HttpException, Patch } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
@@ -7,7 +7,10 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CurrentUser } from './decorators/user.decorator';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -60,11 +63,13 @@ export class AuthController {
     }
   })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  @ApiResponse({ status: 400, description: 'Invalid input data - either email or phone required' })
+  @ApiResponse({ status: 400, description: 'Invalid input data - either email or phone required, or legal/age checks missing' })
   @ApiResponse({ status: 500, description: 'Internal server error' })
-  async register(@Body() registerDto: RegisterDto) {
+  async register(@Body() registerDto: RegisterDto, @Req() req: Request) {
     try {
-      const result = await this.authService.register(registerDto);
+      const ip = (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ?? req.socket?.remoteAddress;
+      const userAgent = (req.headers['user-agent'] as string) ?? undefined;
+      const result = await this.authService.register(registerDto, { ip, userAgent });
       return result;
     } catch (error) {
       // Log the error for debugging
@@ -266,7 +271,7 @@ export class AuthController {
   }
 
   @Get('me')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(AuthGuard('jwt'), LegalComplianceGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user' })
   @ApiResponse({ 
@@ -319,6 +324,73 @@ export class AuthController {
       console.error('GET /auth/me - User missing id field:', Object.keys(user));
     }
     return { user };
+  }
+
+  @Patch('profile')
+  @UseGuards(AuthGuard('jwt'), LegalComplianceGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user profile (username, firstName, lastName)' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Profile updated successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string' },
+            email: { type: 'string' },
+            phone: { type: 'string' },
+            username: { type: 'string' },
+            firstName: { type: 'string' },
+            lastName: { type: 'string' },
+            role: { type: 'string' },
+            premium: { type: 'boolean' },
+          }
+        },
+        message: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 409, description: 'Username already taken' })
+  async updateProfile(@CurrentUser() user: any, @Body() updateProfileDto: UpdateProfileDto) {
+    const updatedUser = await this.authService.updateProfile(user.id, updateProfileDto);
+    return {
+      success: true,
+      data: updatedUser,
+      message: 'Profile updated successfully'
+    };
+  }
+
+  @Post('change-password')
+  @UseGuards(AuthGuard('jwt'), LegalComplianceGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password changed successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean' },
+        message: { type: 'string' }
+      }
+    }
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized or incorrect current password' })
+  async changePassword(@CurrentUser() user: any, @Body() changePasswordDto: ChangePasswordDto) {
+    const result = await this.authService.changePassword(
+      user.id, 
+      changePasswordDto.currentPassword, 
+      changePasswordDto.newPassword
+    );
+    return {
+      success: true,
+      message: result.message
+    };
   }
 
   @Get('test')

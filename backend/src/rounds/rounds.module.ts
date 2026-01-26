@@ -21,9 +21,10 @@ import { PrismaService } from '../database/prisma.service';
 import { RedisModule } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { MockRoundsService } from './mock-rounds.service';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
-  imports: [ScheduleModule.forRoot(), RedisModule],
+  imports: [ScheduleModule.forRoot(), RedisModule, LegalModule],
   controllers: [RoundsController, BetsController, AutoSpinController, SuggestionsController],
   providers: [
     RoundsService,

@@ -28,10 +28,11 @@ import { RoundsService } from './rounds.service';
 import { PlaceBetDto } from './dto/place-bet.dto';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 
 @ApiTags('Bets')
 @Controller('bets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, LegalComplianceGuard)
 export class BetsController {
   private readonly logger = new Logger(BetsController.name);
 

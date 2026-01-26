@@ -5,9 +5,10 @@ import { TransactionsService } from './transactions.service';
 import { PrismaService } from '../database/prisma.service';
 import { AffiliateModule } from '../affiliate/affiliate.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { LegalModule } from '../legal/legal.module';
 
 @Module({
-  imports: [AffiliateModule, RealtimeModule],
+  imports: [AffiliateModule, RealtimeModule, LegalModule],
   controllers: [WalletController],
   providers: [WalletService, TransactionsService, PrismaService],
   exports: [WalletService, TransactionsService],

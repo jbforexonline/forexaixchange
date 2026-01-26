@@ -3,6 +3,13 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+const AGE_SEED = {
+  isAge18Confirmed: true,
+  ageConfirmedAt: new Date(),
+  ageConfirmedIp: '127.0.0.1',
+  ageConfirmedUserAgent: 'Seed',
+};
+
 async function main() {
   console.log('🌱 Starting database seeding...');
 
@@ -24,6 +31,7 @@ async function main() {
       verificationBadge: true,
       kycStatus: KycStatus.APPROVED,
       premium: true,
+      ...AGE_SEED,
       wallet: {
         create: {
           available: 10000,
@@ -55,6 +63,7 @@ async function main() {
       verificationBadge: true,
       kycStatus: KycStatus.APPROVED,
       premium: true,
+      ...AGE_SEED,
       wallet: {
         create: {
           available: 5000,
@@ -129,6 +138,7 @@ async function main() {
         verificationBadge: userData.premium,
         kycStatus: KycStatus.APPROVED,
         premium: userData.premium,
+        ...AGE_SEED,
         wallet: {
           create: {
             available: userData.available,
@@ -142,6 +152,73 @@ async function main() {
       },
     });
   }
+
+  // Legal: Terms & Privacy v1.0 (active)
+  const terms = await prisma.legalDocument.upsert({
+    where: { type_version: { type: 'TERMS', version: '1.0' } },
+    update: {},
+    create: {
+      type: 'TERMS',
+      version: '1.0',
+      content: `# Terms & Conditions v1.0
+
+Welcome to ForexAI Exchange. By using this platform you agree to these terms.
+
+## Eligibility
+You must be 18 or older to use this service.
+
+## Acceptance
+By registering you confirm you have read and accepted these terms.`,
+      effectiveAt: new Date(),
+      isActive: true,
+      createdByAdminId: superAdmin.id,
+    },
+  });
+  const privacy = await prisma.legalDocument.upsert({
+    where: { type_version: { type: 'PRIVACY', version: '1.0' } },
+    update: {},
+    create: {
+      type: 'PRIVACY',
+      version: '1.0',
+      content: `# Privacy Policy v1.0
+
+We collect and process your data in accordance with applicable laws.
+
+## Data we collect
+- Account and profile information
+- Usage and transaction data
+
+## Your rights
+You may request access or deletion of your data.`,
+      effectiveAt: new Date(),
+      isActive: true,
+      createdByAdminId: superAdmin.id,
+    },
+  });
+
+  const seededEmails = [
+    'superadmin@forexaixchange.com',
+    'admin@forexaixchange.com',
+    'user1@test.com',
+    'user2@test.com',
+    'premium@test.com',
+    'demo@forexaixchange.com',
+  ];
+  for (const email of seededEmails) {
+    const u = await prisma.user.findUnique({ where: { email } });
+    if (!u) continue;
+    await prisma.userLegalAcceptance.upsert({
+      where: { userId_legalDocumentId: { userId: u.id, legalDocumentId: terms.id } },
+      update: {},
+      create: { userId: u.id, legalDocumentId: terms.id, ipAddress: '127.0.0.1', userAgent: 'Seed' },
+    });
+    await prisma.userLegalAcceptance.upsert({
+      where: { userId_legalDocumentId: { userId: u.id, legalDocumentId: privacy.id } },
+      update: {},
+      create: { userId: u.id, legalDocumentId: privacy.id, ipAddress: '127.0.0.1', userAgent: 'Seed' },
+    });
+  }
+  console.log('✅ Legal documents (Terms & Privacy v1.0) and seeded user acceptances created.');
 
   // Create Premium Plans
   const premiumPlans = [

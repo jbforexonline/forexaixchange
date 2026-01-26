@@ -15,7 +15,8 @@ import { RoundsModule } from './rounds/rounds.module';
 import { ChatModule } from './chat/chat.module';
 import { PreferencesModule } from './preferences/preferences.module';
 import { AppThrottlerModule } from './common/throttler.module';
-
+import { LegalModule } from './legal/legal.module';
+import { AdminLegalModule } from './admin-legal/admin-legal.module';
 import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
@@ -24,6 +25,8 @@ import { RealtimeModule } from './realtime/realtime.module';
     AppThrottlerModule,
     RedisModule,
     AuthModule,
+    LegalModule,
+    AdminLegalModule,
     UsersModule,
     WalletModule,
     SpinsModule,

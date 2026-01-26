@@ -22,12 +22,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    const message =
+    const raw =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Internal server error';
 
-    // Log the error for debugging
+    const message = typeof raw === 'string' ? raw : (raw as any).message ?? 'Internal server error';
+    const msgStr = Array.isArray(message) ? message.join(', ') : String(message);
+    const code = typeof raw === 'object' && raw !== null && 'code' in (raw as object)
+      ? (raw as { code: string }).code
+      : undefined;
+
     if (status >= 500) {
       this.logger.error(
         `❌ ${request.method} ${request.url} - ${status}`,
@@ -35,16 +40,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
       );
     } else if (status >= 400) {
       this.logger.warn(
-        `⚠️ ${request.method} ${request.url} - ${status} - ${typeof message === 'string' ? message : JSON.stringify(message)}`,
+        `⚠️ ${request.method} ${request.url} - ${status} - ${msgStr}`,
       );
     }
 
-    response.status(status).json({
+    const body: Record<string, unknown> = {
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
       method: request.method,
-      message: typeof message === 'string' ? message : (message as any).message || 'Internal server error',
-    });
+      message: msgStr,
+    };
+    if (code) body.code = code;
+    response.status(status).json(body);
   }
 }

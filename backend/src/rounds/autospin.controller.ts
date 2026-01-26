@@ -22,11 +22,12 @@ import {
 import { AutoSpinService } from './autospin.service';
 import type { CreateAutoSpinDto } from './autospin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @ApiTags('AutoSpin')
 @Controller('autospin')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, LegalComplianceGuard)
 @ApiBearerAuth('JWT-auth')
 export class AutoSpinController {
   constructor(private readonly autoSpinService: AutoSpinService) {}

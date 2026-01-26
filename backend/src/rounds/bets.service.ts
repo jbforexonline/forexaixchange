@@ -18,14 +18,10 @@ import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { PlaceBetDto } from './dto/place-bet.dto';
 
-export interface PlaceBetDto {
+export interface PlaceBetDtoWithRoundId extends PlaceBetDto {
   roundId: string;
-  market: BetMarket;
-  selection: string;
-  amountUsd: number;
-  idempotencyKey?: string;
-  isDemo?: boolean;
 }
 
 @Injectable()
@@ -41,7 +37,7 @@ export class BetsService {
   /**
    * Place a bet on the current round
    */
-  async placeBet(userId: string, dto: PlaceBetDto) {
+  async placeBet(userId: string, dto: PlaceBetDtoWithRoundId) {
     this.logger.debug(`📝 placeBet called: userId=${userId}, dto=${JSON.stringify(dto)}`);
     
     const amount = new Decimal(dto.amountUsd);
@@ -96,15 +92,51 @@ export class BetsService {
       // All users can place bets (both demo and live)
       // Premium status only affects timing cutoffs and bet limits
 
-      // 4. Check timing constraints (premium vs regular)
+      // 4. Check timing constraints based on user's chosen duration
       const now = new Date();
-      const cutoffTime = isPremium
-        ? new Date(round.freezeAt.getTime() - round.premiumCutoff * 1000)
-        : new Date(round.freezeAt.getTime() - round.regularCutoff * 1000);
-
-      if (now >= cutoffTime) {
+      const userDuration = dto.userRoundDuration || 20; // Default to 20 minutes
+      
+      // Calculate when the user's chosen timeframe ends
+      const elapsed = (now.getTime() - round.openedAt.getTime()) / 1000; // seconds
+      const roundDuration = round.roundDuration; // seconds (e.g., 1200 for 20 min)
+      const timeRemaining = roundDuration - elapsed;
+      const timeRemainingMinutes = timeRemaining / 60;
+      
+      // Determine the next checkpoint for this user's duration
+      let nextCheckpointSeconds = round.settleAt.getTime(); // Default to end of round
+      
+      if (userDuration === 5) {
+        // 5-minute users: find next quarter boundary (15, 10, 5, or 0 minutes)
+        if (timeRemainingMinutes > 15) {
+          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 15 * 60) * 1000;
+        } else if (timeRemainingMinutes > 10) {
+          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 10 * 60) * 1000;
+        } else if (timeRemainingMinutes > 5) {
+          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 5 * 60) * 1000;
+        } else {
+          nextCheckpointSeconds = round.settleAt.getTime();
+        }
+      } else if (userDuration === 10) {
+        // 10-minute users: find next semi-circle boundary (10 or 0 minutes)
+        if (timeRemainingMinutes > 10) {
+          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 10 * 60) * 1000;
+        } else {
+          nextCheckpointSeconds = round.settleAt.getTime();
+        }
+      } else {
+        // 20-minute users: use main round freeze time
+        nextCheckpointSeconds = round.freezeAt.getTime();
+      }
+      
+      // Check if we're within 60 seconds of the checkpoint
+      const freezeThreshold = 60 * 1000; // 60 seconds in milliseconds
+      const timeUntilCheckpoint = nextCheckpointSeconds - now.getTime();
+      
+      if (timeUntilCheckpoint <= freezeThreshold) {
+        const minutesRemaining = Math.floor(timeUntilCheckpoint / 60000);
+        const secondsRemaining = Math.floor((timeUntilCheckpoint % 60000) / 1000);
         throw new BadRequestException(
-          `Market closed - orders no longer accepted`,
+          `Market closed for your ${userDuration}-minute timeframe. Next checkpoint in ${minutesRemaining}:${secondsRemaining.toString().padStart(2, '0')}`,
         );
       }
 
@@ -136,6 +168,7 @@ export class BetsService {
           isPremiumUser: isPremium ?? false,
           idempotencyKey: dto.idempotencyKey,
           isDemo: dto.isDemo || false,
+          userRoundDuration: dto.userRoundDuration || 20, // Default to 20 minutes
         } as any,
       });
 

@@ -91,7 +91,19 @@ export class RoundsSettlementService {
             throw new Error(`Round must be FROZEN, currently: ${round.state}`);
           }
 
-          this.logger.log(`⚙️  Settling Round ${round.roundNumber}...`);
+          this.logger.log(`⚙️  Settling Round ${round.roundNumber}... (${round.bets.length} unsettled bets)`);
+
+          // Count already-settled bets
+          const alreadySettled = await tx.bet.count({
+            where: { 
+              roundId, 
+              status: { in: ['WON', 'LOST'] } 
+            }
+          });
+          
+          if (alreadySettled > 0) {
+            this.logger.log(`📊 ${alreadySettled} bets already settled at checkpoints (excluded from final settlement)`);
+          }
 
           // 2. Transition to SETTLING
           await tx.round.update({
@@ -605,5 +617,179 @@ export class RoundsSettlementService {
       `Fee $${settlement.houseFee.toFixed(2)}, ` +
       `Net $${netProfit.add(settlement.houseFee).toFixed(2)}`
     );
+  }
+
+  /**
+   * Settle bets at checkpoint (for sub-round durations)
+   */
+  async settleCheckpoint(roundId: string, checkpointMinutes: number) {
+    this.logger.log(`🎯 Settling checkpoint ${checkpointMinutes} min for round ${roundId}`);
+
+    try {
+      return await this.prisma.$transaction(async (tx) => {
+        // Get round and checkpoint data
+        const round = await tx.round.findUnique({
+          where: { id: roundId },
+        });
+
+        if (!round) {
+          throw new Error('Round not found');
+        }
+
+        // Get the checkpoint data
+        let checkpoint: any = null;
+        if (checkpointMinutes === 15 && round.checkpoint15min) {
+          checkpoint = round.checkpoint15min;
+        } else if (checkpointMinutes === 10 && round.checkpoint10min) {
+          checkpoint = round.checkpoint10min;
+        } else if (checkpointMinutes === 5 && round.checkpoint5min) {
+          checkpoint = round.checkpoint5min;
+        }
+
+        if (!checkpoint) {
+          this.logger.warn(`No checkpoint data found for ${checkpointMinutes} min`);
+          return;
+        }
+
+        // Determine which users to settle based on their userRoundDuration
+        let usersToSettle: number[] = [];
+        if (checkpointMinutes === 15) {
+          usersToSettle = [5]; // Only 5-minute users (Quarter 1 ends)
+        } else if (checkpointMinutes === 10) {
+          usersToSettle = [5, 10]; // 5-minute (Quarter 2) and 10-minute (Semi 1) users
+        } else if (checkpointMinutes === 5) {
+          usersToSettle = [5]; // Only 5-minute users (Quarter 3 ends)
+        }
+
+        // Get unsettled bets for these durations
+        const betsToSettle = await tx.bet.findMany({
+          where: {
+            roundId,
+            status: 'ACCEPTED',
+            userRoundDuration: { in: usersToSettle },
+          },
+          include: {
+            user: {
+              include: {
+                wallet: true,
+              },
+            },
+          },
+        });
+
+        // Debug logging
+        const allBets = await tx.bet.findMany({
+          where: { roundId },
+          select: { id: true, status: true, userRoundDuration: true, market: true, selection: true, amountUsd: true }
+        });
+        this.logger.log(`📊 Round ${roundId} checkpoint ${checkpointMinutes} min:`);
+        this.logger.log(`   Total bets in round: ${allBets.length}`);
+        this.logger.log(`   Bets with ACCEPTED status: ${allBets.filter(b => b.status === 'ACCEPTED').length}`);
+        this.logger.log(`   Bets matching durations [${usersToSettle.join(', ')}]: ${allBets.filter(b => usersToSettle.includes(b.userRoundDuration)).length}`);
+        this.logger.log(`   Bets to settle: ${betsToSettle.length}`);
+
+        if (betsToSettle.length === 0) {
+          this.logger.warn(`⚠️ No bets to settle at ${checkpointMinutes} min checkpoint (expected durations: [${usersToSettle.join(', ')}])`);
+          return;
+        }
+
+        this.logger.log(`✅ Settling ${betsToSettle.length} bets at ${checkpointMinutes} min checkpoint`);
+
+        // Process each bet
+        for (const bet of betsToSettle) {
+          let isWinner = false;
+
+          // Determine if bet won based on checkpoint results
+          if (checkpoint.indecisionTriggered && bet.market === 'GLOBAL' && bet.selection === 'INDECISION') {
+            isWinner = true;
+          } else if (!checkpoint.indecisionTriggered) {
+            // Check market-specific winners
+            if (bet.market === 'OUTER' && !checkpoint.outerTied && bet.selection === checkpoint.outerWinner) {
+              isWinner = true;
+            } else if (bet.market === 'MIDDLE' && !checkpoint.middleTied && bet.selection === checkpoint.middleWinner) {
+              isWinner = true;
+            } else if (bet.market === 'INNER' && !checkpoint.innerTied && bet.selection === checkpoint.innerWinner) {
+              isWinner = true;
+            }
+          }
+
+          // Calculate payout
+          let payoutAmount = new Decimal(0);
+          let profitAmount = new Decimal(0);
+
+          if (isWinner) {
+            // Calculate payout (2x bet amount - 2% house fee)
+            const grossPayout = bet.amountUsd.mul(2);
+            const fee = grossPayout.mul(this.FEE_BPS).div(10000);
+            payoutAmount = grossPayout.sub(fee);
+            profitAmount = payoutAmount.sub(bet.amountUsd);
+          }
+
+          // Update bet
+          await tx.bet.update({
+            where: { id: bet.id },
+            data: {
+              status: isWinner ? 'WON' : 'LOST',
+              isWinner,
+              payoutAmount: isWinner ? payoutAmount : null,
+              profitAmount: isWinner ? profitAmount : null,
+              settledAt: new Date(),
+            },
+          });
+
+          this.logger.log(
+            `  ${isWinner ? '✅' : '❌'} Bet ${bet.id.substring(0, 8)}: ${bet.market} ${bet.selection} $${bet.amountUsd} -> ${isWinner ? 'WON' : 'LOST'} (payout: $${isWinner ? payoutAmount : 0})`
+          );
+
+          // Update wallet
+          if (bet.isDemo) {
+            if (isWinner) {
+              await tx.wallet.update({
+                where: { userId: bet.userId },
+                data: {
+                  demoHeld: { decrement: bet.amountUsd },
+                  demoAvailable: { increment: payoutAmount },
+                  demoTotalWon: { increment: profitAmount },
+                } as any,
+              });
+            } else {
+              await tx.wallet.update({
+                where: { userId: bet.userId },
+                data: {
+                  demoHeld: { decrement: bet.amountUsd },
+                  demoTotalLost: { increment: bet.amountUsd },
+                } as any,
+              });
+            }
+          } else {
+            if (isWinner) {
+              await tx.wallet.update({
+                where: { userId: bet.userId },
+                data: {
+                  held: { decrement: bet.amountUsd },
+                  available: { increment: payoutAmount },
+                  totalWon: { increment: profitAmount },
+                },
+              });
+            } else {
+              await tx.wallet.update({
+                where: { userId: bet.userId },
+                data: {
+                  held: { decrement: bet.amountUsd },
+                  totalLost: { increment: bet.amountUsd },
+                },
+              });
+            }
+          }
+        }
+
+        this.logger.log(
+          `✅ Checkpoint ${checkpointMinutes} min settled: ${betsToSettle.length} bets processed`
+        );
+      });
+    } catch (error) {
+      this.logger.error(`Error settling checkpoint ${checkpointMinutes} min:`, error);
+      throw error;
+    }
   }
 }

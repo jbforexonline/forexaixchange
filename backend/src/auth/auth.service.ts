@@ -8,6 +8,12 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import * as bcrypt from 'bcryptjs';
 import { OtpService } from './services/otp.service';
 import { AffiliateTier } from '@prisma/client';
+import { LegalService } from '../legal/legal.service';
+
+export interface RegisterContext {
+  ip?: string;
+  userAgent?: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -15,9 +21,10 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private otpService: OtpService,
+    private legalService: LegalService,
   ) {}
 
-  async register(registerDto: RegisterDto) {
+  async register(registerDto: RegisterDto, ctx?: RegisterContext) {
     let user;
     try {
       console.log('🔍 Registration attempt:', { 
@@ -26,6 +33,16 @@ export class AuthService {
         phone: registerDto.phone,
         referredBy: registerDto.referredBy 
       });
+
+      if (registerDto.is18Plus !== true) {
+        throw new BadRequestException('You must confirm you are 18 or older to register');
+      }
+      if (registerDto.acceptedTerms !== true) {
+        throw new BadRequestException('You must accept the Terms & Conditions to register');
+      }
+      if (registerDto.acceptedPrivacy !== true) {
+        throw new BadRequestException('You must accept the Privacy Policy to register');
+      }
       
       let { email, phone, password, username, firstName, lastName, referredBy } = registerDto;
 
@@ -103,10 +120,20 @@ export class AuthService {
       // Hash password before storing
       const hashedPassword = await this.hashPassword(password);
 
+      const activeTerms = await this.legalService.getActive('terms');
+      const activePrivacy = await this.legalService.getActive('privacy');
+      if (!activeTerms || !activePrivacy) {
+        throw new BadRequestException(
+          'Terms and Privacy Policy must be configured before registration. Please try again later.',
+        );
+      }
+
       // Generate unique affiliate code
       const affiliateCode = this.generateAffiliateCode();
+      const ip = ctx?.ip ?? null;
+      const userAgent = ctx?.userAgent ?? null;
+      const now = new Date();
 
-      // Prepare user data - make sure all required fields are present
       const userData: any = {
         email: email || null,
         phone: phone || null,
@@ -115,6 +142,10 @@ export class AuthService {
         firstName: firstName || '',
         lastName: lastName || '',
         affiliateCode,
+        isAge18Confirmed: true,
+        ageConfirmedAt: now,
+        ageConfirmedIp: ip,
+        ageConfirmedUserAgent: userAgent,
         wallet: {
           create: {
             available: 0,
@@ -131,7 +162,6 @@ export class AuthService {
         },
       };
 
-      // Only add referredBy if it's valid
       if (validReferredBy) {
         userData.referredBy = validReferredBy;
         console.log('✅ User will be linked to referrer:', validReferredBy);
@@ -145,21 +175,29 @@ export class AuthService {
         referredBy: userData.referredBy || 'None'
       });
 
-      // Create user in database
-      user = await this.prisma.user.create({
-        data: userData,
-        include: {
-          wallet: true,
-          referrer: {
-            select: {
-              id: true,
-              username: true,
-              email: true,
-              firstName: true,
-              lastName: true,
+      user = await this.prisma.$transaction(async (tx) => {
+        const u = await tx.user.create({
+          data: userData,
+          include: {
+            wallet: true,
+            referrer: {
+              select: {
+                id: true,
+                username: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+              }
             }
-          }
-        },
+          },
+        });
+        await tx.userLegalAcceptance.createMany({
+          data: [
+            { userId: u.id, legalDocumentId: activeTerms.id, ipAddress: ip ?? undefined, userAgent: userAgent ?? undefined },
+            { userId: u.id, legalDocumentId: activePrivacy.id, ipAddress: ip ?? undefined, userAgent: userAgent ?? undefined },
+          ],
+        });
+        return u;
       });
 
       console.log('✅ User created successfully:', user.id);
@@ -773,6 +811,92 @@ export class AuthService {
         referrals: [],
         earnings: [],
       };
+    }
+  }
+
+  /**
+   * Update user profile (username, firstName, lastName)
+   */
+  async updateProfile(userId: string, updateData: { username?: string; firstName?: string; lastName?: string }) {
+    try {
+      // Check if username is being changed and if it's already taken
+      if (updateData.username) {
+        const existingUser = await this.prisma.user.findUnique({
+          where: { username: updateData.username }
+        });
+        
+        if (existingUser && existingUser.id !== userId) {
+          throw new ConflictException('Username already taken');
+        }
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: userId },
+        data: updateData,
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          username: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          premium: true,
+          verificationBadge: true,
+          createdAt: true,
+        }
+      });
+
+      return updatedUser;
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw error;
+      }
+      console.error('Error updating profile:', error);
+      throw new InternalServerErrorException('Failed to update profile');
+    }
+  }
+
+  /**
+   * Change user password
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    try {
+      // Get user with password
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, password: true, email: true, phone: true }
+      });
+
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Verify current password
+      const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+      if (!isPasswordValid) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
+
+      // Hash new password
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      // Update password
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword }
+      });
+
+      return {
+        message: 'Password changed successfully',
+        identifier: user.email || user.phone
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException || error instanceof NotFoundException) {
+        throw error;
+      }
+      console.error('Error changing password:', error);
+      throw new InternalServerErrorException('Failed to change password');
     }
   }
 }
