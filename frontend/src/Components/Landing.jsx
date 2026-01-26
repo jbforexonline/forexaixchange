@@ -374,8 +374,7 @@ export default function Landing() {
               <li><Link href="/register">Demo</Link></li>
               <li><Link href="/register">Buy & Sell</Link></li>
               <li><Link href="/register">Red and Blue</Link></li>
-              <li><Link href="/register">High Volatile</Link></li>
-              <li><Link href="/register">Low Volatile</Link></li>
+              <li><Link href="/register">High Volatile and Low Volatile</Link></li>
               <li><Link href="/register">Indecision</Link></li>
             </ul>
           </div>
@@ -386,7 +385,7 @@ export default function Landing() {
               <li><Link href="/register">Register</Link></li>
               <li><Link href="/register">Spin</Link></li>
               <li><Link href="/register">Withdraw</Link></li>
-              <li><Link href="/register">Deposite</Link></li>
+              <li><Link href="/register">Deposit</Link></li>
             </ul>
           </div>
 
