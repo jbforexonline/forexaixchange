@@ -72,11 +72,25 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
+function calculateWinnerAngle(winners: WinnerFlags): number {
+  if (winners.indecision) return 180; // down
+  if (winners.outer === "BUY") return 0;
+  if (winners.outer === "SELL") return 180;
+  if (winners.color === "BLUE") return 90;
+  if (winners.color === "RED") return 270;
+  if (winners.vol === "HIGH") return 45;
+  if (winners.vol === "LOW") return 225;
+  return 0;
+}
+
 export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
   
   // Text position state - changes every 3 seconds to create dynamic effect
   const [textRotation, setTextRotation] = useState(0);
+  
+  // Wheel rotation for spinning animation
+  const [rotation, setRotation] = useState(0);
   
   // Calculate progress percentage for visual indicator
   const totalSeconds = roundDurationMin * 60;
@@ -90,6 +104,27 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
     
     return () => clearInterval(interval);
   }, []);
+
+  // Effect for wheel spinning animation when settled
+  useEffect(() => {
+    if (state === "settled" && winners) {
+      const winnerAngle = calculateWinnerAngle(winners);
+      const current = rotation % 360;
+      const spins = 5; // Number of full spins before stopping
+      const target = rotation - current + winnerAngle + 360 * spins;
+      setRotation(target);
+    }
+  }, [state, winners, rotation]);
+
+  // Effect for spinning during frozen state
+  useEffect(() => {
+    if (state === "frozen") {
+      const interval = setInterval(() => {
+        setRotation(prev => prev + 10); // Spin 10 degrees every 100ms
+      }, 100);
+      return () => clearInterval(interval);
+    }
+  }, [state]);
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
@@ -172,6 +207,9 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
           <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
         </g>
+
+        {/* Spinning wheel content */}
+        <g transform={`rotate(${rotation} ${cx} ${cy})`} style={{transition: state === 'settled' ? 'transform 3s ease-out' : 'none'}}>
 
         {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
         <g className="ring-direction spin-cw">
@@ -321,6 +359,7 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
              state === "preopen" ? "Market Opening Soon" : 
              "Market AI Analysing"}
           </text>
+        </g>
         </g>
       </svg>
     </div>
