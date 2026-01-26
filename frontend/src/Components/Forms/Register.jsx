@@ -200,6 +200,17 @@ export default function Register() {
 
       <div className="register-right">
         <div className="register-form-wrapper">
+          {/* Go to Landing Page Button */}
+          <div className="back-to-landing">
+            <button 
+              type="button" 
+              onClick={() => router.push('/')}
+              className="landing-button"
+            >
+              ← Go to Landing Page
+            </button>
+          </div>
+          
           <h1 className="register-title">Create an Account</h1>
           
           {formData.referralCode && (

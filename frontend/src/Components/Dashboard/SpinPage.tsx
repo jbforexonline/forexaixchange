@@ -67,6 +67,9 @@ export default function SpinPage() {
   const [betError, setBetError] = useState<string | null>(null);
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingBetAmount, setPendingBetAmount] = useState<number | null>(null);
+  const [showTicketsModal, setShowTicketsModal] = useState(false);
   
   // Premium features state
   const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
@@ -164,19 +167,34 @@ export default function SpinPage() {
       return;
     }
 
+    // Open in-app confirmation modal
+    setPendingBetAmount(amount);
+    setShowConfirmModal(true);
+  };
+
+  const handleConfirmPlaceBet = async () => {
+    if (!round || roundState !== 'open' || pendingBetAmount == null) {
+      setShowConfirmModal(false);
+      return;
+    }
+
     setIsPlacingBet(true);
     setBetError(null);
 
     try {
+      // Close the modal immediately for a smooth UX (order continues in background)
+      setShowConfirmModal(false);
+      setPendingBetAmount(null);
+
       await placeBet({
         market: selectedOption.market,
         selection: selectedOption.selection,
-        amountUsd: amount,
+        amountUsd: pendingBetAmount,
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
         isDemo: isDemo,
       });
 
-      setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${amount} on ${selectedOption.label}`);
+      setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${pendingBetAmount} on ${selectedOption.label}`);
       refreshWallet();
       
       // Refresh bets
@@ -232,8 +250,140 @@ export default function SpinPage() {
   const totalBets = betsArray.reduce((sum, bet) => sum + bet.amountUsd, 0);
   const potentialWin = totalBets * 2;
 
+  const getTicketMarketLabel = (market: BetMarket) => {
+    switch (market) {
+      case 'OUTER':
+        return 'Direction';
+      case 'MIDDLE':
+        return 'Color';
+      case 'INNER':
+        return 'Volatility';
+      case 'GLOBAL':
+        return 'Indecision';
+      default:
+        return market;
+    }
+  };
+
+  const getTicketSelectionLabel = (selection: BetSelection) => {
+    switch (selection) {
+      case 'BUY':
+        return 'Buy';
+      case 'SELL':
+        return 'Sell';
+      case 'BLUE':
+        return 'Blue';
+      case 'RED':
+        return 'Red';
+      case 'HIGH_VOL':
+        return 'High Volatile';
+      case 'LOW_VOL':
+        return 'Low Volatile';
+      case 'INDECISION':
+        return 'Indecision';
+      default:
+        return selection;
+    }
+  };
+
   return (
     <div className={`spin-gaming-container ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+      {showConfirmModal && pendingBetAmount != null && (
+        <div className="spin-confirm-overlay">
+          <div className="spin-confirm-modal">
+            <h2>Confirm Your Order</h2>
+            <p className="subtitle">{isDemo ? 'Demo order' : 'Live order'}</p>
+            <div className="details">
+              <div className="row">
+                <span className="label">Selection</span>
+                <span className="value">{selectedOption.label}</span>
+              </div>
+              <div className="row">
+                <span className="label">Amount</span>
+                <span className="value">${pendingBetAmount.toFixed(2)}</span>
+              </div>
+              {round && (
+                <div className="row">
+                  <span className="label">Round</span>
+                  <span className="value">#{round.roundNumber}</span>
+                </div>
+              )}
+            </div>
+            <p className="disclaimer">
+              Once placed, this order cannot be cancelled for the current round.
+            </p>
+            <div className="actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isPlacingBet}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmPlaceBet}
+                disabled={isPlacingBet}
+              >
+                {isPlacingBet ? 'Placing…' : 'Confirm Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTicketsModal && (
+        <div className="spin-tickets-overlay">
+          <div className="spin-tickets-modal">
+            <h2>My Tickets</h2>
+            <p className="subtitle">
+              {round ? `Current round #${round.roundNumber}` : 'Current open positions'}
+            </p>
+            <div className="tickets-list">
+              {betsArray.length === 0 ? (
+                <div className="empty-state">
+                  You have no active tickets for this round yet.
+                </div>
+              ) : (
+                betsArray.map((bet) => (
+                  <div key={bet.id} className="ticket-row">
+                    <div className="ticket-main">
+                      <span className="ticket-market">
+                        {getTicketMarketLabel(bet.market)}
+                      </span>
+                      <span className="ticket-selection">
+                        {getTicketSelectionLabel(bet.selection)}
+                      </span>
+                      <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
+                        {bet.isDemo ? 'Demo' : 'Live'}
+                      </span>
+                    </div>
+            <div className="ticket-meta">
+                      <span className="ticket-amount">
+                        ${Number(bet.amountUsd || 0).toFixed(2)}
+                      </span>
+                      <span className="ticket-time">
+                        {new Date(bet.createdAt).toLocaleTimeString()}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="tickets-footer">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setShowTicketsModal(false)}
+              >
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Main Gaming Area */}
       <div className="spin-gaming-main">
         {/* Spin Wheel - Centered and Prominent */}
@@ -595,8 +745,16 @@ export default function SpinPage() {
           ))}
         </div>
 
-        {/* Make Order Button */}
+        {/* My Ticket + Make Order Buttons */}
         <div className="action-section">
+          <button
+            type="button"
+            className="tickets-btn"
+            onClick={() => setShowTicketsModal(true)}
+          >
+            My Ticket
+          </button>
+
           <button 
             className={`place-bet-btn ${!canBet ? 'disabled' : ''}`}
             onClick={handlePlaceBet}

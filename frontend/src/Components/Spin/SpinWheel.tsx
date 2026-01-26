@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 
 type WheelState = "preopen" | "open" | "frozen" | "settled";
 
@@ -75,9 +75,21 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
 export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
   
+  // Text position state - changes every 3 seconds to create dynamic effect
+  const [textRotation, setTextRotation] = useState(0);
+  
   // Calculate progress percentage for visual indicator
   const totalSeconds = roundDurationMin * 60;
   const progressPercent = totalSeconds > 0 ? Math.max(0, Math.min(100, ((totalSeconds - countdownSec) / totalSeconds) * 100)) : 0;
+  
+  // Effect to change text positions every 3 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTextRotation(prev => (prev + 45) % 360); // Rotate by 45 degrees every 3 seconds
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Two vertical needles: one pointing up (90°), one pointing down (270°)
   const indecisionNeedles = useMemo(() => {
@@ -166,15 +178,15 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.6} />
           <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.6} />
           
-          {/* Curved SELL label */}
-          <text fill="#e5f2ff" fontSize={56} fontWeight={900} letterSpacing={3}>
+          {/* Curved SELL label - FIXED position */}
+          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
             <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
               SELL
             </textPath>
           </text>
           
-          {/* Curved BUY label */}
-          <text fill="#e5f2ff" fontSize={56} fontWeight={900} letterSpacing={3}>
+          {/* Curved BUY label - FIXED position */}
+          <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
             <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
               BUY
             </textPath>
@@ -185,11 +197,12 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
         <g className="ring-currency spin-ccw">
           <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.12)" />
           {CURRENCIES.map((ccy, i) => {
-            const angle = -180 + i * (360 / CURRENCIES.length);
+            const baseAngle = -180 + i * (360 / CURRENCIES.length);
+            const dynamicAngle = baseAngle + textRotation; // Add rotation to create position changes
             const rr = (R.curr[0] + R.curr[1]) / 2;
-            const x = cx + rr * Math.cos(deg2rad(angle));
-            const y = cy + rr * Math.sin(deg2rad(angle));
-            return <text key={ccy + "-" + i} x={x} y={y} fill="#eaf9ff" opacity={1} fontSize={24} fontWeight={800} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
+            const x = cx + rr * Math.cos(deg2rad(dynamicAngle));
+            const y = cy + rr * Math.sin(deg2rad(dynamicAngle));
+            return <text key={ccy + "-" + i} x={x} y={y} fill="#a5d5ff" opacity={0.8} fontSize={9} fontWeight={600} textAnchor="middle" dominantBaseline="middle">{ccy}</text>;
           })}
         </g>
 
@@ -198,15 +211,15 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.7} />
           <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.7} />
           
-          {/* Curved RED label */}
-          <text fill="#ef4444" fontSize={44} fontWeight={900} letterSpacing={2}>
+          {/* Curved RED label - FIXED position */}
+          <text fill="#ef4444" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#redPath" startOffset="50%" textAnchor="middle">
               RED
             </textPath>
           </text>
           
-          {/* Curved BLUE label */}
-          <text fill="#3b82f6" fontSize={44} fontWeight={900} letterSpacing={2}>
+          {/* Curved BLUE label - FIXED position */}
+          <text fill="#3b82f6" fontSize={16} fontWeight={700} letterSpacing={2}>
             <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
               BLUE
             </textPath>
@@ -218,15 +231,15 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.7} />
           <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.7} />
           
-          {/* Curved LOW VOLATILE label */}
-          <text fill="#e5f2ff" fontSize={36} fontWeight={900} letterSpacing={1}>
+          {/* Curved LOW VOLATILE label - FIXED position */}
+          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
             <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
               LOW VOLATILE
             </textPath>
           </text>
           
-          {/* Curved HIGH VOLATILE label */}
-          <text fill="#e5f2ff" fontSize={36} fontWeight={900} letterSpacing={1}>
+          {/* Curved HIGH VOLATILE label - FIXED position */}
+          <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
             <textPath href="#highPath" startOffset="50%" textAnchor="middle">
               HIGH VOLATILE
             </textPath>
@@ -241,7 +254,7 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
             {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
             {win.colorRight && <path d={arcPath(R.color[0], R.color[1], 0, 180)} />}
             {win.volLeft && <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} />}
-            {win.volRight && <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} />}
+            {win.volRight && <path d={arcPath(R.vol[1], R.vol[1], 0, 180)} />}
           </g>
         )}
 
@@ -295,31 +308,21 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           <text x={cx} y={cy - 48} fill="rgba(165, 213, 255, 0.85)" textAnchor="middle" fontSize={16} fontWeight={700} letterSpacing={0.8}>
             {roundDurationMin} MIN ROUND
           </text>
-
-          {/* Timer Display - Minutes:Seconds format */}
-          <text x={cx} y={cy - 10} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "#a5d5ff"} textAnchor="middle" fontSize={50} fontWeight={900} fontFamily="monospace">
+          
+          {/* Timer Display - Minutes:Seconds format - Always Green */}
+          <text x={cx} y={cy - 8} fill="#22c55e" textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
             {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
-
-          {/* AI Market Analysis Text */}
-          <text x={cx} y={cy + 20} fill="rgba(165, 213, 255, 0.9)" textAnchor="middle" fontSize={14} fontWeight={700} letterSpacing={0.6}>
-            Market AI Analysing
-          </text>
-
-          {/* State Label */}
-          <text x={cx} y={cy + 48} fill={state === "open" ? "#22c55e" : state === "frozen" ? "#f59e0b" : "rgba(165, 213, 255, 0.85)"} textAnchor="middle" fontSize={16} fontWeight={800} letterSpacing={1}>
-            {state === "open" ? "MARKET OPEN" : state === "frozen" ? "FROZEN" : state === "settled" ? "SETTLED" : "WAITING"}
+          
+          {/* Market status under timer */}
+          <text x={cx} y={cy + 20} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={500}>
+            {state === "settled" ? "Round Complete" : 
+             state === "frozen" ? "Market Frozen" : 
+             state === "preopen" ? "Market Opening Soon" : 
+             "Market AI Analysing"}
           </text>
         </g>
       </svg>
-
-      {/* State indicator */}
-      <div className="state-indicator">
-        {state === "preopen" && `Waiting for ${roundDurationMin}-min round...`}
-        {state === "open" && `${roundDurationMin}-min round • ${Math.floor(countdownSec / 60)}m ${countdownSec % 60}s left`}
-        {state === "frozen" && `${roundDurationMin}-min round • Settling...`}
-        {state === "settled" && `Round complete • Next ${roundDurationMin}-min round starting...`}
-      </div>
     </div>
   );
 }

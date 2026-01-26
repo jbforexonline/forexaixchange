@@ -205,6 +205,17 @@ export default function LoginPage() {
       {/* Right side form */}
       <div className="login-right">
         <div className="login-form-wrapper">
+          {/* Go to Landing Page Button */}
+          <div className="back-to-landing">
+            <button 
+              type="button" 
+              onClick={() => router.push('/')}
+              className="landing-button"
+            >
+              ← Go to Landing Page
+            </button>
+          </div>
+          
           <h1 className="login-title">Welcome Back!!</h1>
           <p className="login-subtitle">Please Login your Account</p>
 

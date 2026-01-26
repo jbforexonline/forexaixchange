@@ -4,8 +4,6 @@
   - You are about to drop the column `googleId` on the `User` table. All the data in the column will be lost.
   - You are about to drop the column `provider` on the `User` table. All the data in the column will be lost.
   - A unique constraint covering the columns `[userId,referredUserId]` on the table `AffiliateEarning` will be added. If there are existing duplicate values, this will fail.
-  - A unique constraint covering the columns `[idempotencyKey]` on the table `InternalTransfer` will be added. If there are existing duplicate values, this will fail.
-  - A unique constraint covering the columns `[idempotencyKey]` on the table `Transaction` will be added. If there are existing duplicate values, this will fail.
 
 */
 -- DropIndex
@@ -44,3 +42,6 @@ CREATE INDEX "AffiliateEarning_date_idx" ON "AffiliateEarning"("date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "AffiliateEarning_userId_referredUserId_key" ON "AffiliateEarning"("userId", "referredUserId");
+
+-- CreateIndex
+-- Note: idempotencyKey columns and unique indexes are introduced in migration `20251227194454_`.

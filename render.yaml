@@ -2,7 +2,7 @@ databases:
   - name: forexaixchange-db
     databaseName: forexaixchange
     user: fx
-    plan: starter
+    plan: free
     region: oregon
     postgresMajorVersion: 15
     ipAllowList: []  # required by Render blueprint validation
@@ -20,10 +20,12 @@ services:
     env: node
     region: oregon
     plan: starter
-    buildCommand: cd backend && npm ci && npm run build && npx prisma generate && npx prisma migrate deploy
-    startCommand: cd backend && npm run start:prod
+    buildCommand: corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter backend install --frozen-lockfile --prod=false && cd backend && pnpm run build && npx prisma generate && npx prisma migrate deploy
+    startCommand: cd backend && pnpm run start:prod
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
       - key: NODE_ENV
         value: production
       # Render will set PORT automatically; we keep 4000 as the default locally.
@@ -66,9 +68,11 @@ services:
     env: node
     region: oregon
     plan: starter
-    buildCommand: cd frontend && npm ci && npm run build
-    startCommand: cd frontend && npm run start
+    buildCommand: corepack enable && corepack prepare pnpm@9.0.0 --activate && pnpm install --frozen-lockfile --ignore-scripts && pnpm --filter frontend install --frozen-lockfile --prod=false && pnpm --filter frontend run build
+    startCommand: cd frontend && pnpm run start
     envVars:
+      - key: NODE_VERSION
+        value: 20.11.1
       - key: NODE_ENV
         value: production
       # IMPORTANT: set this to the backend public URL after the backend deploy is created.
