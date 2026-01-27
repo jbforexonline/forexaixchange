@@ -6,6 +6,7 @@ import "../Components/Styles/Register.scss";
 import "../styles/wallet-theme.css";
 import RoleBasedLayout from "@/Components/Layout/RoleBasedLayout";
 import { DemoProvider } from "@/context/DemoContext";
+import { ToastProvider } from "@/Components/Common/Toast/ToastContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,9 +39,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         suppressHydrationWarning
       >
-        <DemoProvider>
-          <RoleBasedLayout>{children}</RoleBasedLayout>
-        </DemoProvider>
+        <ToastProvider>
+          <DemoProvider>
+            <RoleBasedLayout>{children}</RoleBasedLayout>
+          </DemoProvider>
+        </ToastProvider>
       </body>
     </html>
   );

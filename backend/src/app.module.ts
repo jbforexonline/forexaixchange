@@ -18,6 +18,8 @@ import { AppThrottlerModule } from './common/throttler.module';
 
 import { RealtimeModule } from './realtime/realtime.module';
 
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -35,7 +37,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     PreferencesModule,
     RealtimeModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, AppController],
   providers: [PrismaService],
 })
 export class AppModule {}

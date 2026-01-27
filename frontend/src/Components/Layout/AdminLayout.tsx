@@ -74,13 +74,13 @@ export default function AdminLayout({
     },
     {
       icon: CreditCard,
-      label: "Transactions",
-      href: "/admin/transactions",
-      category: "transactions",
+      label: "Financial Management",
+      href: "/admin/financial",
+      category: "financial",
       submenu: [
-        { label: "All Transactions", href: "/admin/transactions" },
-        { label: "Pending", href: "/admin/transactions/pending" },
-        { label: "Completed", href: "/admin/transactions/completed" },
+        { label: "Overview", href: "/admin/financial" },
+        { label: "Pending Approvals", href: "/admin/financial?tab=pending" },
+        { label: "Configuration", href: "/admin/financial?tab=config" },
       ],
     },
   ];

@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole } from "@/lib/layoutConfig";
+import { useToast } from "@/Components/Common/Toast/ToastContext";
+
+import { getAffiliateSettings, updateAffiliateSettings } from "@/lib/api/admin-affiliate";
 
 interface AffiliateSettings {
   programEnabled: boolean;
@@ -21,6 +24,7 @@ interface TierLevel {
 
 export default function AffiliateSettingsPage() {
   const { user, role } = useLayoutState();
+  const toast = useToast();
   const [settings, setSettings] = useState<AffiliateSettings>({
     programEnabled: true,
     commissionPercentage: 15,
@@ -58,7 +62,6 @@ export default function AffiliateSettingsPage() {
     ],
   });
   const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
@@ -71,15 +74,9 @@ export default function AffiliateSettingsPage() {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const response = await fetch("/api/admin/affiliate/settings", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data.settings || settings);
+      const data = await getAffiliateSettings();
+      if (data && data.settings) {
+        setSettings(data.settings);
       }
     } catch (error) {
       console.error("Failed to fetch affiliate settings:", error);
@@ -90,21 +87,11 @@ export default function AffiliateSettingsPage() {
 
   const handleSaveSettings = async () => {
     try {
-      const response = await fetch("/api/admin/affiliate/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      }
+      await updateAffiliateSettings(settings);
+      toast.success("Affiliate settings saved successfully");
     } catch (error) {
       console.error("Failed to save settings:", error);
+      toast.error("Failed to save affiliate settings");
     }
   };
 
@@ -141,22 +128,6 @@ export default function AffiliateSettingsPage() {
           Configure and manage your affiliate program
         </p>
       </div>
-
-      {saved && (
-        <div
-          style={{
-            padding: "1rem",
-            backgroundColor: "rgba(34, 197, 94, 0.2)",
-            border: "1px solid rgba(34, 197, 94, 0.5)",
-            borderRadius: "8px",
-            color: "#86efac",
-            marginBottom: "2rem",
-            fontSize: "0.9rem",
-          }}
-        >
-          ✓ Settings saved successfully
-        </div>
-      )}
 
       {loading ? (
         <div style={{ textAlign: "center", color: "#d1d5db" }}>

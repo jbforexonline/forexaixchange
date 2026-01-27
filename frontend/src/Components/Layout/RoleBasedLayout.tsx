@@ -25,8 +25,33 @@ export default function RoleBasedLayout({ children }) {
   const pathname = usePathname();
 
   useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}/status`);
+        const data = await res.json();
+        
+        const currentUser = getCurrentUser();
+        const userRole = currentUser ? getUserRole(currentUser) : UserRole.USER;
+        const isAdminRole = userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN;
+        
+        if (data.maintenance && !isAdminRole && pathname !== '/maintenance' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+          router.replace('/maintenance');
+          return;
+        }
+
+        if (!data.maintenance && pathname === '/maintenance') {
+          router.replace('/');
+          return;
+        }
+      } catch (error) {
+        console.error("Status check failed", error);
+      }
+    };
+
+    checkStatus();
+
     const currentUser = getCurrentUser();
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/maintenance'];
     const isPublicPath = publicPaths.includes(pathname);
 
     // No user found

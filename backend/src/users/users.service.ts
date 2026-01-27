@@ -102,13 +102,15 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Only super admin can update other users, or users can update themselves (limited fields)
-    if (currentUser.id !== id && currentUser.role !== UserRole.SUPER_ADMIN) {
+    // Only admin or super admin can update other users, or users can update themselves (limited fields)
+    const isAdmin = currentUser.role === UserRole.ADMIN || currentUser.role === UserRole.SUPER_ADMIN;
+    
+    if (currentUser.id !== id && !isAdmin) {
       throw new ForbiddenException('Insufficient permissions');
     }
 
-    // If not super admin, limit updatable fields
-    if (currentUser.role !== UserRole.SUPER_ADMIN) {
+    // If not admin/super admin, limit updatable fields
+    if (!isAdmin) {
       const { role, isActive, isBanned, isVerified, verificationBadge, ...allowedFields } = updateUserDto;
       return this.prisma.user.update({
         where: { id },

@@ -390,7 +390,7 @@ export class WalletService {
           throw new BadRequestException('Insufficient funds');
         }
 
-        // Check withdrawal limits: Premium unlimited, Regular $2000/day
+        // Check withdrawal limits: Premium unlimited, Regular limit from config (default $2000/day)
         const isPremium = user.premium && (!user.premiumExpiresAt || new Date(user.premiumExpiresAt) >= new Date());
         if (!isPremium) {
           const today = new Date();
@@ -414,7 +414,13 @@ export class WalletService {
           });
 
           const todayTotal = todayWithdrawals._sum.amount || new Decimal(0);
-          const dailyLimit = new Decimal(2000); // $2000/day for regular users
+          
+          // Get limit from system config
+          const limitConfig = await tx.systemConfig.findUnique({
+            where: { key: 'WITHDRAWAL_LIMIT' }
+          });
+          const dailyLimit = limitConfig ? new Decimal(limitConfig.value) : new Decimal(2000);
+          
           const afterThisWithdrawal = todayTotal.add(amount);
 
           if (afterThisWithdrawal.gt(dailyLimit)) {
@@ -874,8 +880,13 @@ export class WalletService {
   /**
    * Get all internal transfers (admin)
    */
-  async getAllTransfers() {
+  async getAllTransfers(status?: string) {
+    const where: any = {};
+    if (status) {
+      where.status = status;
+    }
     return this.prisma.internalTransfer.findMany({
+      where,
       include: {
         sender: {
           select: {

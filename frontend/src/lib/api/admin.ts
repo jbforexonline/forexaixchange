@@ -27,7 +27,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const error = await response.json().catch(() => ({ message: 'Unknown error' }));
     throw new Error(error.message || `HTTP ${response.status}`);
   }
-  return response.json();
+  const json = await response.json();
+  // Unwrap backend global response wrapper
+  if (json && 'data' in json && 'statusCode' in json) {
+    return json.data;
+  }
+  return json;
 }
 
 export interface DashboardStats {
@@ -50,7 +55,7 @@ export interface DashboardStats {
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch(`${API_URL}/admin/dashboard`, {
+  const response = await fetch(`${API_URL}/sysadmin/dashboard`, {
     method: 'GET',
     headers: getHeaders(),
   });
@@ -64,7 +69,7 @@ export interface RecentActivity {
 }
 
 export async function getRecentActivity(limit = 20): Promise<RecentActivity> {
-  const response = await fetch(`${API_URL}/admin/activity?limit=${limit}`, {
+  const response = await fetch(`${API_URL}/sysadmin/activity?limit=${limit}`, {
     method: 'GET',
     headers: getHeaders(),
   });
@@ -80,7 +85,7 @@ export interface SystemConfig {
 }
 
 export async function getSystemConfig(): Promise<SystemConfig[]> {
-  const response = await fetch(`${API_URL}/admin/config`, {
+  const response = await fetch(`${API_URL}/sysadmin/config`, {
     method: 'GET',
     headers: getHeaders(),
   });
@@ -88,7 +93,7 @@ export async function getSystemConfig(): Promise<SystemConfig[]> {
 }
 
 export async function updateSystemConfig(key: string, value: string): Promise<SystemConfig> {
-  const response = await fetch(`${API_URL}/admin/config/${key}`, {
+  const response = await fetch(`${API_URL}/sysadmin/config/${key}`, {
     method: 'POST',
     headers: getHeaders(),
     body: JSON.stringify({ value }),

@@ -1,449 +1,110 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { Settings, ShieldAlert, Cpu, Database, Save, AlertTriangle } from "lucide-react";
+import "./SystemSettings.scss";
+import { getSystemConfig, updateSystemConfig } from "@/lib/api/admin-finance";
+import { setMaintenanceMode } from "@/lib/api/admin-users";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole } from "@/lib/layoutConfig";
-
-interface SystemSettings {
-  maintenanceMode: boolean;
-  registrationEnabled: boolean;
-  spinEnabled: boolean;
-  withdrawalEnabled: boolean;
-  depositEnabled: boolean;
-  maxDailyWithdrawal: number;
-  minWithdrawalAmount: number;
-  maxWithdrawalAmount: number;
-  platformFeePercentage: number;
-}
+import { useToast } from "@/Components/Common/Toast/ToastContext";
 
 export default function SystemSettingsPage() {
-  const { user, role } = useLayoutState();
-  const [settings, setSettings] = useState<SystemSettings>({
-    maintenanceMode: false,
-    registrationEnabled: true,
-    spinEnabled: true,
-    withdrawalEnabled: true,
-    depositEnabled: true,
-    maxDailyWithdrawal: 1000,
-    minWithdrawalAmount: 10,
-    maxWithdrawalAmount: 5000,
-    platformFeePercentage: 2.5,
-  });
+  const { role } = useLayoutState();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
-  const [saved, setSaved] = useState(false);
+  const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
+  const [configs, setConfigs] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN) {
-      return;
-    }
-    
     fetchSettings();
-  }, [role]);
+  }, []);
 
   const fetchSettings = async () => {
     try {
-      setLoading(true);
-      const response = await fetch("/api/admin/settings", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSettings(data.settings || settings);
-      }
+      const data = await getSystemConfig();
+      setConfigs(data);
+      const maintenance = data.find(c => c.key === 'maintenance_mode');
+      if (maintenance) setMaintenanceEnabled(maintenance.value === 'true');
     } catch (error) {
-      console.error("Failed to fetch settings:", error);
+      console.error("Failed to fetch settings");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveSettings = async () => {
+  const handleToggleMaintenance = async () => {
+    setIsProcessing(true);
+    const newValue = !maintenanceEnabled;
     try {
-      const response = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(settings),
-      });
-
-      if (response.ok) {
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
-      }
+      await setMaintenanceMode(newValue);
+      setMaintenanceEnabled(newValue);
+      toast.success(`Platform maintenance mode has been ${newValue ? 'enabled' : 'disabled'}`);
     } catch (error) {
-      console.error("Failed to save settings:", error);
+      toast.error("Failed to update maintenance mode");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleChange = (key: keyof SystemSettings, value: any) => {
-    setSettings((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
-
-  if (role !== UserRole.SUPER_ADMIN) {
-    return (
-      <div style={{ padding: "2rem", color: "#dc2626" }}>
-        <h2>Access Denied</h2>
-        <p>Only Super Admins can access system settings.</p>
-      </div>
-    );
+  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+    return <div className="p-8 text-red-500">Access Denied</div>;
   }
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <div style={{ marginBottom: "2rem" }}>
-        <h1 style={{ marginTop: 0, color: "#fff" }}>System Settings</h1>
-        <p style={{ color: "#d1d5db" }}>
-          Configure platform-wide settings and feature toggles.
-        </p>
+    <div className="system-settings">
+      <div className="page-header">
+        <h1>System Settings</h1>
+        <p>Global configurations, platform status, and environment control</p>
       </div>
 
-      {saved && (
-        <div
-          style={{
-            padding: "1rem",
-            backgroundColor: "rgba(34, 197, 94, 0.2)",
-            border: "1px solid rgba(34, 197, 94, 0.5)",
-            borderRadius: "8px",
-            color: "#86efac",
-            marginBottom: "2rem",
-            fontSize: "0.9rem",
-          }}
-        >
-          ✓ Settings saved successfully
-        </div>
-      )}
-
-      {loading ? (
-        <div style={{ textAlign: "center", color: "#d1d5db" }}>
-          <p>Loading settings...</p>
-        </div>
-      ) : (
-        <>
-          <div
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "12px",
-              padding: "2rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0, fontSize: "1.2rem", color: "#93c5fd" }}>
-              Platform Status
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "1.5rem",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    cursor: "pointer",
-                    color: "#fff",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.maintenanceMode}
-                    onChange={(e) =>
-                      handleChange("maintenanceMode", e.target.checked)
-                    }
-                    style={{ width: "20px", height: "20px", cursor: "pointer" }}
-                  />
-                  <span>Maintenance Mode</span>
-                </label>
-                <p
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "#9ca3af",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  When enabled, only admins can access the platform
-                </p>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    cursor: "pointer",
-                    color: "#fff",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.registrationEnabled}
-                    onChange={(e) =>
-                      handleChange("registrationEnabled", e.target.checked)
-                    }
-                    style={{ width: "20px", height: "20px", cursor: "pointer" }}
-                  />
-                  <span>User Registration</span>
-                </label>
-                <p
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "#9ca3af",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  Allow new users to register
-                </p>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    cursor: "pointer",
-                    color: "#fff",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.spinEnabled}
-                    onChange={(e) => handleChange("spinEnabled", e.target.checked)}
-                    style={{ width: "20px", height: "20px", cursor: "pointer" }}
-                  />
-                  <span>Spin Feature</span>
-                </label>
-                <p
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "#9ca3af",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  Enable spin/betting feature
-                </p>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    cursor: "pointer",
-                    color: "#fff",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.withdrawalEnabled}
-                    onChange={(e) =>
-                      handleChange("withdrawalEnabled", e.target.checked)
-                    }
-                    style={{ width: "20px", height: "20px", cursor: "pointer" }}
-                  />
-                  <span>Withdrawal Feature</span>
-                </label>
-                <p
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "#9ca3af",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  Allow users to withdraw funds
-                </p>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.75rem",
-                    cursor: "pointer",
-                    color: "#fff",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={settings.depositEnabled}
-                    onChange={(e) =>
-                      handleChange("depositEnabled", e.target.checked)
-                    }
-                    style={{ width: "20px", height: "20px", cursor: "pointer" }}
-                  />
-                  <span>Deposit Feature</span>
-                </label>
-                <p
-                  style={{
-                    marginTop: "0.5rem",
-                    color: "#9ca3af",
-                    fontSize: "0.85rem",
-                  }}
-                >
-                  Allow users to deposit funds
-                </p>
-              </div>
+      <div className="settings-grid">
+        <div className={`settings-card maintenance-box ${maintenanceEnabled ? 'active' : ''}`}>
+          <h2><ShieldAlert /> Maintenance Mode</h2>
+          <p className="card-description">
+            When enabled, the public platform will be hidden behind a maintenance page. 
+            Only administrators with active sessions will be able to browse the site. 
+            Use this during critical updates or security patches.
+          </p>
+          <div className="setting-item">
+            <div className="setting-info">
+              <span className="setting-label">Platform Accessibility</span>
+              <span className="setting-hint">Currently {maintenanceEnabled ? 'Closed' : 'Open'} to public</span>
             </div>
+            <label className="switch">
+              <input 
+                type="checkbox" 
+                checked={maintenanceEnabled} 
+                onChange={handleToggleMaintenance}
+                disabled={isProcessing}
+              />
+              <span className="slider round"></span>
+            </label>
           </div>
-
-          <div
-            style={{
-              backgroundColor: "rgba(255, 255, 255, 0.05)",
-              border: "1px solid rgba(255, 255, 255, 0.1)",
-              borderRadius: "12px",
-              padding: "2rem",
-              marginBottom: "2rem",
-            }}
-          >
-            <h2 style={{ marginTop: 0, fontSize: "1.2rem", color: "#93c5fd" }}>
-              Financial Settings
-            </h2>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "1.5rem",
-              }}
-            >
-              <div>
-                <label style={{ color: "#d1d5db", fontSize: "0.9rem" }}>
-                  Max Daily Withdrawal ($)
-                </label>
-                <input
-                  type="number"
-                  value={settings.maxDailyWithdrawal}
-                  onChange={(e) =>
-                    handleChange("maxDailyWithdrawal", parseFloat(e.target.value))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    marginTop: "0.5rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ color: "#d1d5db", fontSize: "0.9rem" }}>
-                  Min Withdrawal Amount ($)
-                </label>
-                <input
-                  type="number"
-                  value={settings.minWithdrawalAmount}
-                  onChange={(e) =>
-                    handleChange("minWithdrawalAmount", parseFloat(e.target.value))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    marginTop: "0.5rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ color: "#d1d5db", fontSize: "0.9rem" }}>
-                  Max Withdrawal Amount ($)
-                </label>
-                <input
-                  type="number"
-                  value={settings.maxWithdrawalAmount}
-                  onChange={(e) =>
-                    handleChange("maxWithdrawalAmount", parseFloat(e.target.value))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    marginTop: "0.5rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ color: "#d1d5db", fontSize: "0.9rem" }}>
-                  Platform Fee (%)
-                </label>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={settings.platformFeePercentage}
-                  onChange={(e) =>
-                    handleChange("platformFeePercentage", parseFloat(e.target.value))
-                  }
-                  style={{
-                    width: "100%",
-                    padding: "0.75rem",
-                    marginTop: "0.5rem",
-                    backgroundColor: "rgba(255, 255, 255, 0.1)",
-                    border: "1px solid rgba(255, 255, 255, 0.2)",
-                    borderRadius: "8px",
-                    color: "#fff",
-                  }}
-                />
-              </div>
+          
+          {maintenanceEnabled && (
+            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', color: '#f87171', fontSize: '0.9rem', alignItems: 'center' }}>
+              <AlertTriangle size={18} />
+              <span>WARNING: All non-admin users will be blocked.</span>
             </div>
-          </div>
+          )}
+        </div>
 
-          <div style={{ display: "flex", gap: "1rem" }}>
-            <button
-              onClick={handleSaveSettings}
-              style={{
-                padding: "0.75rem 1.5rem",
-                backgroundColor: "#0ea5e9",
-                border: "none",
-                borderRadius: "8px",
-                color: "#fff",
-                cursor: "pointer",
-                fontWeight: "600",
-              }}
-            >
-              Save Settings
-            </button>
-            <button
-              onClick={() => fetchSettings()}
-              style={{
-                padding: "0.75rem 1.5rem",
-                backgroundColor: "transparent",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                borderRadius: "8px",
-                color: "#fff",
-                cursor: "pointer",
-                fontWeight: "600",
-              }}
-            >
-              Reload
-            </button>
+        <div className="settings-card">
+          <h2><Database /> Data & Database</h2>
+          <p className="card-description">
+            Manage database connections and data retention policies. 
+            Automated backups are handled by Neon.tech.
+          </p>
+          <div className="setting-item">
+            <div className="setting-info">
+              <span className="setting-label">Database Health</span>
+              <span className="setting-hint">Connected to Neon PostgreSQL Cluster</span>
+            </div>
+            <div style={{ color: '#4ade80', fontSize: '0.85rem', fontWeight: 600 }}>OPTIMAL</div>
           </div>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
