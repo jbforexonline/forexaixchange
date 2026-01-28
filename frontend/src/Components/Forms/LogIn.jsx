@@ -160,14 +160,8 @@ export default function LoginPage() {
 
       console.log('🚀 Redirecting to:', nextRoute)
 
-      // For admin roles, use full page reload to ensure all state is properly initialized
-      if (isAdminRole) {
-        window.location.href = nextRoute
-      } else {
-        router.replace(nextRoute)
-        // Clear browser history to prevent back navigation after login
-        window.history.replaceState(null, '', nextRoute)
-      }
+      // Use full page reload for all logins to ensure localStorage is properly flushed
+      window.location.href = nextRoute
     } catch (err) {
       console.error('Login error details:', err)
       const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -327,12 +321,8 @@ export default function LoginPage() {
                         const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase());
                         const nextRoute = isAdmin ? '/admin/dashboard' : '/dashboard/spin';
                         
-                        // For admin roles, use full page reload to ensure all state is properly initialized
-                        if (isAdmin) {
-                          window.location.href = nextRoute;
-                        } else {
-                          router.replace(nextRoute);
-                        }
+                        // Use full page reload to ensure all state is properly initialized
+                        window.location.href = nextRoute;
                       }
                     })
                     .catch(() => setError('Failed to authenticate. Please try again.'));
