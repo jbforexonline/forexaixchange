@@ -22,7 +22,6 @@ import {
   TestTube,
   Clock,
   CalendarClock,
-  Home,
   History,
   BarChart3,
   AppWindow,
@@ -1236,15 +1235,6 @@ export default function SpinPage() {
       <div className="bottom-left-panel">
         {/* Vertical Navigation Bar */}
         <nav className="vertical-nav">
-          <button 
-            className="nav-btn"
-            onClick={() => router.push('/dashboard')}
-            title="Dashboard"
-          >
-            <Home size={18} />
-            <span>Home</span>
-          </button>
-          
           <button 
             className="nav-btn active"
             title="Spin"

@@ -1,7 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import {
-  Home,
   Wallet,
   AppWindow,
   BookOpen,
@@ -58,7 +57,7 @@ export default function UserLayout({
   }, [pathname]);
 
   const userMenuItems: MenuItem[] = [
-    // Home removed; Spin is the primary entry point
+    // Spin is the primary entry point (no separate Home)
     { icon: AppWindow, label: "Spin", href: "/spin" },
     { icon: History, label: "Spin History", href: "/spin-history" },
     { icon: BarChart3, label: "Statistics", href: "/statistics" },
