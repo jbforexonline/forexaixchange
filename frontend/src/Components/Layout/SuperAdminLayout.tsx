@@ -8,6 +8,7 @@ import {
   AlertCircle,
   Database,
   Lock,
+  CreditCard,
   FileText,
   Clock,
   ChevronDown,
@@ -106,6 +107,17 @@ export default function SuperAdminLayout({
       label: "Logs",
       href: "/admin/logs",
       category: "logs",
+    },
+    {
+      icon: CreditCard,
+      label: "Financial Management",
+      href: "/admin/financial",
+      category: "financial",
+      submenu: [
+        { label: "Overview", href: "/admin/financial" },
+        { label: "Pending Approvals", href: "/admin/financial?tab=pending" },
+        { label: "Configuration", href: "/admin/financial?tab=config" },
+      ],
     },
     {
       icon: Clock,

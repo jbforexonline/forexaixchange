@@ -19,6 +19,8 @@ import { LegalModule } from './legal/legal.module';
 import { AdminLegalModule } from './admin-legal/admin-legal.module';
 import { RealtimeModule } from './realtime/realtime.module';
 
+import { AppController } from './app.controller';
+
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -38,7 +40,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     PreferencesModule,
     RealtimeModule,
   ],
-  controllers: [HealthController],
+  controllers: [HealthController, AppController],
   providers: [PrismaService],
 })
 export class AppModule {}

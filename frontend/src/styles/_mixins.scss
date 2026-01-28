@@ -1,0 +1,45 @@
+@mixin flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@mixin flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+@mixin card-premium {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+@mixin text-gradient($gradient) {
+    background: $gradient;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+@mixin scrollbar {
+    &::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: rgba(96, 165, 250, 0.3);
+        border-radius: 10px;
+
+        &:hover {
+            background: rgba(96, 165, 250, 0.5);
+        }
+    }
+}

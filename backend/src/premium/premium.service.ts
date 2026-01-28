@@ -194,6 +194,7 @@ export class PremiumService {
           data: {
             premium: true,
             premiumExpiresAt: endDate,
+            verificationBadge: true,
           },
         });
 
@@ -300,6 +301,7 @@ export class PremiumService {
           data: {
             premium: true,
             premiumExpiresAt: endDate,
+            verificationBadge: true,
           },
         });
 
@@ -689,6 +691,7 @@ export class PremiumService {
           data: {
             premium: true,
             premiumExpiresAt: newEndDate,
+            verificationBadge: true,
           },
         });
 

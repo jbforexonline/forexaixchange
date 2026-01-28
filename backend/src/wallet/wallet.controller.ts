@@ -254,9 +254,10 @@ export class WalletController {
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
   @ApiOperation({ summary: 'Get internal transfers (Admin only)' })
+  @ApiQuery({ name: 'status', required: false, type: String })
   @ApiResponse({ status: 200, description: 'Transfers retrieved successfully' })
-  async getInternalTransfers() {
-    return this.walletService.getAllTransfers();
+  async getInternalTransfers(@Query('status') status?: string) {
+    return this.walletService.getAllTransfers(status);
   }
 
   @Post('admin/transfers/:id/approve')

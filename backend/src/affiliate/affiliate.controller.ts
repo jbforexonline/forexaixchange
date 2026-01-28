@@ -51,27 +51,40 @@ export class AffiliateController {
       // Extract user ID from JWT token
       const userId = this.extractUserIdFromToken(authorization);
       const data = await this.affiliateService.getUserAffiliateData(userId);
-      
-      return {
-        success: true,
-        data,
+
+      // Map internal service shape to frontend expected AffiliateStats shape
+      const totalDepositsFromReferrals = (data.referrals || []).reduce((sum: number, r: any) => sum + (r.totalDeposited || 0), 0);
+      const totalCommissionsEarned = data.totalEarnings || 0;
+      const pendingCommission = data.pendingPayout || 0;
+
+      const mapped = {
+        referralCode: data.affiliateCode || '',
+        totalReferrals: data.totalReferrals || 0,
+        activeReferrals: data.activeReferrals || 0,
+        totalDepositsFromReferrals,
+        totalCommissionsEarned,
+        pendingCommission,
+        commissionTiers: [],
+        lastPayoutDate: null,
+        nextPayoutDate: null,
       };
+
+      // Return the mapped object directly (frontend expects AffiliateStats)
+      return mapped;
     } catch (error) {
       console.error('Error in getUserAffiliateData endpoint:', error);
       
       // Return default data if there's an error
       return {
-        success: false,
-        data: {
-          affiliateCode: '',
-          totalReferrals: 0,
-          activeReferrals: 0,
-          totalEarnings: 0,
-          totalPaid: 0,
-          pendingPayout: 0,
-          referrals: [],
-          earnings: [],
-        },
+        referralCode: '',
+        totalReferrals: 0,
+        activeReferrals: 0,
+        totalDepositsFromReferrals: 0,
+        totalCommissionsEarned: 0,
+        pendingCommission: 0,
+        commissionTiers: [],
+        lastPayoutDate: null,
+        nextPayoutDate: null,
         error: error.message,
       };
     }
@@ -243,6 +256,31 @@ export class AffiliateController {
       return {
         success: false,
         message: 'Authentication failed',
+        error: error.message,
+      };
+    }
+  }
+
+  @Get('leaderboard')
+  @ApiOperation({ summary: 'Get affiliate leaderboard' })
+  @ApiResponse({
+    status: 200,
+    description: 'Leaderboard retrieved successfully',
+  })
+  async getLeaderboard(@Query('period') period: string = 'allTime', @Query('limit') limit = '10') {
+    try {
+      const p = (period as any) || 'allTime';
+      const l = parseInt(limit as any, 10) || 10;
+      const list = await this.affiliateService.getAffiliateLeaderboard(p, l);
+      return {
+        success: true,
+        data: list,
+      };
+    } catch (error) {
+      console.error('Error in getLeaderboard endpoint:', error);
+      return {
+        success: false,
+        data: [],
         error: error.message,
       };
     }

@@ -1016,53 +1016,63 @@
   justify-content: center;
   position: relative;
 
-  .wheel-container {
-    // Maintain large size across all screens - use viewport units with better scaling
-    // Use clamp to ensure it stays relatively large but doesn't overflow
-    width: clamp(450px, min(85vh, 85vw), 650px);
-    height: clamp(450px, min(85vh, 85vw), 650px);
+    .wheel-container {
+    /* Maximized wheel: use almost entire viewport on large screens */
+    width: min(100vh, 100vw, 2200px);
+    height: min(100vh, 100vw, 2200px);
     position: relative;
 
+    @media (max-width: 2200px) {
+      width: min(100vh, 100vw, 1600px);
+      height: min(100vh, 100vw, 1600px);
+    }
+
+    @media (max-width: 1600px) {
+      width: min(98vh, 98vw, 1280px);
+      height: min(98vh, 98vw, 1280px);
+    }
+
     @media (max-width: 1400px) {
-      width: clamp(480px, min(80vh, 80vw), 600px);
-      height: clamp(480px, min(80vh, 80vw), 600px);
+      width: min(96vh, 96vw, 1080px);
+      height: min(96vh, 96vw, 1080px);
     }
 
     @media (max-width: 1200px) {
-      width: clamp(460px, min(75vh, 75vw), 550px);
-      height: clamp(460px, min(75vh, 75vw), 550px);
+      width: min(92vh, 96vw, 920px);
+      height: min(92vh, 96vw, 920px);
     }
 
     @media (max-width: 1024px) {
-      width: clamp(440px, min(70vh, 70vw), 500px);
-      height: clamp(440px, min(70vh, 70vw), 500px);
+      width: min(88vh, 96vw, 820px);
+      height: min(88vh, 96vw, 820px);
     }
 
     @media (max-width: 768px) {
-      width: clamp(380px, min(65vh, 90vw), 450px);
-      height: clamp(380px, min(65vh, 90vw), 450px);
+      /* Mobile: large but respects viewport */
+      width: min(86vh, 98vw, 760px);
+      height: min(86vh, 98vw, 760px);
     }
     
     @media (max-width: 480px) {
-      width: clamp(320px, min(60vh, 95vw), 400px);
-      height: clamp(320px, min(60vh, 95vw), 400px);
+      width: min(80vh, 98vw, 720px);
+      height: min(80vh, 98vw, 720px);
     }
-
-    .spin-wheel-svg {
+    
+      .spin-wheel-svg {
       width: 100%;
       height: 100%;
       display: block;
-      filter: drop-shadow(0 0 60px rgba(100, 200, 255, 0.2));
+      filter: drop-shadow(0 0 220px rgba(100, 200, 255, 0.26));
 
       .spin-cw {
         animation: spinClockwise 20s linear infinite;
-        transform-origin: 300px 300px;
+        transform-origin: 50% 50%;
         will-change: transform;
       }
 
       .spin-ccw {
         animation: spinCounterClockwise 18s linear infinite;
-        transform-origin: 300px 300px;
+        transform-origin: 50% 50%;
         will-change: transform;
       }
 
@@ -1533,17 +1543,16 @@
   .spin-gaming-main {
     padding-bottom: 120px;
   }
-
   .wheel-area .wheel-container {
-    width: clamp(380px, min(55vh, 80vw), 450px);
-    height: clamp(380px, min(55vh, 80vw), 450px);
+    width: min(88vh, 96vw, 1100px);
+    height: min(88vh, 96vw, 1100px);
   }
 }
 
 @media (max-height: 600px) {
   .wheel-area .wheel-container {
-    width: clamp(340px, min(50vh, 85vw), 400px);
-    height: clamp(340px, min(50vh, 85vw), 400px);
+    width: min(80vh, 96vw, 880px);
+    height: min(80vh, 96vw, 880px);
   }
 }
 
