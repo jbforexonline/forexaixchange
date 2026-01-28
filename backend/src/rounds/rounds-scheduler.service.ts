@@ -9,6 +9,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { SeedingService } from './seeding.service';
 
 @Injectable()
 export class RoundsSchedulerService {
@@ -21,6 +22,7 @@ export class RoundsSchedulerService {
     private roundsService: RoundsService,
     private settlementService: RoundsSettlementService,
     private realtimeGateway: RealtimeGateway,
+    private seedingService: SeedingService,
   ) {}
 
   /**
@@ -79,9 +81,25 @@ export class RoundsSchedulerService {
 
   /**
    * Freeze rounds that have reached their freeze time
+   * v2.1: Apply seeding before freezing to prevent 0-0 Indecision
    */
   private async freezeExpiredRounds() {
     try {
+      // Get rounds that need to be frozen
+      const roundsToFreeze = await this.roundsService.getRoundsAboutToFreeze();
+      
+      // Apply seeding to each round before freezing
+      for (const round of roundsToFreeze) {
+        try {
+          await this.seedingService.applySeedingToRound(round.id, round.roundNumber);
+          this.logger.debug(`🌱 Applied seeding to round ${round.roundNumber}`);
+        } catch (seedError) {
+          this.logger.error(`Failed to apply seeding to round ${round.roundNumber}:`, seedError);
+          // Continue with freezing even if seeding fails
+        }
+      }
+      
+      // Now freeze the rounds
       const frozen = await this.roundsService.freezeExpiredRounds();
       
       if (frozen.length > 0) {

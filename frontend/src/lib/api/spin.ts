@@ -31,6 +31,17 @@ function getHeaders(): Record<string, string> {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({ message: 'Unknown error' }));
+    
+    // Check for legal compliance errors (age confirmation or terms acceptance required)
+    const errorCode = error.code || error.error?.code;
+    if (errorCode === 'AGE_CONFIRM_REQUIRED' || errorCode === 'LEGAL_REACCEPT_REQUIRED') {
+      // Dispatch event to show legal compliance modal
+      if (typeof window !== 'undefined') {
+        const { dispatchLegalComplianceEvent } = await import('@/lib/auth');
+        dispatchLegalComplianceEvent(errorCode);
+      }
+    }
+    
     throw new Error(error.message || `HTTP ${response.status}`);
   }
   return response.json();

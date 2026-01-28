@@ -7,6 +7,7 @@ import "../styles/wallet-theme.css";
 import RoleBasedLayout from "@/Components/Layout/RoleBasedLayout";
 import { DemoProvider } from "@/context/DemoContext";
 import { ToastProvider } from "@/Components/Common/Toast/ToastContext";
+import LegalReAcceptModal from "@/Components/Legal/LegalReAcceptModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({
         <ToastProvider>
           <DemoProvider>
             <RoleBasedLayout>{children}</RoleBasedLayout>
+            <LegalReAcceptModal />
           </DemoProvider>
         </ToastProvider>
       </body>

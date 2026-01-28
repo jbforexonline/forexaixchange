@@ -6,7 +6,9 @@ import Link from "next/link";
 import {
   getAgeGateConfirmed,
   setAgeGateConfirmed,
+  confirmAge,
 } from "@/lib/api/legal";
+import { getAuthToken } from "@/lib/auth";
 
 const BYPASS_PATHS = ["/terms", "/privacy"];
 
@@ -14,6 +16,7 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [confirmed, setConfirmed] = useState<boolean | null>(null);
   const [checked, setChecked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setConfirmed(getAgeGateConfirmed());
@@ -23,6 +26,32 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
   const bypass = BYPASS_PATHS.some((p) => pathname?.startsWith(p));
   if (!checked || bypass) return <>{children}</>;
   if (confirmed) return <>{children}</>;
+
+  const handleConfirm = async () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
+    try {
+      // Save to localStorage first
+      setAgeGateConfirmed();
+      
+      // If user is logged in, also save to backend database
+      const token = getAuthToken();
+      if (token) {
+        try {
+          await confirmAge();
+          console.log('Age confirmation saved to backend');
+        } catch (err) {
+          console.warn('Failed to save age confirmation to backend:', err);
+          // Continue anyway - localStorage is set
+        }
+      }
+      
+      setConfirmed(true);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="age-gate-overlay">
@@ -38,14 +67,14 @@ export default function AgeGate({ children }: { children: React.ReactNode }) {
           <input
             type="checkbox"
             id="age-gate-confirm"
+            disabled={isSubmitting}
             onChange={(e) => {
               if (e.target.checked) {
-                setAgeGateConfirmed();
-                setConfirmed(true);
+                handleConfirm();
               }
             }}
           />
-          <span>I confirm I am 18 or older</span>
+          <span>{isSubmitting ? 'Confirming...' : 'I confirm I am 18 or older'}</span>
         </label>
         <p className="age-gate-hint">You must confirm to continue.</p>
       </div>

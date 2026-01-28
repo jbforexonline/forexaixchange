@@ -179,6 +179,28 @@ export class RoundsService {
   }
 
   /**
+   * Get rounds that are about to freeze (OPEN and freezeAt <= now)
+   * v2.1: Used to apply seeding before actual freeze
+   */
+  async getRoundsAboutToFreeze() {
+    const now = new Date();
+    return this.prisma.round.findMany({
+      where: {
+        state: RoundState.OPEN,
+        freezeAt: {
+          lte: now,
+        },
+      },
+      select: {
+        id: true,
+        roundNumber: true,
+        state: true,
+        freezeAt: true,
+      },
+    });
+  }
+
+  /**
    * Freeze rounds that have reached their freeze time
    */
   async freezeExpiredRounds() {

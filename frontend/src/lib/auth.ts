@@ -4,6 +4,16 @@
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
+// Event name for legal compliance issues (age confirmation or terms re-acceptance required)
+export const LEGAL_REACCEPT_EVENT = 'legal-reaccept-required';
+
+// Helper to dispatch legal compliance event
+export function dispatchLegalComplianceEvent(code: string): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(LEGAL_REACCEPT_EVENT, { detail: { code } }));
+  }
+}
+
 export interface User {
   id: string;
   email?: string;
