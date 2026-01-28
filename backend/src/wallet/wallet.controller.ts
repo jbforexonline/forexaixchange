@@ -25,11 +25,10 @@ import { CurrentUser } from '../auth/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 
 @ApiTags('Wallet')
 @Controller('wallet')
-@UseGuards(JwtAuthGuard, LegalComplianceGuard)
+@UseGuards(JwtAuthGuard)
 @ApiBearerAuth('JWT-auth')
 export class WalletController {
   constructor(

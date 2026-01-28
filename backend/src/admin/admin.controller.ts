@@ -4,11 +4,11 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
+import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @ApiTags('Admin')
-@Controller('admin')
-@UseGuards(JwtAuthGuard, LegalComplianceGuard, RolesGuard)
+@Controller('sysadmin')
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'SUPER_ADMIN')
 @ApiBearerAuth('JWT-auth')
 export class AdminController {

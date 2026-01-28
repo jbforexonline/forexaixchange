@@ -17,13 +17,13 @@ type Props = {
   roundDurationMin?: number; // Round duration in minutes (5, 10, 15, 20)
 };
 
-const cx = 700, cy = 700;
+const cx = 300, cy = 300;
 const R = {
-  core: [0, 160],
-  vol: [190, 330],
-  color: [360, 460],
-  curr: [480, 540],
-  dir: [560, 660],
+  core: [0, 60],
+  vol: [75, 125],
+  color: [140, 190],
+  curr: [205, 235],
+  dir: [250, 300],
 };
 
 // Currency pairs and trading instruments
@@ -124,17 +124,17 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
   return (
     <div className="wheel-container">
-      <svg viewBox="0 0 1400 1400" className="spin-wheel-svg">
+      <svg viewBox="0 0 600 600" className="spin-wheel-svg">
         <defs>
           <filter id="glow">
-            <feGaussianBlur stdDeviation="6" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
           <filter id="strongGlow">
-            <feGaussianBlur stdDeviation="8" result="coloredBlur" />
+            <feGaussianBlur stdDeviation="5" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
               <feMergeNode in="SourceGraphic" />
@@ -163,20 +163,20 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
         {/* Ring separators - Fixed, don't spin */}
         <g className="ring-separators">
-          <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.18)" strokeWidth={4} />
-          <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.16)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.16)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.curr[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.color[1]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
-          <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.14)" strokeWidth={3} />
+          <circle cx={cx} cy={cy} r={R.dir[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.dir[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.curr[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.curr[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.color[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.color[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.vol[1]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
+          <circle cx={cx} cy={cy} r={R.vol[0]} fill="none" stroke="rgba(100, 200, 255, 0.15)" strokeWidth={2} />
         </g>
 
         {/* OUTERMOST: Direction Ring (BUY/SELL) - 1st Circle: Clockwise */}
         <g className="ring-direction spin-cw">
-          <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.6} />
-          <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.6} />
+          <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} fill="url(#ringGrad)" opacity={win.dirLeft ? 1 : 0.5} />
+          <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} fill="url(#ringGrad)" opacity={win.dirRight ? 1 : 0.5} />
           
           {/* Curved SELL label - FIXED position */}
           <text fill="#e5f2ff" fontSize={18} fontWeight={700} letterSpacing={2}>
@@ -195,7 +195,7 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
         {/* Currency Ring - 2nd Circle: Counter-clockwise */}
         <g className="ring-currency spin-ccw">
-          <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.12)" />
+          <path d={arcPath(R.curr[0], R.curr[1], -180, 180)} fill="rgba(100, 180, 255, 0.1)" />
           {CURRENCIES.map((ccy, i) => {
             const baseAngle = -180 + i * (360 / CURRENCIES.length);
             const dynamicAngle = baseAngle + textRotation; // Add rotation to create position changes
@@ -208,8 +208,8 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
         {/* Color Ring (BLUE/RED) - 3rd Circle: Clockwise */}
         <g className="ring-color spin-cw">
-          <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.7} />
-          <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.7} />
+          <path d={arcPath(R.color[0], R.color[1], -180, 0)} fill="url(#ringGrad)" opacity={win.colorLeft ? 1 : 0.45} />
+          <path d={arcPath(R.color[0], R.color[1], 0, 180)} fill="url(#ringGrad)" opacity={win.colorRight ? 1 : 0.45} />
           
           {/* Curved RED label - FIXED position */}
           <text fill="#ef4444" fontSize={16} fontWeight={700} letterSpacing={2}>
@@ -228,8 +228,8 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
         {/* Volatility Ring (LOW/HIGH) - 4th Circle: Counter-clockwise */}
         <g className="ring-volatility spin-ccw">
-          <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.7} />
-          <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.7} />
+          <path d={arcPath(R.vol[0], R.vol[1], -180, 0)} fill="url(#ringGrad)" opacity={win.volLeft ? 1 : 0.4} />
+          <path d={arcPath(R.vol[0], R.vol[1], 0, 180)} fill="url(#ringGrad)" opacity={win.volRight ? 1 : 0.4} />
           
           {/* Curved LOW VOLATILE label - FIXED position */}
           <text fill="#e5f2ff" fontSize={12} fontWeight={700} letterSpacing={1}>
@@ -248,7 +248,7 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
 
         {/* Winner glow (on spinning rings) */}
         {showWinners && (
-          <g fill="rgba(255, 255, 255, 0.28)" filter="url(#glow)">
+          <g fill="rgba(255, 255, 255, 0.2)" filter="url(#glow)">
             {win.dirLeft && <path d={arcPath(R.dir[0], R.dir[1], -180, 0)} />}
             {win.dirRight && <path d={arcPath(R.dir[0], R.dir[1], 0, 180)} />}
             {win.colorLeft && <path d={arcPath(R.color[0], R.color[1], -180, 0)} />}
@@ -261,21 +261,21 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
         {/* FIXED GROUP - Core and Indecision Needles (DO NOT SPIN) - DRAWN LAST TO BE ON TOP */}
         <g className="fixed-center">
           {/* TWO VERTICAL INDECISION NEEDLES - FIXED, GOLDEN, ON TOP OF EVERYTHING */}
-          <g opacity={win.indecision ? 1 : 0.95}>
+          <g opacity={win.indecision ? 1 : 0.9}>
             {/* Top needle (pointing up) - single continuous golden path */}
             <path d={indecisionNeedles.top} fill="url(#goldGrad)" filter="url(#strongGlow)" />
             
             {/* INDECISION label - VERTICAL text along top needle, perfectly centered */}
             <text
               x={cx}
-              y={cy - 250}
+              y={cy - 150}
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={28}
+              fontSize={18}
               fontWeight={900}
-              letterSpacing={6}
-              transform={`rotate(-90, ${cx}, ${cy - 250})`}
+              letterSpacing={4}
+              transform={`rotate(-90, ${cx}, ${cy - 150})`}
               filter="url(#strongGlow)"
             >
               INDECISION
@@ -287,14 +287,14 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
             {/* INDECISION label - VERTICAL text along bottom needle, perfectly centered */}
             <text
               x={cx}
-              y={cy + 250}
+              y={cy + 150}
               fill="#ffffff"
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize={28}
+              fontSize={18}
               fontWeight={900}
-              letterSpacing={6}
-              transform={`rotate(-90, ${cx}, ${cy + 250})`}
+              letterSpacing={4}
+              transform={`rotate(-90, ${cx}, ${cy + 150})`}
               filter="url(#strongGlow)"
             >
               INDECISION
@@ -302,10 +302,10 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           </g>
 
           {/* Core (countdown + state) - FIXED, no separator circle here */}
-          <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.35)" strokeWidth={3} filter="url(#glow)" />
-
+          <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
+          
           {/* Round Duration Label - shows the total round time */}
-          <text x={cx} y={cy - 48} fill="rgba(165, 213, 255, 0.85)" textAnchor="middle" fontSize={16} fontWeight={700} letterSpacing={0.8}>
+          <text x={cx} y={cy - 28} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={600} letterSpacing={0.5}>
             {roundDurationMin} MIN ROUND
           </text>
           
