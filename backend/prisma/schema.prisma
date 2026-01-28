@@ -258,14 +258,6 @@ model Round {
   totalHouseFee       Decimal           @default(0) @db.Decimal(18, 2)
   feeBps              Int               @default(200)
   totalVolume         Decimal           @default(0) @db.Decimal(18, 2)
-  // Checkpoint snapshots for sub-round settlements (stored as JSON)
-  checkpoint15min     Json?             // Market state at 15:00 mark (for 5-min Q1 settlement)
-  checkpoint10min     Json?             // Market state at 10:00 mark (for 10-min Semi1 & 5-min Q2 settlement)
-  checkpoint5min      Json?             // Market state at 05:00 mark (for 5-min Q3 settlement)
-  // System Liquidity Seeding fields (v2.1)
-  seedEnabled         Boolean           @default(true)  // Whether seeding is enabled for this round
-  seedSnapshotJson    Json?             // Final seed state at freeze (immutable snapshot)
-  userPoolSnapshotJson Json?            // User-only pool snapshot for KPI reporting
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
   bets                Bet[]
@@ -277,37 +269,31 @@ model Round {
 }
 
 model Bet {
-  id                 String    @id @default(cuid())
-  roundId            String
-  userId             String
-  market             BetMarket
-  selection          String
-  amountUsd          Decimal   @db.Decimal(18, 2)
-  status             BetStatus @default(ACCEPTED)
-  isWinner           Boolean?
-  payoutAmount       Decimal?  @db.Decimal(18, 2)
-  profitAmount       Decimal?  @db.Decimal(18, 2)
-  payoutRatio        Decimal?  @db.Decimal(10, 6)
-  isPremiumUser      Boolean   @default(false)
-  isDemo             Boolean   @default(false)
-  userRoundDuration  Int       @default(20) // User's chosen duration: 5, 10, or 20 minutes
-  // System Liquidity Seeding fields (v2.1)
-  isSystemSeed       Boolean   @default(false) // True if this is a system seed bet
-  seedType           String?   // DIRECTION | VOLATILITY | COLOR (only for seed bets)
-  idempotencyKey     String?   @unique
-  holdLedgerId       String?
-  payoutLedgerId     String?
-  createdAt          DateTime  @default(now())
-  settledAt          DateTime?
-  round              Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  user               User      @relation(fields: [userId], references: [id])
+  id             String    @id @default(cuid())
+  roundId        String
+  userId         String
+  market         BetMarket
+  selection      String
+  amountUsd      Decimal   @db.Decimal(18, 2)
+  status         BetStatus @default(ACCEPTED)
+  isWinner       Boolean?
+  payoutAmount   Decimal?  @db.Decimal(18, 2)
+  profitAmount   Decimal?  @db.Decimal(18, 2)
+  payoutRatio    Decimal?  @db.Decimal(10, 6)
+  isPremiumUser  Boolean   @default(false)
+  isDemo         Boolean   @default(false)
+  idempotencyKey String?   @unique
+  holdLedgerId   String?
+  payoutLedgerId String?
+  createdAt      DateTime  @default(now())
+  settledAt      DateTime?
+  round          Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id])
 
   @@index([roundId, userId])
   @@index([userId, createdAt])
   @@index([roundId, market, selection])
-  @@index([roundId, userRoundDuration])
   @@index([status])
-  @@index([roundId, isSystemSeed]) // For seed queries
 }
 
 model FairnessArtifact {
@@ -487,35 +473,6 @@ model PlatformLedger {
   
   @@index([roundId])
   @@index([type])
-}
-
-// =============================================================================
-// HOUSE SEED WALLET - Tracks system liquidity seeding funds (v2.1)
-// =============================================================================
-model HouseSeedWallet {
-  id             String   @id @default("SEED_HOUSE") // Single record with fixed ID
-  balance        Decimal  @default(0) @db.Decimal(18, 2) // Current seed balance in circulation
-  totalSeeded    Decimal  @default(0) @db.Decimal(18, 2) // Total amount seeded (cumulative)
-  totalReturned  Decimal  @default(0) @db.Decimal(18, 2) // Total amount returned when seeds removed
-  netSeedCost    Decimal  @default(0) @db.Decimal(18, 2) // Net cost (seeded - returned)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
-
-// Seed activity ledger for detailed audit trail
-model SeedLedger {
-  id           String   @id @default(cuid())
-  roundId      String?
-  market       String?  // OUTER, MIDDLE, INNER
-  type         String   // 'SEED_PLACED', 'SEED_REMOVED', 'SEED_WON', 'SEED_LOST'
-  amount       Decimal  @db.Decimal(18, 2)
-  selection    String?  // BUY, SELL, BLUE, RED, HIGH_VOL, LOW_VOL
-  description  String?
-  createdAt    DateTime @default(now())
-  
-  @@index([roundId])
-  @@index([type])
-  @@index([createdAt])
 }
 
 enum SentimentType {

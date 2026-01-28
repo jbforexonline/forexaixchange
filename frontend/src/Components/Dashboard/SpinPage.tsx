@@ -6,7 +6,7 @@ import SpinWheel from "../Spin/SpinWheel";
 import RecentSpinsTable from "../Spin/RecentSpinsTable";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
-import { getCurrentRoundBets, placeBet, isPremiumUser } from "@/lib/api/spin";
+import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory } from "@/lib/api/spin";
 import type { Bet, BetMarket, BetSelection } from "@/lib/api/spin";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
 import { getCurrentUser, logout } from "@/lib/auth";
@@ -53,30 +53,11 @@ const MARKET_OPTIONS: MarketOption[] = [
 ];
 
 // Round duration options for premium users (in minutes)
-// Note: 15-minute option removed per spec v2.1
-const ROUND_DURATIONS = [5, 10, 20];
+const ROUND_DURATIONS = [5, 10, 15, 20];
 
 export default function SpinPage() {
   const router = useRouter();
-  // Premium features state - must be defined before useRound
-  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
-  
-  // Pass user's selected duration to useRound for sub-round timing calculation
-  const { 
-    round, 
-    totals, 
-    state: roundState, 
-    countdown, 
-    timeUntilFreeze, 
-    subRoundCountdown,
-    subRoundTimeUntilFreeze,
-    currentQuarter,
-    userDuration,
-    setUserDuration,
-    loading, 
-    error 
-  } = useRound(selectedRoundDuration as 5 | 10 | 20);
-  
+  const { round, totals, state: roundState, countdown, timeUntilFreeze, loading, error } = useRound();
   const { wallet, refresh: refreshWallet } = useWallet();
   const { isDemo, toggleDemo } = useDemo();
   const [userBets, setUserBets] = useState<Bet[]>([]);
@@ -89,8 +70,12 @@ export default function SpinPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingBetAmount, setPendingBetAmount] = useState<number | null>(null);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
+  const [ticketTab, setTicketTab] = useState<'active' | 'previous'>('active');
+  const [previousBets, setPreviousBets] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // Premium features state (continued)
+  // Premium features state
+  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
   const [showSchedulePanel, setShowSchedulePanel] = useState(false);
   const [scheduledRounds, setScheduledRounds] = useState<number>(0); // 0 = no scheduling
   
@@ -116,13 +101,6 @@ export default function SpinPage() {
   
   // Normal users always get 20-minute rounds
   const effectiveRoundDuration = isPremium ? selectedRoundDuration : 20;
-  
-  // Sync local duration state with useRound hook when duration changes
-  useEffect(() => {
-    if (setUserDuration && isPremium) {
-      setUserDuration(selectedRoundDuration as 5 | 10 | 20);
-    }
-  }, [selectedRoundDuration, setUserDuration, isPremium]);
 
   const handleLogout = () => {
     logout();
@@ -217,7 +195,6 @@ export default function SpinPage() {
         amountUsd: pendingBetAmount,
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
         isDemo: isDemo,
-        userRoundDuration: effectiveRoundDuration as 5 | 10 | 20, // v2.1: Pass user's duration preference
       });
 
       setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${pendingBetAmount} on ${selectedOption.label}`);
@@ -265,21 +242,11 @@ export default function SpinPage() {
     };
   }, [roundState, round]);
 
-  // v2.1: Use sub-round countdown based on user's selected duration
-  // For 5-minute: shows countdown to next quarter checkpoint
-  // For 10-minute: shows countdown to next half checkpoint  
-  // For 20-minute: shows countdown to full round settlement
-  const displayCountdown = effectiveRoundDuration === 20 
-    ? countdown 
-    : (subRoundCountdown ?? countdown);
-  
-  // Use sub-round freeze time for betting cutoff
-  const effectiveTimeUntilFreeze = effectiveRoundDuration === 20
-    ? timeUntilFreeze
-    : (subRoundTimeUntilFreeze ?? timeUntilFreeze);
-  
-  // User can bet if their sub-round is still open (not frozen)
-  const canBet = roundState === 'open' && round && !isPlacingBet && effectiveTimeUntilFreeze > 0;
+  // Use full round countdown (total time until settlement) for the center timer.
+  // Backend already enforces a 1-minute freeze (no market) via freezeAt,
+  // and useRound exposes that through roundState/timeUntilFreeze for bet disabling.
+  const displayCountdown = countdown;
+  const canBet = roundState === 'open' && round && !isPlacingBet;
 
   // Calculate totals for display (ensure userBets is array)
   const betsArray = Array.isArray(userBets) ? userBets : [];
@@ -371,54 +338,162 @@ export default function SpinPage() {
       )}
 
       {showTicketsModal && (
-        <div className="spin-tickets-overlay">
+        <div className="spin-tickets-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setShowTicketsModal(false);
+        }}>
           <div className="spin-tickets-modal">
-            <h2>My Tickets</h2>
-            <p className="subtitle">
-              {round ? `Current round #${round.roundNumber}` : 'Current open positions'}
-            </p>
-            <div className="tickets-list">
-              {betsArray.length === 0 ? (
-                <div className="empty-state">
-                  You have no active tickets for this round yet.
-                </div>
-              ) : (
-                betsArray.map((bet) => (
-                  <div key={bet.id} className="ticket-row">
-                    <div className="ticket-main">
-                      <span className="ticket-market">
-                        {getTicketMarketLabel(bet.market)}
-                      </span>
-                      <span className="ticket-selection">
-                        {getTicketSelectionLabel(bet.selection)}
-                      </span>
-                      <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
-                        {bet.isDemo ? 'Demo' : 'Live'}
-                      </span>
-                      {/* v2.1: Show duration for each bet */}
-                      <span className="ticket-duration">
-                        {bet.userRoundDuration || 20}m
-                      </span>
-                    </div>
-                    <div className="ticket-meta">
-                      <span className="ticket-amount">
-                        ${Number(bet.amountUsd || 0).toFixed(2)}
-                      </span>
-                      <span className="ticket-time">
-                        {new Date(bet.createdAt).toLocaleTimeString()}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
+            <div className="tickets-header">
+              <h2>My Tickets</h2>
+              <button 
+                className="close-btn"
+                onClick={() => setShowTicketsModal(false)}
+              >
+                ✕
+              </button>
             </div>
+
+            {/* Tabs */}
+            <div className="tickets-tabs">
+              <button
+                className={`tab-btn ${ticketTab === 'active' ? 'active' : ''}`}
+                onClick={async () => {
+                  setTicketTab('active');
+                }}
+              >
+                Active
+              </button>
+              <button
+                className={`tab-btn ${ticketTab === 'previous' ? 'active' : ''}`}
+                onClick={async () => {
+                  setTicketTab('previous');
+                  if (previousBets.length === 0 && !loadingHistory) {
+                    setLoadingHistory(true);
+                    try {
+                      const response = await getBetHistory(1, 20);
+                      console.log('Bet history response:', response);
+                      
+                      // Handle different response structures
+                      let bets = [];
+                      if (Array.isArray(response)) {
+                        bets = response;
+                      } else if (response.data && Array.isArray(response.data)) {
+                        bets = response.data;
+                      } else if (response.bets && Array.isArray(response.bets)) {
+                        bets = response.bets;
+                      } else if (response.data?.bets && Array.isArray(response.data.bets)) {
+                        bets = response.data.bets;
+                      }
+                      
+                      setPreviousBets(bets);
+                    } catch (error) {
+                      console.error('Error loading bet history:', error);
+                      setPreviousBets([]);
+                    } finally {
+                      setLoadingHistory(false);
+                    }
+                  }
+                }}
+              >
+                Previous
+              </button>
+            </div>
+
+            {/* Active Tickets */}
+            {ticketTab === 'active' && (
+              <div className="tickets-list">
+                {betsArray.length === 0 ? (
+                  <div className="empty-state">
+                    You have no active tickets for this round yet.
+                  </div>
+                ) : (
+                  betsArray.map((bet) => (
+                    <div key={bet.id} className="ticket-row active-ticket">
+                      <div className="ticket-main">
+                        <span className="ticket-market">
+                          {getTicketMarketLabel(bet.market)}
+                        </span>
+                        <span className="ticket-selection">
+                          {getTicketSelectionLabel(bet.selection)}
+                        </span>
+                        <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
+                          {bet.isDemo ? 'Demo' : 'Live'}
+                        </span>
+                      </div>
+                      <div className="ticket-meta">
+                        <span className="ticket-amount">
+                          ${Number(bet.amountUsd || 0).toFixed(2)}
+                        </span>
+                        <span className="ticket-time">
+                          {new Date(bet.createdAt).toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Previous Tickets */}
+            {ticketTab === 'previous' && (
+              <div className="tickets-list">
+                {loadingHistory ? (
+                  <div className="loading-state">
+                    <div className="spinner"></div>
+                    <p>Loading history...</p>
+                  </div>
+                ) : !Array.isArray(previousBets) || previousBets.length === 0 ? (
+                  <div className="empty-state">
+                    No previous tickets found.
+                  </div>
+                ) : (
+                  previousBets.map((bet) => {
+                    const won = bet.status === 'WON';
+                    const lost = bet.status === 'LOST';
+                    const pending = bet.status === 'PENDING' || bet.status === 'ACCEPTED';
+                    
+                    return (
+                      <div 
+                        key={bet.id} 
+                        className={`ticket-row previous-ticket ${won ? 'won' : lost ? 'lost' : 'pending'}`}
+                      >
+                        <div className="ticket-main">
+                          <span className="ticket-market">
+                            {getTicketMarketLabel(bet.market)}
+                          </span>
+                          <span className="ticket-selection">
+                            {getTicketSelectionLabel(bet.selection)}
+                          </span>
+                          <span className={`ticket-status ${won ? 'won' : lost ? 'lost' : 'pending'}`}>
+                            {won ? '✓ WON' : lost ? '✗ LOST' : '⏳ PENDING'}
+                          </span>
+                        </div>
+                        <div className="ticket-meta">
+                          <span className="ticket-amount">
+                            ${Number(bet.amountUsd || 0).toFixed(2)}
+                          </span>
+                          {won && bet.winAmountUsd && (
+                            <span className="ticket-win">
+                              +${Number(bet.winAmountUsd).toFixed(2)}
+                            </span>
+                          )}
+                          <span className="ticket-round">
+                            Round #{bet.roundNumber || bet.round?.roundNumber || 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
             <div className="tickets-footer">
               <button
                 type="button"
                 className="btn-primary"
                 onClick={() => setShowTicketsModal(false)}
               >
-                OK
+                Close
               </button>
             </div>
           </div>
@@ -440,8 +515,6 @@ export default function SpinPage() {
             countdownSec={displayCountdown} 
             winners={winners}
             roundDurationMin={effectiveRoundDuration}
-            currentQuarter={currentQuarter}
-            timeUntilFreeze={effectiveTimeUntilFreeze}
           />
         </div>
 
@@ -579,13 +652,9 @@ export default function SpinPage() {
         {/* User Profile */}
         <div className="user-section">
           <div className="user-avatar">
-            {user?.profilePicture ? (
-              <img src={user.profilePicture} alt={user.username} />
-            ) : (
-              <div className="avatar-placeholder">
-                {user?.username?.charAt(0).toUpperCase() || <User size={20} />}
-              </div>
-            )}
+            <div className="avatar-placeholder">
+              {user?.username?.charAt(0).toUpperCase() || 'U'}
+            </div>
           </div>
           {sidebarExpanded && (
             <div className="user-info">
@@ -598,6 +667,26 @@ export default function SpinPage() {
             </div>
           )}
         </div>
+
+        {/* Settings and Logout - Top Priority */}
+        <nav className="sidebar-menu top-menu">
+          <button 
+            className="menu-item settings-btn"
+            onClick={() => router.push('/settings')}
+            title="Settings"
+          >
+            <Settings size={18} />
+            {sidebarExpanded && <span>Settings</span>}
+          </button>
+          <button 
+            className="menu-item logout-btn" 
+            onClick={handleLogout} 
+            title="Logout"
+          >
+            <LogOut size={18} />
+            {sidebarExpanded && <span>Logout</span>}
+          </button>
+        </nav>
 
         {/* Demo/Live Toggle */}
         <div className="mode-toggle-section">
@@ -697,26 +786,6 @@ export default function SpinPage() {
             </button>
           </div>
         )}
-
-        {/* Settings Button */}
-        <nav className="sidebar-menu">
-          <button 
-            className="menu-item"
-            onClick={() => router.push('/dashboard/settings')}
-            title="Settings"
-          >
-            <Settings size={18} />
-            {sidebarExpanded && <span>Settings</span>}
-          </button>
-        </nav>
-
-        {/* Logout Button */}
-        <div className="sidebar-footer">
-          <button className="logout-btn" onClick={handleLogout} title="Logout">
-            <LogOut size={18} />
-            {sidebarExpanded && <span>Logout</span>}
-          </button>
-        </div>
       </aside>
 
       {/* Bottom Order Bar - Like Expert Option */}
@@ -805,7 +874,7 @@ export default function SpinPage() {
             {isPlacingBet ? (
               <span className="btn-loading">●●●</span>
             ) : roundState === 'frozen' ? (
-              <>❄️ FROZEN</>
+              <>⏱️ TIME OUT</>
             ) : roundState === 'settled' ? (
               <>⏳ NEXT ROUND</>
             ) : roundState === 'preopen' ? (

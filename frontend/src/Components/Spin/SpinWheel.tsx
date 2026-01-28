@@ -14,9 +14,7 @@ type Props = {
   state: WheelState;
   countdownSec: number;
   winners?: WinnerFlags;
-  roundDurationMin?: number; // Round duration in minutes (5, 10, 20)
-  currentQuarter?: number; // Current quarter/half for sub-rounds
-  timeUntilFreeze?: number; // Seconds until user's sub-round freeze
+  roundDurationMin?: number; // Round duration in minutes (5, 10, 15, 20)
 };
 
 const cx = 300, cy = 300;
@@ -74,7 +72,7 @@ function createCurvedTextPath(id: string, radius: number, startAngle: number, en
   return `M ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2}`;
 }
 
-export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20, currentQuarter = 1, timeUntilFreeze = 0 }: Props) {
+export default function SpinWheel({ state, countdownSec, winners, roundDurationMin = 20 }: Props) {
   const showWinners = state === "settled" && winners;
   
   // Text position state - changes every 3 seconds to create dynamic effect
@@ -83,19 +81,6 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
   // Calculate progress percentage for visual indicator
   const totalSeconds = roundDurationMin * 60;
   const progressPercent = totalSeconds > 0 ? Math.max(0, Math.min(100, ((totalSeconds - countdownSec) / totalSeconds) * 100)) : 0;
-  
-  // Get duration label based on user's selected round duration
-  const getDurationLabel = () => {
-    if (roundDurationMin === 5) {
-      return `Q${currentQuarter} · 5 MIN`;
-    } else if (roundDurationMin === 10) {
-      return `H${currentQuarter} · 10 MIN`;
-    }
-    return `${roundDurationMin} MIN ROUND`;
-  };
-  
-  // Check if user's sub-round is frozen
-  const isSubRoundFrozen = timeUntilFreeze <= 0 && state === 'open';
   
   // Effect to change text positions every 3 seconds
   useEffect(() => {
@@ -319,22 +304,21 @@ export default function SpinWheel({ state, countdownSec, winners, roundDurationM
           {/* Core (countdown + state) - FIXED, no separator circle here */}
           <circle cx={cx} cy={cy} r={R.core[1]} fill="rgba(20, 35, 60, 0.95)" stroke="rgba(100, 200, 255, 0.3)" strokeWidth={2} filter="url(#glow)" />
           
-          {/* Round Duration Label - shows user's selected duration */}
+          {/* Round Duration Label - shows the total round time */}
           <text x={cx} y={cy - 28} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={600} letterSpacing={0.5}>
-            {getDurationLabel()}
+            {roundDurationMin} MIN ROUND
           </text>
           
-          {/* Timer Display - Minutes:Seconds format - Green normally, Orange when frozen */}
-          <text x={cx} y={cy - 8} fill={isSubRoundFrozen ? "#f59e0b" : "#22c55e"} textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
+          {/* Timer Display - Minutes:Seconds format - Always Green */}
+          <text x={cx} y={cy - 8} fill="#22c55e" textAnchor="middle" fontSize={26} fontWeight={800} fontFamily="monospace">
             {state === "settled" ? "DONE" : state === "preopen" ? "--:--" : `${String(Math.floor(countdownSec / 60)).padStart(2, '0')}:${String(countdownSec % 60).padStart(2, '0')}`}
           </text>
           
           {/* Market status under timer */}
           <text x={cx} y={cy + 20} fill="rgba(165, 213, 255, 0.6)" textAnchor="middle" fontSize={9} fontWeight={500}>
             {state === "settled" ? "Round Complete" : 
-             state === "frozen" ? "Market Frozen" : 
+             state === "frozen" ? "TIME OUT" : 
              state === "preopen" ? "Market Opening Soon" : 
-             isSubRoundFrozen ? "Your Round Frozen" :
              "Market AI Analysing"}
           </text>
         </g>

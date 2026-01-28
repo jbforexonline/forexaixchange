@@ -10,20 +10,22 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { BetMarket, RoundState } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
+import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
-import { PlaceBetDto } from './dto/place-bet.dto';
-import { SeedingService } from './seeding.service';
 
-export interface PlaceBetDtoWithRoundId extends PlaceBetDto {
+export interface PlaceBetDto {
   roundId: string;
+  market: BetMarket;
+  selection: string;
+  amountUsd: number;
+  idempotencyKey?: string;
+  isDemo?: boolean;
 }
 
 @Injectable()
@@ -34,13 +36,12 @@ export class BetsService {
     private prisma: PrismaService,
     @Inject(REDIS_CLIENT) private redis: Redis,
     private gateway: RealtimeGateway,
-    @Inject(forwardRef(() => SeedingService)) private seedingService: SeedingService,
   ) {}
 
   /**
    * Place a bet on the current round
    */
-  async placeBet(userId: string, dto: PlaceBetDtoWithRoundId) {
+  async placeBet(userId: string, dto: PlaceBetDto) {
     this.logger.debug(`📝 placeBet called: userId=${userId}, dto=${JSON.stringify(dto)}`);
     
     const amount = new Decimal(dto.amountUsd);
@@ -95,51 +96,15 @@ export class BetsService {
       // All users can place bets (both demo and live)
       // Premium status only affects timing cutoffs and bet limits
 
-      // 4. Check timing constraints based on user's chosen duration
+      // 4. Check timing constraints (premium vs regular)
       const now = new Date();
-      const userDuration = dto.userRoundDuration || 20; // Default to 20 minutes
-      
-      // Calculate when the user's chosen timeframe ends
-      const elapsed = (now.getTime() - round.openedAt.getTime()) / 1000; // seconds
-      const roundDuration = round.roundDuration; // seconds (e.g., 1200 for 20 min)
-      const timeRemaining = roundDuration - elapsed;
-      const timeRemainingMinutes = timeRemaining / 60;
-      
-      // Determine the next checkpoint for this user's duration
-      let nextCheckpointSeconds = round.settleAt.getTime(); // Default to end of round
-      
-      if (userDuration === 5) {
-        // 5-minute users: find next quarter boundary (15, 10, 5, or 0 minutes)
-        if (timeRemainingMinutes > 15) {
-          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 15 * 60) * 1000;
-        } else if (timeRemainingMinutes > 10) {
-          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 10 * 60) * 1000;
-        } else if (timeRemainingMinutes > 5) {
-          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 5 * 60) * 1000;
-        } else {
-          nextCheckpointSeconds = round.settleAt.getTime();
-        }
-      } else if (userDuration === 10) {
-        // 10-minute users: find next semi-circle boundary (10 or 0 minutes)
-        if (timeRemainingMinutes > 10) {
-          nextCheckpointSeconds = round.openedAt.getTime() + (roundDuration - 10 * 60) * 1000;
-        } else {
-          nextCheckpointSeconds = round.settleAt.getTime();
-        }
-      } else {
-        // 20-minute users: use main round freeze time
-        nextCheckpointSeconds = round.freezeAt.getTime();
-      }
-      
-      // Check if we're within 60 seconds of the checkpoint
-      const freezeThreshold = 60 * 1000; // 60 seconds in milliseconds
-      const timeUntilCheckpoint = nextCheckpointSeconds - now.getTime();
-      
-      if (timeUntilCheckpoint <= freezeThreshold) {
-        const minutesRemaining = Math.floor(timeUntilCheckpoint / 60000);
-        const secondsRemaining = Math.floor((timeUntilCheckpoint % 60000) / 1000);
+      const cutoffTime = isPremium
+        ? new Date(round.freezeAt.getTime() - round.premiumCutoff * 1000)
+        : new Date(round.freezeAt.getTime() - round.regularCutoff * 1000);
+
+      if (now >= cutoffTime) {
         throw new BadRequestException(
-          `Market closed for your ${userDuration}-minute timeframe. Next checkpoint in ${minutesRemaining}:${secondsRemaining.toString().padStart(2, '0')}`,
+          `Market closed - orders no longer accepted`,
         );
       }
 
@@ -171,7 +136,6 @@ export class BetsService {
           isPremiumUser: isPremium ?? false,
           idempotencyKey: dto.idempotencyKey,
           isDemo: dto.isDemo || false,
-          userRoundDuration: dto.userRoundDuration || 20, // Default to 20 minutes
         } as any,
       });
 
@@ -196,14 +160,6 @@ export class BetsService {
 
       // 9. Update Redis totals for real-time UI
       await this.updateRedisTotals(dto.roundId, dto.market, dto.selection, amount);
-
-      // 9.5. v2.1: Remove any existing seed for this market (seed self-destructs when user bets)
-      try {
-        await this.seedingService.removeSeed(dto.roundId, dto.market);
-      } catch (e) {
-        // Seeding is non-critical, log but don't fail bet placement
-        this.logger.warn(`Failed to remove seed: ${e.message}`);
-      }
 
       // 10. Create transaction record
       await tx.transaction.create({
@@ -369,18 +325,6 @@ export class BetsService {
       this.logger.log(
         `❌ Bet cancelled: ${bet.user.username} - Round ${bet.round.roundNumber} ${bet.market} ${bet.selection} $${bet.amountUsd.toString()}`,
       );
-
-      // v2.1: Check if seeds need to be re-applied (if pair is now empty)
-      try {
-        await this.seedingService.checkAndReapplySeeds(
-          bet.roundId,
-          bet.round.roundNumber,
-          bet.market,
-        );
-      } catch (e) {
-        // Seeding is non-critical, log but don't fail cancellation
-        this.logger.warn(`Failed to check/reapply seeds: ${e.message}`);
-      }
 
       // Emit WebSocket event
       this.gateway.server.emit('betCancelled', {

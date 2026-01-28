@@ -28,15 +28,4 @@ export class PlaceBetDto {
   @IsOptional()
   @IsBoolean()
   isDemo?: boolean;
-
-  @ApiProperty({ 
-    required: false, 
-    description: 'User\'s chosen round duration in minutes (5, 10, or 20)', 
-    default: 20,
-    enum: [5, 10, 20]
-  })
-  @IsOptional()
-  @IsNumber()
-  @Min(5, { message: 'Round duration must be 5, 10, or 20 minutes' })
-  userRoundDuration?: number;
 }

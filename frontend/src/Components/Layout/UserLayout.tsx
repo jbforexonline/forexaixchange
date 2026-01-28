@@ -246,7 +246,7 @@ export default function UserLayout({
           {subscriptionTier === SubscriptionTier.FREE && (
             <button
               className="upgrade-prompt"
-              onClick={() => router.push("/deposit")}
+              onClick={() => router.push("/premium")}
             >
               Upgrade to Premium 🚀
             </button>

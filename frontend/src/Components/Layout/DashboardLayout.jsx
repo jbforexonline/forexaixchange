@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { MotionConfig, motion } from "framer-motion";
-import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, FileText, DollarSign, History, BarChart3 } from "lucide-react";
+import { Home, Wallet, User, AppWindow, BookOpen, HelpCircle, Sword, Settings, ArrowLeft, FileText, DollarSign, History, BarChart3, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { logout, getCurrentUser } from "@/lib/auth";
@@ -24,6 +24,7 @@ export default function Sidebar({ children }) {
   }, [router]);
 
   const menuItems = [
+    { icon: Settings, label: "Settings", href: "/settings" },
     { icon: Home, label: "Spin", href: "/spin" },
     { icon: History, label: "Spin History", href: "/spin-history" },
     { icon: BarChart3, label: "Statistics", href: "/statistics" },
@@ -32,7 +33,6 @@ export default function Sidebar({ children }) {
     { icon: FileText, label: "History", href: "/history" },
     { icon: AppWindow, label: "Premium", href: "/premium" },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
-    { icon: Sword, label: "Settings", href: "/settings" },
   ];
 
   const handleMenuClick = (item) => {
@@ -71,6 +71,15 @@ export default function Sidebar({ children }) {
           </div>
 
           <nav className="eo-menu">
+            <button
+              className="eo-menu-item"
+              onClick={handleLogout}
+              title="Logout"
+              style={{ color: '#dc2626', marginBottom: '0.5rem' }}
+            >
+              <LogOut size={20} />
+              {open && <span className="eo-label">Logout</span>}
+            </button>
             {menuItems.map((item, idx) => {
               const Icon = item.icon;
               return (
@@ -85,15 +94,6 @@ export default function Sidebar({ children }) {
                 </button>
               );
             })}
-            <button
-              className="eo-menu-item"
-              onClick={handleLogout}
-              title="Logout"
-              style={{ marginTop: 'auto', color: '#dc2626' }}
-            >
-              <Settings size={20} />
-              {open && <span className="eo-label">Logout</span>}
-            </button>
           </nav>
 
           {/* <div className="eo-footer">

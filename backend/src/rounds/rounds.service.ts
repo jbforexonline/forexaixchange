@@ -47,9 +47,9 @@ export class RoundsService {
 
     // Order cutoffs: time before freeze when orders must be placed
     // Premium users: 5 seconds before freeze
-    // Regular users: 5 seconds before freeze (same as premium for betting window)
+    // Regular users: 60 seconds before freeze
     const premiumCutoff = 5;
-    const regularCutoff = 5;
+    const regularCutoff = 60;
     
     const openedAt = new Date();
     const freezeAt = new Date(openedAt.getTime() + (roundDuration - freezeOffset) * 1000);
@@ -249,7 +249,6 @@ export class RoundsService {
 
   /**
    * Compute final totals from database (authoritative source)
-   * v2.1: Includes system seeds in total pool for settlement, but tracks separately
    */
   private async computeRoundTotals(
     roundId: string,
@@ -267,74 +266,12 @@ export class RoundsService {
     };
 
     // Aggregate by market and selection
-    // INCLUDE system seeds in totals for settlement (prevents 0-0)
-    // EXCLUDE demo bets - they don't affect who wins
+    // EXCLUDE demo bets from totals - they don't affect who wins
     const bets = await tx.bet.findMany({
       where: {
         roundId,
         status: 'ACCEPTED',
         isDemo: false, // Only count live bets for winner determination
-        // NOTE: isSystemSeed bets ARE included in totals for settlement
-      },
-      select: {
-        market: true,
-        selection: true,
-        amountUsd: true,
-        isSystemSeed: true,
-      },
-    });
-
-    for (const bet of bets) {
-      const amount = bet.amountUsd;
-      totals.totalVolume = totals.totalVolume.add(amount);
-
-      switch (bet.market) {
-        case 'OUTER':
-          if (bet.selection === 'BUY') totals.outerBuy = totals.outerBuy.add(amount);
-          else if (bet.selection === 'SELL') totals.outerSell = totals.outerSell.add(amount);
-          break;
-        case 'MIDDLE':
-          if (bet.selection === 'BLUE') totals.middleBlue = totals.middleBlue.add(amount);
-          else if (bet.selection === 'RED') totals.middleRed = totals.middleRed.add(amount);
-          break;
-        case 'INNER':
-          if (bet.selection === 'HIGH_VOL') totals.innerHighVol = totals.innerHighVol.add(amount);
-          else if (bet.selection === 'LOW_VOL') totals.innerLowVol = totals.innerLowVol.add(amount);
-          break;
-        case 'GLOBAL':
-          if (bet.selection === 'INDECISION') {
-            totals.globalIndecision = totals.globalIndecision.add(amount);
-          }
-          break;
-      }
-    }
-
-    return totals;
-  }
-
-  /**
-   * Compute USER-ONLY totals (excludes seeds) for UI display
-   * v2.1: Power bars should reflect User Pool only
-   */
-  async computeUserOnlyTotals(roundId: string) {
-    const totals = {
-      outerBuy: new Decimal(0),
-      outerSell: new Decimal(0),
-      middleBlue: new Decimal(0),
-      middleRed: new Decimal(0),
-      innerHighVol: new Decimal(0),
-      innerLowVol: new Decimal(0),
-      globalIndecision: new Decimal(0),
-      totalVolume: new Decimal(0),
-    };
-
-    // EXCLUDE both seeds and demo bets for UI display
-    const bets = await this.prisma.bet.findMany({
-      where: {
-        roundId,
-        status: 'ACCEPTED',
-        isDemo: false,
-        isSystemSeed: false, // Exclude seeds from UI totals
       },
       select: {
         market: true,
@@ -544,92 +481,5 @@ export class RoundsService {
 
       return cancelled;
     });
-  }
-
-  /**
-   * Capture market state checkpoint for sub-round settlements
-   */
-  async captureCheckpoint(roundId: string, checkpointMinutes: number) {
-    const round = await this.prisma.round.findUnique({
-      where: { id: roundId },
-      include: {
-        artifact: {
-          select: {
-            secret: true,
-          },
-        },
-      },
-    });
-
-    if (!round) {
-      throw new NotFoundException('Round not found');
-    }
-
-    // Determine market winners at this checkpoint based on totals
-    const outerWinner = this.determineWinner(round.outerBuy, round.outerSell, ['BUY', 'SELL']);
-    const middleWinner = this.determineWinner(round.middleBlue, round.middleRed, ['BLUE', 'RED']);
-    const innerWinner = this.determineWinner(round.innerHighVol, round.innerLowVol, ['HIGH_VOL', 'LOW_VOL']);
-
-    // Check if indecision is triggered (global INDECISION bets exist)
-    const indecisionTriggered = round.globalIndecision.gt(0);
-
-    const checkpoint = {
-      timestamp: new Date().toISOString(),
-      roundMinuteMark: checkpointMinutes,
-      outerWinner: outerWinner.winner,
-      outerTied: outerWinner.tied,
-      middleWinner: middleWinner.winner,
-      middleTied: middleWinner.tied,
-      innerWinner: innerWinner.winner,
-      innerTied: innerWinner.tied,
-      indecisionTriggered,
-      totals: {
-        outerBuy: round.outerBuy.toString(),
-        outerSell: round.outerSell.toString(),
-        middleBlue: round.middleBlue.toString(),
-        middleRed: round.middleRed.toString(),
-        innerHighVol: round.innerHighVol.toString(),
-        innerLowVol: round.innerLowVol.toString(),
-        globalIndecision: round.globalIndecision.toString(),
-      },
-    };
-
-    // Store checkpoint in the appropriate field
-    const updateData: any = {};
-    if (checkpointMinutes === 15) {
-      updateData.checkpoint15min = checkpoint;
-    } else if (checkpointMinutes === 10) {
-      updateData.checkpoint10min = checkpoint;
-    } else if (checkpointMinutes === 5) {
-      updateData.checkpoint5min = checkpoint;
-    }
-
-    await this.prisma.round.update({
-      where: { id: roundId },
-      data: updateData,
-    });
-
-    this.logger.log(
-      `📸 Checkpoint captured for Round ${round.roundNumber} at ${checkpointMinutes} min mark`,
-    );
-
-    return checkpoint;
-  }
-
-  /**
-   * Helper to determine winner between two sides
-   */
-  private determineWinner(
-    sideA: Decimal,
-    sideB: Decimal,
-    labels: [string, string],
-  ): { winner: string | null; tied: boolean } {
-    if (sideA.eq(sideB)) {
-      return { winner: null, tied: true };
-    }
-    return {
-      winner: sideA.gt(sideB) ? labels[0] : labels[1],
-      tied: false,
-    };
   }
 }
