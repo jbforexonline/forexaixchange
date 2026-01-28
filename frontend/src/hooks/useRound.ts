@@ -111,6 +111,11 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
 
   const roundRef = useRef<Round | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Sync userDuration when initialDuration prop changes
+  useEffect(() => {
+    setUserDuration(initialDuration);
+  }, [initialDuration]);
 
   // Calculate countdown and state from a round (including sub-round timing)
   const calculateState = useCallback((round: Round | null, duration: UserRoundDuration): Pick<RoundState, 'countdown' | 'timeUntilFreeze' | 'state' | 'subRoundCountdown' | 'subRoundTimeUntilFreeze' | 'currentQuarter'> => {
@@ -204,7 +209,7 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
         loading: false,
       }));
     }
-  }, [calculateState]);
+  }, [calculateState, userDuration]);
 
   // Initial fetch on mount
   useEffect(() => {

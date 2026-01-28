@@ -6,7 +6,7 @@ import SpinWheel from "../Spin/SpinWheel";
 import RecentSpinsTable from "../Spin/RecentSpinsTable";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
-import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory } from "@/lib/api/spin";
+import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory, cancelBet } from "@/lib/api/spin";
 import type { Bet, BetMarket, BetSelection } from "@/lib/api/spin";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
 import { getCurrentUser, logout } from "@/lib/auth";
@@ -53,11 +53,50 @@ const MARKET_OPTIONS: MarketOption[] = [
 ];
 
 // Round duration options for premium users (in minutes)
-const ROUND_DURATIONS = [5, 10, 15, 20];
+// Note: 15-minute option removed per spec v2.1
+const ROUND_DURATIONS = [5, 10, 20];
+
+// Scheduled order type for future rounds
+type ScheduledOrder = {
+  id: string;
+  provisionalRoundNumber: number;
+  scheduledTime: Date;
+  market: BetMarket;
+  selection: BetSelection;
+  amount: number;
+  duration: number;
+  status: 'pending' | 'placed' | 'failed';
+};
+
+// Future round type for scheduling display
+type FutureRound = {
+  provisionalNumber: number;
+  estimatedStartTime: Date;
+  estimatedEndTime: Date;
+  checkpointLabel: string; // Q1, Q2, H1, H2, or Full
+};
 
 export default function SpinPage() {
   const router = useRouter();
-  const { round, totals, state: roundState, countdown, timeUntilFreeze, loading, error } = useRound();
+  // Premium features state - must be defined before useRound
+  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  
+  // Pass user's selected duration to useRound for sub-round timing calculation
+  const { 
+    round, 
+    totals, 
+    state: roundState, 
+    countdown, 
+    timeUntilFreeze, 
+    subRoundCountdown,
+    subRoundTimeUntilFreeze,
+    currentQuarter,
+    userDuration,
+    setUserDuration,
+    loading, 
+    error 
+  } = useRound(selectedRoundDuration as 5 | 10 | 20);
+  
   const { wallet, refresh: refreshWallet } = useWallet();
   const { isDemo, toggleDemo } = useDemo();
   const [userBets, setUserBets] = useState<Bet[]>([]);
@@ -70,14 +109,24 @@ export default function SpinPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingBetAmount, setPendingBetAmount] = useState<number | null>(null);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
-  const [ticketTab, setTicketTab] = useState<'active' | 'previous'>('active');
+  const [ticketTab, setTicketTab] = useState<'active' | 'scheduled' | 'previous'>('active');
+  const [cancellingBetId, setCancellingBetId] = useState<string | null>(null);
   const [previousBets, setPreviousBets] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   
-  // Premium features state
-  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  // Cancel confirmation state
+  const [cancelConfirmation, setCancelConfirmation] = useState<{
+    type: 'active' | 'scheduled';
+    id: string;
+    bet?: Bet;
+    order?: ScheduledOrder;
+  } | null>(null);
+  
+  // Premium features state (continued - selectedRoundDuration defined before useRound)
   const [showSchedulePanel, setShowSchedulePanel] = useState(false);
-  const [scheduledRounds, setScheduledRounds] = useState<number>(0); // 0 = no scheduling
+  const [scheduledOrders, setScheduledOrders] = useState<ScheduledOrder[]>([]);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedFutureRound, setSelectedFutureRound] = useState<FutureRound | null>(null);
   
   // Navigation menu state
   const [activeNavPopup, setActiveNavPopup] = useState<string | null>(null);
@@ -101,6 +150,23 @@ export default function SpinPage() {
   
   // Normal users always get 20-minute rounds
   const effectiveRoundDuration = isPremium ? selectedRoundDuration : 20;
+  
+  // Sync local duration state with useRound hook when duration changes
+  useEffect(() => {
+    if (setUserDuration && isPremium) {
+      setUserDuration(selectedRoundDuration as 5 | 10 | 20);
+    }
+  }, [selectedRoundDuration, setUserDuration, isPremium]);
+  
+  // v2.1: Use sub-round countdown based on user's selected duration
+  const displayCountdown = effectiveRoundDuration === 20 
+    ? countdown 
+    : (subRoundCountdown ?? countdown);
+  
+  // Use sub-round freeze time for betting cutoff
+  const effectiveTimeUntilFreeze = effectiveRoundDuration === 20
+    ? timeUntilFreeze
+    : (subRoundTimeUntilFreeze ?? timeUntilFreeze);
 
   const handleLogout = () => {
     logout();
@@ -140,6 +206,59 @@ export default function SpinPage() {
       return () => clearTimeout(timer);
     }
   }, [betSuccess]);
+
+  // Process scheduled orders when a new round opens
+  useEffect(() => {
+    if (!round || roundState !== 'open' || scheduledOrders.length === 0) return;
+    
+    const processScheduledOrders = async () => {
+      const now = Date.now();
+      const ordersToProcess = scheduledOrders.filter(order => {
+        // Process orders that are due (within 30 seconds of scheduled time or past it)
+        const timeDiff = order.scheduledTime.getTime() - now;
+        return timeDiff <= 30000 && order.status === 'pending' && 
+               order.provisionalRoundNumber === round.roundNumber;
+      });
+      
+      for (const order of ordersToProcess) {
+        try {
+          await placeBet({
+            market: order.market,
+            selection: order.selection,
+            amountUsd: order.amount,
+            idempotencyKey: `sched-${order.id}`,
+            isDemo: isDemo,
+            userRoundDuration: order.duration as 5 | 10 | 20,
+          });
+          
+          // Mark as placed
+          setScheduledOrders(prev => 
+            prev.map(o => o.id === order.id ? { ...o, status: 'placed' as const } : o)
+          );
+          
+          setBetSuccess(`Scheduled order placed: $${order.amount} on ${order.selection}`);
+          refreshWallet();
+          
+          // Refresh bets
+          const bets = await getCurrentRoundBets();
+          setUserBets(bets);
+        } catch (err) {
+          // Mark as failed
+          setScheduledOrders(prev => 
+            prev.map(o => o.id === order.id ? { ...o, status: 'failed' as const } : o)
+          );
+          setBetError(`Scheduled order failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+        }
+      }
+      
+      // Remove placed/failed orders after processing
+      setTimeout(() => {
+        setScheduledOrders(prev => prev.filter(o => o.status === 'pending'));
+      }, 5000);
+    };
+    
+    processScheduledOrders();
+  }, [round?.roundNumber, roundState, scheduledOrders, isDemo, refreshWallet]);
 
   useEffect(() => {
     if (betError) {
@@ -195,6 +314,7 @@ export default function SpinPage() {
         amountUsd: pendingBetAmount,
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
         isDemo: isDemo,
+        userRoundDuration: effectiveRoundDuration as 5 | 10 | 20, // v2.1: Pass user's duration preference
       });
 
       setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${pendingBetAmount} on ${selectedOption.label}`);
@@ -242,15 +362,251 @@ export default function SpinPage() {
     };
   }, [roundState, round]);
 
-  // Use full round countdown (total time until settlement) for the center timer.
-  // Backend already enforces a 1-minute freeze (no market) via freezeAt,
-  // and useRound exposes that through roundState/timeUntilFreeze for bet disabling.
-  const displayCountdown = countdown;
-  const canBet = roundState === 'open' && round && !isPlacingBet;
+  // User can bet if their sub-round is still open (not frozen)
+  const canBet = roundState === 'open' && round && !isPlacingBet && effectiveTimeUntilFreeze > 0;
 
-  // Calculate totals for display (ensure userBets is array)
-  const betsArray = Array.isArray(userBets) ? userBets : [];
-  const totalBets = betsArray.reduce((sum, bet) => sum + bet.amountUsd, 0);
+  // Calculate future rounds for scheduling (up to 2 hours ahead)
+  const futureRounds = useMemo((): FutureRound[] => {
+    if (!round || !isPremium) return [];
+    
+    const rounds: FutureRound[] = [];
+    const roundDurationMs = 20 * 60 * 1000; // Main round is always 20 min
+    const subRoundDurationMs = effectiveRoundDuration * 60 * 1000;
+    const maxScheduleTime = 2 * 60 * 60 * 1000; // 2 hours in ms
+    
+    const currentRoundStart = new Date(round.openedAt).getTime();
+    const currentRoundEnd = new Date(round.settleAt).getTime();
+    
+    // Calculate how many sub-rounds/checkpoints to show based on duration
+    let maxRounds: number;
+    if (effectiveRoundDuration === 5) {
+      maxRounds = 24; // 24 × 5 min = 120 min = 2 hours
+    } else if (effectiveRoundDuration === 10) {
+      maxRounds = 12; // 12 × 10 min = 120 min = 2 hours
+    } else {
+      maxRounds = 6; // 6 × 20 min = 120 min = 2 hours
+    }
+    
+    // For sub-rounds within the current main round
+    if (effectiveRoundDuration === 5 || effectiveRoundDuration === 10) {
+      const checkpointsPerRound = effectiveRoundDuration === 5 ? 4 : 2;
+      const now = Date.now();
+      
+      // Calculate current checkpoint within the round
+      const elapsed = now - currentRoundStart;
+      const currentCheckpoint = Math.floor(elapsed / subRoundDurationMs);
+      
+      // Add remaining checkpoints in current round
+      for (let i = currentCheckpoint + 1; i < checkpointsPerRound; i++) {
+        const checkpointTime = currentRoundStart + (i + 1) * subRoundDurationMs;
+        if (checkpointTime - now <= maxScheduleTime) {
+          rounds.push({
+            provisionalNumber: round.roundNumber,
+            estimatedStartTime: new Date(currentRoundStart + i * subRoundDurationMs),
+            estimatedEndTime: new Date(checkpointTime),
+            checkpointLabel: effectiveRoundDuration === 5 ? `Q${i + 1}` : `H${i + 1}`,
+          });
+        }
+      }
+    }
+    
+    // Add future main rounds
+    let futureRoundNumber = round.roundNumber + 1;
+    let nextRoundStart = currentRoundEnd;
+    
+    while (rounds.length < maxRounds && nextRoundStart - Date.now() < maxScheduleTime) {
+      const nextRoundEnd = nextRoundStart + roundDurationMs;
+      
+      if (effectiveRoundDuration === 20) {
+        // Full round
+        rounds.push({
+          provisionalNumber: futureRoundNumber,
+          estimatedStartTime: new Date(nextRoundStart),
+          estimatedEndTime: new Date(nextRoundEnd),
+          checkpointLabel: 'Full',
+        });
+      } else {
+        // Sub-rounds within the future round
+        const checkpointsPerRound = effectiveRoundDuration === 5 ? 4 : 2;
+        for (let i = 0; i < checkpointsPerRound && rounds.length < maxRounds; i++) {
+          const checkpointStart = nextRoundStart + i * subRoundDurationMs;
+          const checkpointEnd = nextRoundStart + (i + 1) * subRoundDurationMs;
+          
+          if (checkpointStart - Date.now() < maxScheduleTime) {
+            rounds.push({
+              provisionalNumber: futureRoundNumber,
+              estimatedStartTime: new Date(checkpointStart),
+              estimatedEndTime: new Date(checkpointEnd),
+              checkpointLabel: effectiveRoundDuration === 5 ? `Q${i + 1}` : `H${i + 1}`,
+            });
+          }
+        }
+      }
+      
+      futureRoundNumber++;
+      nextRoundStart = nextRoundEnd;
+    }
+    
+    return rounds;
+  }, [round, effectiveRoundDuration, isPremium]);
+
+  // Handle scheduling an order for a future round
+  const handleScheduleOrder = (futureRound: FutureRound) => {
+    setSelectedFutureRound(futureRound);
+    setShowScheduleModal(true);
+  };
+
+  // Confirm scheduled order
+  const handleConfirmScheduledOrder = () => {
+    if (!selectedFutureRound) return;
+    
+    const amount = parseFloat(betAmount);
+    if (isNaN(amount) || amount < 1) {
+      setBetError('Minimum order is $1');
+      return;
+    }
+    
+    const newOrder: ScheduledOrder = {
+      id: `sched-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      provisionalRoundNumber: selectedFutureRound.provisionalNumber,
+      scheduledTime: selectedFutureRound.estimatedStartTime,
+      market: selectedOption.market,
+      selection: selectedOption.selection,
+      amount: amount,
+      duration: effectiveRoundDuration,
+      status: 'pending',
+    };
+    
+    setScheduledOrders(prev => [...prev, newOrder]);
+    setShowScheduleModal(false);
+    setSelectedFutureRound(null);
+    setBetSuccess(`Scheduled $${amount} on ${selectedOption.label} for Round #${selectedFutureRound.provisionalNumber} ${selectedFutureRound.checkpointLabel}`);
+  };
+
+  // Remove a scheduled order
+  const handleRemoveScheduledOrder = (orderId: string) => {
+    setScheduledOrders(prev => prev.filter(o => o.id !== orderId));
+  };
+
+  // Format time for display
+  const formatScheduleTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = date.getTime() - now.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 60) {
+      return `in ${diffMins}m`;
+    } else {
+      const hours = Math.floor(diffMins / 60);
+      const mins = diffMins % 60;
+      return `in ${hours}h ${mins}m`;
+    }
+  };
+
+  // Show cancel confirmation for active bet
+  const handleCancelActiveBet = (bet: Bet) => {
+    if (!isPremium) {
+      setBetError('Premium subscription required to cancel orders');
+      return;
+    }
+    
+    if (effectiveTimeUntilFreeze <= 0) {
+      setBetError('Cannot cancel - market is frozen');
+      return;
+    }
+    
+    setCancelConfirmation({ type: 'active', id: bet.id, bet });
+  };
+
+  // Show cancel confirmation for scheduled order
+  const handleCancelScheduledOrder = (order: ScheduledOrder) => {
+    setCancelConfirmation({ type: 'scheduled', id: order.id, order });
+  };
+
+  // Confirm and execute cancellation
+  const confirmCancellation = async () => {
+    if (!cancelConfirmation) return;
+    
+    const { type, id, bet, order } = cancelConfirmation;
+    
+    if (type === 'active' && bet) {
+      setCancellingBetId(id);
+      try {
+        await cancelBet(id);
+        setBetSuccess('Order cancelled successfully. Funds returned to wallet.');
+        refreshWallet();
+        
+        // Remove from active bets
+        setUserBets(prev => prev.filter(b => b.id !== id));
+        
+        // Refresh the history from backend to get the updated cancelled bet
+        // This ensures we have all previous bets including the newly cancelled one
+        try {
+          const response = await getBetHistory(1, 50);
+          let bets = [];
+          if (Array.isArray(response)) {
+            bets = response;
+          } else if (response.data?.data && Array.isArray(response.data.data)) {
+            bets = response.data.data;
+          } else if (response.data && Array.isArray(response.data)) {
+            bets = response.data;
+          } else if (response.bets && Array.isArray(response.bets)) {
+            bets = response.bets;
+          }
+          setPreviousBets(bets);
+        } catch (historyErr) {
+          // If fetching history fails, add cancelled bet locally with round info
+          const cancelledBet = {
+            ...bet,
+            status: 'CANCELLED',
+            cancelledAt: new Date().toISOString(),
+            roundNumber: round?.roundNumber,
+            round: bet.round || { roundNumber: round?.roundNumber, state: 'CANCELLED' },
+          };
+          setPreviousBets(prev => {
+            // Avoid duplicates
+            const filtered = prev.filter(b => b.id !== id);
+            return [cancelledBet, ...filtered];
+          });
+        }
+        
+      } catch (err) {
+        setBetError(err instanceof Error ? err.message : 'Failed to cancel order');
+      } finally {
+        setCancellingBetId(null);
+      }
+    } else if (type === 'scheduled' && order) {
+      // Remove from scheduled orders
+      setScheduledOrders(prev => prev.filter(o => o.id !== id));
+      
+      // For scheduled orders (not yet placed), just add locally since they're not in backend
+      const cancelledOrder = {
+        id: order.id,
+        market: order.market,
+        selection: order.selection,
+        amountUsd: order.amount,
+        status: 'CANCELLED',
+        userRoundDuration: order.duration,
+        createdAt: new Date().toISOString(),
+        cancelledAt: new Date().toISOString(),
+        roundNumber: order.provisionalRoundNumber,
+        round: {
+          roundNumber: order.provisionalRoundNumber,
+          state: 'SCHEDULED',
+        },
+      };
+      setPreviousBets(prev => [cancelledOrder, ...prev]);
+      setBetSuccess('Scheduled order cancelled');
+    }
+    
+    setCancelConfirmation(null);
+  };
+
+  // Calculate totals for display (ensure userBets is array and filter out cancelled)
+  const betsArray = Array.isArray(userBets) 
+    ? userBets.filter(bet => bet.status !== 'CANCELLED') 
+    : [];
+  const totalBets = betsArray.reduce((sum, bet) => sum + Number(bet.amountUsd || 0), 0);
   const potentialWin = totalBets * 2;
 
   const getTicketMarketLabel = (market: BetMarket) => {
@@ -356,11 +712,15 @@ export default function SpinPage() {
             <div className="tickets-tabs">
               <button
                 className={`tab-btn ${ticketTab === 'active' ? 'active' : ''}`}
-                onClick={async () => {
-                  setTicketTab('active');
-                }}
+                onClick={() => setTicketTab('active')}
               >
-                Active
+                Active {betsArray.length > 0 && `(${betsArray.length})`}
+              </button>
+              <button
+                className={`tab-btn ${ticketTab === 'scheduled' ? 'active' : ''}`}
+                onClick={() => setTicketTab('scheduled')}
+              >
+                Scheduled {scheduledOrders.length > 0 && `(${scheduledOrders.length})`}
               </button>
               <button
                 className={`tab-btn ${ticketTab === 'previous' ? 'active' : ''}`}
@@ -369,13 +729,15 @@ export default function SpinPage() {
                   if (previousBets.length === 0 && !loadingHistory) {
                     setLoadingHistory(true);
                     try {
-                      const response = await getBetHistory(1, 20);
+                      const response = await getBetHistory(1, 50);
                       console.log('Bet history response:', response);
                       
                       // Handle different response structures
                       let bets = [];
                       if (Array.isArray(response)) {
                         bets = response;
+                      } else if (response.data?.data && Array.isArray(response.data.data)) {
+                        bets = response.data.data;
                       } else if (response.data && Array.isArray(response.data)) {
                         bets = response.data;
                       } else if (response.bets && Array.isArray(response.bets)) {
@@ -384,6 +746,7 @@ export default function SpinPage() {
                         bets = response.data.bets;
                       }
                       
+                      console.log('Parsed bets:', bets);
                       setPreviousBets(bets);
                     } catch (error) {
                       console.error('Error loading bet history:', error);
@@ -418,6 +781,9 @@ export default function SpinPage() {
                         <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
                           {bet.isDemo ? 'Demo' : 'Live'}
                         </span>
+                        {bet.userRoundDuration && (
+                          <span className="ticket-duration">{bet.userRoundDuration}m</span>
+                        )}
                       </div>
                       <div className="ticket-meta">
                         <span className="ticket-amount">
@@ -426,6 +792,67 @@ export default function SpinPage() {
                         <span className="ticket-time">
                           {new Date(bet.createdAt).toLocaleTimeString()}
                         </span>
+                        {/* Cancel button for premium users (before freeze) */}
+                        {isPremium && effectiveTimeUntilFreeze > 0 && (
+                          <button
+                            className="cancel-btn"
+                            onClick={() => handleCancelActiveBet(bet)}
+                            disabled={cancellingBetId === bet.id}
+                            title="Cancel order (refund to wallet)"
+                          >
+                            {cancellingBetId === bet.id ? '...' : '✕ Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* Scheduled Tickets */}
+            {ticketTab === 'scheduled' && (
+              <div className="tickets-list">
+                {scheduledOrders.length === 0 ? (
+                  <div className="empty-state">
+                    <p>No scheduled orders.</p>
+                    <p className="hint">Use "Schedule Ahead" to place orders for future rounds.</p>
+                  </div>
+                ) : (
+                  scheduledOrders.map((order) => (
+                    <div key={order.id} className={`ticket-row scheduled-ticket ${order.status}`}>
+                      <div className="ticket-main">
+                        <span className="ticket-round">
+                          Round #{order.provisionalRoundNumber}
+                        </span>
+                        <span className="ticket-selection" style={{ 
+                          color: MARKET_OPTIONS.find(o => o.selection === order.selection)?.color 
+                        }}>
+                          {MARKET_OPTIONS.find(o => o.selection === order.selection)?.icon} {order.selection}
+                        </span>
+                        <span className="ticket-duration">{order.duration}m</span>
+                        <span className={`ticket-status ${order.status}`}>
+                          {order.status === 'pending' ? '⏳ Pending' : 
+                           order.status === 'placed' ? '✓ Placed' : '✗ Failed'}
+                        </span>
+                      </div>
+                      <div className="ticket-meta">
+                        <span className="ticket-amount">
+                          ${order.amount.toFixed(2)}
+                        </span>
+                        <span className="ticket-time">
+                          {order.scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {/* Cancel button for pending scheduled orders */}
+                        {order.status === 'pending' && (
+                          <button
+                            className="cancel-btn"
+                            onClick={() => handleCancelScheduledOrder(order)}
+                            title="Cancel scheduled order"
+                          >
+                            ✕ Cancel
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))
@@ -449,12 +876,16 @@ export default function SpinPage() {
                   previousBets.map((bet) => {
                     const won = bet.status === 'WON';
                     const lost = bet.status === 'LOST';
+                    const cancelled = bet.status === 'CANCELLED';
                     const pending = bet.status === 'PENDING' || bet.status === 'ACCEPTED';
+                    
+                    const statusClass = won ? 'won' : lost ? 'lost' : cancelled ? 'cancelled' : 'pending';
+                    const statusLabel = won ? '✓ WON' : lost ? '✗ LOST' : cancelled ? '⊘ CANCELLED' : '⏳ PENDING';
                     
                     return (
                       <div 
                         key={bet.id} 
-                        className={`ticket-row previous-ticket ${won ? 'won' : lost ? 'lost' : 'pending'}`}
+                        className={`ticket-row previous-ticket ${statusClass}`}
                       >
                         <div className="ticket-main">
                           <span className="ticket-market">
@@ -463,8 +894,8 @@ export default function SpinPage() {
                           <span className="ticket-selection">
                             {getTicketSelectionLabel(bet.selection)}
                           </span>
-                          <span className={`ticket-status ${won ? 'won' : lost ? 'lost' : 'pending'}`}>
-                            {won ? '✓ WON' : lost ? '✗ LOST' : '⏳ PENDING'}
+                          <span className={`ticket-status ${statusClass}`}>
+                            {statusLabel}
                           </span>
                         </div>
                         <div className="ticket-meta">
@@ -474,6 +905,11 @@ export default function SpinPage() {
                           {won && bet.winAmountUsd && (
                             <span className="ticket-win">
                               +${Number(bet.winAmountUsd).toFixed(2)}
+                            </span>
+                          )}
+                          {cancelled && (
+                            <span className="ticket-refund">
+                              Refunded
                             </span>
                           )}
                           <span className="ticket-round">
@@ -499,6 +935,267 @@ export default function SpinPage() {
           </div>
         </div>
       )}
+
+      {/* Schedule Panel Modal - Shows future rounds */}
+      {showSchedulePanel && isPremium && (
+        <div className="schedule-panel-overlay" onClick={(e) => {
+          if (e.target === e.currentTarget) setShowSchedulePanel(false);
+        }}>
+          <div className="schedule-panel-modal">
+            <div className="schedule-panel-header">
+              <h2>Schedule Future Orders</h2>
+              <p className="subtitle">
+                {effectiveRoundDuration === 5 ? '5-minute quarters' : 
+                 effectiveRoundDuration === 10 ? '10-minute halves' : 
+                 '20-minute rounds'} • Up to 2 hours ahead
+              </p>
+              <button 
+                className="close-btn"
+                onClick={() => setShowSchedulePanel(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Future Rounds List */}
+            <div className="future-rounds-list">
+              {futureRounds.length === 0 ? (
+                <div className="empty-state">
+                  No future rounds available for scheduling.
+                </div>
+              ) : (
+                futureRounds.map((fr, index) => {
+                  const hasScheduledOrder = scheduledOrders.some(
+                    o => o.provisionalRoundNumber === fr.provisionalNumber && 
+                         o.scheduledTime.getTime() === fr.estimatedStartTime.getTime()
+                  );
+                  
+                  return (
+                    <div 
+                      key={`${fr.provisionalNumber}-${fr.checkpointLabel}-${index}`} 
+                      className={`future-round-item ${hasScheduledOrder ? 'has-order' : ''}`}
+                    >
+                      <div className="round-info">
+                        <span className="round-number">
+                          Round #{fr.provisionalNumber}
+                          {fr.checkpointLabel !== 'Full' && (
+                            <span className="checkpoint-label">{fr.checkpointLabel}</span>
+                          )}
+                        </span>
+                        <span className="round-time">
+                          {formatScheduleTime(fr.estimatedStartTime)}
+                        </span>
+                        <span className="round-time-exact">
+                          {fr.estimatedStartTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {' → '}
+                          {fr.estimatedEndTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <div className="round-actions">
+                        {hasScheduledOrder ? (
+                          <span className="scheduled-badge">Scheduled</span>
+                        ) : (
+                          <button 
+                            className="schedule-order-btn"
+                            onClick={() => handleScheduleOrder(fr)}
+                          >
+                            + Schedule Order
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Scheduled Orders Section */}
+            {scheduledOrders.length > 0 && (
+              <div className="scheduled-orders-section">
+                <h3>Your Scheduled Orders ({scheduledOrders.length})</h3>
+                <div className="scheduled-orders-list">
+                  {scheduledOrders.map(order => (
+                    <div key={order.id} className="scheduled-order-item">
+                      <div className="order-details">
+                        <span className="order-round">
+                          Round #{order.provisionalRoundNumber}
+                        </span>
+                        <span className="order-selection" style={{ 
+                          color: MARKET_OPTIONS.find(o => o.selection === order.selection)?.color 
+                        }}>
+                          {order.selection}
+                        </span>
+                        <span className="order-amount">${order.amount.toFixed(2)}</span>
+                        <span className="order-time">
+                          {order.scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <button 
+                        className="remove-order-btn"
+                        onClick={() => handleRemoveScheduledOrder(order.id)}
+                        title="Remove scheduled order"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="schedule-panel-footer">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => setShowSchedulePanel(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Schedule Order Confirmation Modal */}
+      {showScheduleModal && selectedFutureRound && (
+        <div className="schedule-confirm-overlay">
+          <div className="schedule-confirm-modal">
+            <h2>Schedule Order</h2>
+            <p className="subtitle">
+              Round #{selectedFutureRound.provisionalNumber} 
+              {selectedFutureRound.checkpointLabel !== 'Full' && ` ${selectedFutureRound.checkpointLabel}`}
+            </p>
+            
+            <div className="schedule-details">
+              <div className="detail-row">
+                <span className="label">Scheduled Time</span>
+                <span className="value">
+                  {selectedFutureRound.estimatedStartTime.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                  {' - '}
+                  {selectedFutureRound.estimatedEndTime.toLocaleTimeString([], { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Selection</span>
+                <span className="value" style={{ color: selectedOption.color }}>
+                  {selectedOption.icon} {selectedOption.label}
+                </span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Amount</span>
+                <span className="value">${parseFloat(betAmount || '0').toFixed(2)}</span>
+              </div>
+              <div className="detail-row">
+                <span className="label">Duration</span>
+                <span className="value">{effectiveRoundDuration} min</span>
+              </div>
+            </div>
+            
+            <p className="disclaimer">
+              This order will be automatically placed when the round opens.
+              Ensure you have sufficient balance at that time.
+            </p>
+            
+            <div className="actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setShowScheduleModal(false);
+                  setSelectedFutureRound(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleConfirmScheduledOrder}
+              >
+                Confirm Schedule
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {cancelConfirmation && (
+        <div className="cancel-confirm-overlay">
+          <div className="cancel-confirm-modal">
+            <h2>Cancel Order?</h2>
+            <p className="subtitle">Are you sure you want to cancel this order?</p>
+            
+            <div className="cancel-details">
+              {cancelConfirmation.type === 'active' && cancelConfirmation.bet && (
+                <>
+                  <div className="detail-row">
+                    <span className="label">Market</span>
+                    <span className="value">{getTicketMarketLabel(cancelConfirmation.bet.market)}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Selection</span>
+                    <span className="value">{cancelConfirmation.bet.selection}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Amount</span>
+                    <span className="value">${Number(cancelConfirmation.bet.amountUsd || 0).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+              {cancelConfirmation.type === 'scheduled' && cancelConfirmation.order && (
+                <>
+                  <div className="detail-row">
+                    <span className="label">Round</span>
+                    <span className="value">#{cancelConfirmation.order.provisionalRoundId}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Market</span>
+                    <span className="value">{getTicketMarketLabel(cancelConfirmation.order.market)}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Selection</span>
+                    <span className="value">{cancelConfirmation.order.selection}</span>
+                  </div>
+                  <div className="detail-row">
+                    <span className="label">Amount</span>
+                    <span className="value">${Number(cancelConfirmation.order.amount || 0).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+            </div>
+            
+            <p className="disclaimer">
+              Your funds will be returned to your wallet. No charges will apply.
+            </p>
+            
+            <div className="actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setCancelConfirmation(null)}
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={confirmCancellation}
+                disabled={cancellingBetId === cancelConfirmation.id}
+              >
+                {cancellingBetId === cancelConfirmation.id ? 'Cancelling...' : 'Yes, Cancel Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Gaming Area */}
       <div className="spin-gaming-main">
         {/* Spin Wheel - Centered and Prominent */}
@@ -515,6 +1212,8 @@ export default function SpinPage() {
             countdownSec={displayCountdown} 
             winners={winners}
             roundDurationMin={effectiveRoundDuration}
+            currentQuarter={currentQuarter}
+            timeUntilFreeze={effectiveTimeUntilFreeze}
           />
         </div>
 
@@ -749,23 +1448,22 @@ export default function SpinPage() {
               <CalendarClock size={14} />
               <span>Schedule Ahead</span>
             </div>
-            <div className="schedule-selector">
-              <select
-                value={scheduledRounds}
-                onChange={(e) => setScheduledRounds(Number(e.target.value))}
-                className="schedule-dropdown"
-              >
-                <option value={0}>No scheduling</option>
-                <option value={3}>3 rounds (~{3 * selectedRoundDuration}min)</option>
-                <option value={6}>6 rounds (~{6 * selectedRoundDuration}min)</option>
-                <option value={12}>12 rounds (~{Math.min(120, 12 * selectedRoundDuration)}min)</option>
-                <option value={24}>Up to 2 hours</option>
-              </select>
-            </div>
-            {scheduledRounds > 0 && (
-              <span className="schedule-info">
-                Auto-betting for {scheduledRounds} rounds
+            <button 
+              className="schedule-btn"
+              onClick={() => setShowSchedulePanel(!showSchedulePanel)}
+            >
+              {showSchedulePanel ? 'Hide Schedule' : 'View Future Rounds'}
+              <span className="schedule-count">
+                {scheduledOrders.length > 0 && `(${scheduledOrders.length})`}
               </span>
+            </button>
+            
+            {/* Scheduled Orders Summary */}
+            {scheduledOrders.length > 0 && (
+              <div className="scheduled-orders-summary">
+                <span className="summary-label">Pending Orders:</span>
+                <span className="summary-count">{scheduledOrders.length}</span>
+              </div>
             )}
           </div>
         )}

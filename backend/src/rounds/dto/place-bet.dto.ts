@@ -28,4 +28,19 @@ export class PlaceBetDto {
   @IsOptional()
   @IsBoolean()
   isDemo?: boolean;
+
+  @ApiProperty({ 
+    required: false, 
+    description: 'User\'s preferred round duration (5, 10, or 20 minutes)', 
+    default: 20,
+    enum: [5, 10, 20]
+  })
+  @IsOptional()
+  @IsNumber()
+  userRoundDuration?: number;
+
+  // Internal field - ignored if sent by client, will be set by controller
+  @IsOptional()
+  @IsString()
+  roundId?: string;
 }

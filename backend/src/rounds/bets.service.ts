@@ -19,6 +19,7 @@ import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
+// Internal interface for bet placement (includes roundId added by controller)
 export interface PlaceBetDto {
   roundId: string;
   market: BetMarket;
@@ -26,6 +27,7 @@ export interface PlaceBetDto {
   amountUsd: number;
   idempotencyKey?: string;
   isDemo?: boolean;
+  userRoundDuration?: number; // v2.1: User's preferred duration (5, 10, or 20 minutes)
 }
 
 @Injectable()
@@ -136,6 +138,7 @@ export class BetsService {
           isPremiumUser: isPremium ?? false,
           idempotencyKey: dto.idempotencyKey,
           isDemo: dto.isDemo || false,
+          userRoundDuration: dto.userRoundDuration || 20, // v2.1: User's preferred duration
         } as any,
       });
 
@@ -347,13 +350,38 @@ export class BetsService {
   }
 
   /**
-   * Get user's bets for a round
+   * Get user's bets for a round (excludes cancelled bets)
    */
   async getUserBets(userId: string, roundId: string) {
     return this.prisma.bet.findMany({
       where: {
         userId,
         roundId,
+        isSystemSeed: false, // v2.1: Exclude system seed bets
+        status: { not: 'CANCELLED' }, // Exclude cancelled bets from active view
+      },
+      select: {
+        id: true,
+        roundId: true,
+        userId: true,
+        market: true,
+        selection: true,
+        amountUsd: true,
+        status: true,
+        isWinner: true,
+        payoutAmount: true,
+        profitAmount: true,
+        payoutRatio: true,
+        isPremiumUser: true,
+        isDemo: true,
+        idempotencyKey: true,
+        holdLedgerId: true,
+        payoutLedgerId: true,
+        isSystemSeed: true,
+        seedType: true,
+        userRoundDuration: true, // v2.1: Include user's duration preference
+        createdAt: true,
+        settledAt: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -365,13 +393,32 @@ export class BetsService {
   async getUserBetHistory(userId: string, page = 1, limit = 20) {
     const skip = (page - 1) * limit;
 
+    // v2.1: Exclude system seed bets from user history
+    const whereClause = { 
+      userId,
+      isSystemSeed: false, // Exclude system seeds
+    };
+
     const [bets, total] = await Promise.all([
       this.prisma.bet.findMany({
-        where: { userId },
+        where: whereClause,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: {
+        select: {
+          id: true,
+          roundId: true,
+          market: true,
+          selection: true,
+          amountUsd: true,
+          status: true,
+          isWinner: true,
+          payoutAmount: true,
+          profitAmount: true,
+          isDemo: true,
+          userRoundDuration: true, // v2.1: Include user's duration preference
+          createdAt: true,
+          settledAt: true,
           round: {
             select: {
               roundNumber: true,
@@ -381,7 +428,7 @@ export class BetsService {
           },
         },
       }),
-      this.prisma.bet.count({ where: { userId } }),
+      this.prisma.bet.count({ where: whereClause }),
     ]);
 
     return {

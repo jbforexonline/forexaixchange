@@ -12,14 +12,16 @@ function getAuthToken(): string | null {
 }
 
 // Create headers with auth token
-function getHeaders(): HeadersInit {
+function getHeaders(): Record<string, string> {
   const token = getAuthToken();
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   };
   
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  } else {
+    console.warn('getHeaders: No auth token found in localStorage');
   }
   
   return headers;
@@ -199,6 +201,8 @@ export interface PlaceBetDto {
   amountUsd: number;
   idempotencyKey?: string;
   isDemo?: boolean;
+  userRoundDuration?: 5 | 10 | 20; // v2.1: User's selected round duration
+  // Note: roundId is NOT sent by client - it's added by the backend controller
 }
 
 export interface Bet {
@@ -264,9 +268,16 @@ export async function getCurrentRoundBets(): Promise<Bet[]> {
  * Get user's bet history
  */
 export async function getBetHistory(page = 1, limit = 20) {
+  const headers = getHeaders();
+  console.log('getBetHistory: Headers being sent', { 
+    hasAuth: !!headers['Authorization'],
+    url: `${API_URL}/bets/history?page=${page}&limit=${limit}` 
+  });
+  
   const response = await fetch(`${API_URL}/bets/history?page=${page}&limit=${limit}`, {
     method: 'GET',
-    headers: getHeaders(),
+    headers,
+    credentials: 'include', // Include cookies if any
   });
   return handleResponse(response);
 }
