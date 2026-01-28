@@ -498,7 +498,7 @@ export default function PremiumPage() {
             onClick={() => router.push('/history')}
           >
             <HistoryIcon className="nav-icon" />
-            <span>History</span>
+            <span>Transactions</span>
           </motion.div>
         </div>
       </section>

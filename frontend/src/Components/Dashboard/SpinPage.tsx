@@ -1255,11 +1255,11 @@ export default function SpinPage() {
           
           <button 
             className="nav-btn"
-            onClick={() => router.push('/dashboard/history')}
-            title="History"
+            onClick={() => router.push('/spin-history')}
+            title="Spin History"
           >
             <History size={18} />
-            <span>History</span>
+            <span>Spin History</span>
           </button>
           
           <button 

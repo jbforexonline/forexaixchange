@@ -69,7 +69,7 @@ export default function UserLayout({
       submenu: [
         { label: "Deposit", href: "/deposit" },
         { label: "Withdraw", href: "/withdraw" },
-        { label: "History", href: "/history" },
+        { label: "Transactions", href: "/history" },
       ],
     },
     {
@@ -182,7 +182,7 @@ export default function UserLayout({
                       let SubIcon = Wallet;
                       if (subitem.label === "Deposit") SubIcon = ArrowUpCircle;
                       if (subitem.label === "Withdraw") SubIcon = ArrowDownCircle;
-                      if (subitem.label === "History") SubIcon = FileText;
+                      if (subitem.label === "Transactions") SubIcon = FileText;
 
                       return (
                         <button

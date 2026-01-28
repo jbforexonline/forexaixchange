@@ -30,7 +30,7 @@ export default function Sidebar({ children }) {
     { icon: BarChart3, label: "Statistics", href: "/statistics" },
     { icon: DollarSign, label: "Deposit", href: "/deposit" },
     { icon: Wallet, label: "Withdraw", href: "/withdraw" },
-    { icon: FileText, label: "History", href: "/history" },
+    { icon: FileText, label: "Transactions", href: "/history" },
     { icon: AppWindow, label: "Premium", href: "/premium" },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
   ];
