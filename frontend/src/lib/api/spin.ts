@@ -213,6 +213,8 @@ export interface Bet {
   payoutAmount?: number | null;
   profitAmount?: number | null;
   createdAt: string;
+  userRoundDuration?: number; // v2.1: User's selected duration (5, 10, or 20)
+  isDemo?: boolean;
   round?: {
     roundNumber: number;
     state: string;

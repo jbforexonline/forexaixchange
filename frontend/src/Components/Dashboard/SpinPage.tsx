@@ -53,11 +53,30 @@ const MARKET_OPTIONS: MarketOption[] = [
 ];
 
 // Round duration options for premium users (in minutes)
-const ROUND_DURATIONS = [5, 10, 15, 20];
+// Note: 15-minute option removed per spec v2.1
+const ROUND_DURATIONS = [5, 10, 20];
 
 export default function SpinPage() {
   const router = useRouter();
-  const { round, totals, state: roundState, countdown, timeUntilFreeze, loading, error } = useRound();
+  // Premium features state - must be defined before useRound
+  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  
+  // Pass user's selected duration to useRound for sub-round timing calculation
+  const { 
+    round, 
+    totals, 
+    state: roundState, 
+    countdown, 
+    timeUntilFreeze, 
+    subRoundCountdown,
+    subRoundTimeUntilFreeze,
+    currentQuarter,
+    userDuration,
+    setUserDuration,
+    loading, 
+    error 
+  } = useRound(selectedRoundDuration as 5 | 10 | 20);
+  
   const { wallet, refresh: refreshWallet } = useWallet();
   const { isDemo, toggleDemo } = useDemo();
   const [userBets, setUserBets] = useState<Bet[]>([]);
@@ -71,8 +90,7 @@ export default function SpinPage() {
   const [pendingBetAmount, setPendingBetAmount] = useState<number | null>(null);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
   
-  // Premium features state
-  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  // Premium features state (continued)
   const [showSchedulePanel, setShowSchedulePanel] = useState(false);
   const [scheduledRounds, setScheduledRounds] = useState<number>(0); // 0 = no scheduling
   
@@ -98,6 +116,13 @@ export default function SpinPage() {
   
   // Normal users always get 20-minute rounds
   const effectiveRoundDuration = isPremium ? selectedRoundDuration : 20;
+  
+  // Sync local duration state with useRound hook when duration changes
+  useEffect(() => {
+    if (setUserDuration && isPremium) {
+      setUserDuration(selectedRoundDuration as 5 | 10 | 20);
+    }
+  }, [selectedRoundDuration, setUserDuration, isPremium]);
 
   const handleLogout = () => {
     logout();
@@ -192,6 +217,7 @@ export default function SpinPage() {
         amountUsd: pendingBetAmount,
         idempotencyKey: `bet-${Date.now()}-${Math.random()}`,
         isDemo: isDemo,
+        userRoundDuration: effectiveRoundDuration as 5 | 10 | 20, // v2.1: Pass user's duration preference
       });
 
       setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${pendingBetAmount} on ${selectedOption.label}`);
@@ -239,11 +265,21 @@ export default function SpinPage() {
     };
   }, [roundState, round]);
 
-  // Use full round countdown (total time until settlement) for the center timer.
-  // Backend already enforces a 1-minute freeze (no market) via freezeAt,
-  // and useRound exposes that through roundState/timeUntilFreeze for bet disabling.
-  const displayCountdown = countdown;
-  const canBet = roundState === 'open' && round && !isPlacingBet;
+  // v2.1: Use sub-round countdown based on user's selected duration
+  // For 5-minute: shows countdown to next quarter checkpoint
+  // For 10-minute: shows countdown to next half checkpoint  
+  // For 20-minute: shows countdown to full round settlement
+  const displayCountdown = effectiveRoundDuration === 20 
+    ? countdown 
+    : (subRoundCountdown ?? countdown);
+  
+  // Use sub-round freeze time for betting cutoff
+  const effectiveTimeUntilFreeze = effectiveRoundDuration === 20
+    ? timeUntilFreeze
+    : (subRoundTimeUntilFreeze ?? timeUntilFreeze);
+  
+  // User can bet if their sub-round is still open (not frozen)
+  const canBet = roundState === 'open' && round && !isPlacingBet && effectiveTimeUntilFreeze > 0;
 
   // Calculate totals for display (ensure userBets is array)
   const betsArray = Array.isArray(userBets) ? userBets : [];
@@ -359,8 +395,12 @@ export default function SpinPage() {
                       <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
                         {bet.isDemo ? 'Demo' : 'Live'}
                       </span>
+                      {/* v2.1: Show duration for each bet */}
+                      <span className="ticket-duration">
+                        {bet.userRoundDuration || 20}m
+                      </span>
                     </div>
-            <div className="ticket-meta">
+                    <div className="ticket-meta">
                       <span className="ticket-amount">
                         ${Number(bet.amountUsd || 0).toFixed(2)}
                       </span>
@@ -400,6 +440,8 @@ export default function SpinPage() {
             countdownSec={displayCountdown} 
             winners={winners}
             roundDurationMin={effectiveRoundDuration}
+            currentQuarter={currentQuarter}
+            timeUntilFreeze={effectiveTimeUntilFreeze}
           />
         </div>
 

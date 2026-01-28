@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
 
@@ -42,11 +42,18 @@ export default function Register() {
     phone: '',
     password: '',
     confirmPassword: '',
-    referralCode: ''
+    referralCode: '',
+    is18Plus: false,
+    acceptedTerms: false,
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [referralInfo, setReferralInfo] = useState(null)
+  const errorRef = useRef(null)
+
+  useEffect(() => {
+    if (error) errorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [error])
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -79,25 +86,40 @@ export default function Register() {
   };
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value })
+    const { name, value, type, checked } = e.target
+    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value })
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
 
+    if (!formData.fullName?.trim()) {
+      setError('Please enter your full name.')
+      return
+    }
+    if (!formData.username?.trim()) {
+      setError('Please enter a username.')
+      return
+    }
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      setError('Passwords do not match.')
       return
     }
-
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
+      setError('Password must be at least 6 characters long.')
       return
     }
-
-    if (!formData.email && !formData.phone) {
-      setError('Please provide either email or phone number')
+    if (!formData.email?.trim() && !formData.phone?.trim()) {
+      setError('Please provide either email or phone number.')
+      return
+    }
+    if (!formData.is18Plus) {
+      setError('You must confirm you are 18 or older to register.')
+      return
+    }
+    if (!formData.acceptedTerms) {
+      setError('You must agree to the Terms & Conditions and Privacy Policy.')
       return
     }
 
@@ -116,28 +138,18 @@ export default function Register() {
         username = formData.fullName.replace(/\s+/g, '').toLowerCase()
       }
 
-      // Create request body WITHOUT country field
       const requestBody = {
         password: formData.password,
-        username: username,
-        firstName: firstName,
-        lastName: lastName,
+        username,
+        firstName,
+        lastName,
+        is18Plus: true,
+        acceptedTerms: true,
+        acceptedPrivacy: true,
       }
-
-      // Add email or phone (at least one is required)
-      if (formData.email) {
-        requestBody.email = formData.email
-      }
-      if (formData.phone) {
-        requestBody.phone = formData.phone
-      }
-
-      // Add referral code if present - use 'referralCode' or 'referredBy' depending on your backend
-      if (formData.referralCode) {
-        // Try both field names to see which one works
-        requestBody.referredBy = formData.referralCode;
-        // Alternative: requestBody.referralCode = formData.referralCode;
-      }
+      if (formData.email) requestBody.email = formData.email
+      if (formData.phone) requestBody.phone = formData.phone
+      if (formData.referralCode) requestBody.referredBy = formData.referralCode
 
       console.log('Sending registration request to:', `${apiUrl}/auth/register`)
       console.log('Request body:', requestBody)
@@ -152,16 +164,19 @@ export default function Register() {
 
       console.log('Response status:', response.status)
 
-      const responseBody = await response.json()
+      let responseBody = {}
+      try {
+        responseBody = await response.json()
+      } catch {
+        responseBody = { message: 'Invalid response from server.' }
+      }
       console.log('Response data:', responseBody)
 
       if (!response.ok) {
-        // Handle validation errors better
-        if (responseBody.message && Array.isArray(responseBody.message)) {
-          setError(responseBody.message.join(', '))
-        } else {
-          setError(responseBody.message || 'Registration failed. Please try again.')
-        }
+        const msg = Array.isArray(responseBody.message)
+          ? responseBody.message.join(', ')
+          : (responseBody.message || 'Registration failed. Please try again.')
+        setError(msg)
         return
       }
 
@@ -236,12 +251,12 @@ export default function Register() {
           </p>
 
           {error && (
-            <div className="error-message">
+            <div ref={errorRef} id="register-error" className="error-message" role="alert">
               {error}
             </div>
           )}
 
-          <form className="register-form" onSubmit={handleSubmit}>
+          <form className="register-form" onSubmit={handleSubmit} noValidate>
             <label>Full name</label>
             <input
               type="text"
@@ -326,6 +341,34 @@ export default function Register() {
               disabled={loading}
             />
 
+            <label className="register-checkbox">
+              <input
+                type="checkbox"
+                name="is18Plus"
+                checked={formData.is18Plus}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              <span>I confirm I am 18 or older</span>
+            </label>
+
+            <label className="register-checkbox">
+              <input
+                type="checkbox"
+                name="acceptedTerms"
+                checked={formData.acceptedTerms}
+                onChange={handleChange}
+                disabled={loading}
+              />
+              <span>
+                I agree to the{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Terms &amp; Conditions</a>
+                {' '}and{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>Privacy Policy</a>
+              </span>
+            </label>
+            <p className="register-checkboxes-hint">Both boxes must be checked to continue.</p>
+
             {formData.referralCode && (
               <input
                 type="hidden"
@@ -334,7 +377,11 @@ export default function Register() {
               />
             )}
 
-            <button type="submit" className="register-btn" disabled={loading}>
+            <button
+              type="submit"
+              className="register-btn"
+              disabled={loading || !formData.is18Plus || !formData.acceptedTerms}
+            >
               {loading ? 'Creating Account...' : 'Create Account'}
             </button>
           </form>
