@@ -91,7 +91,7 @@ export class RoundsSchedulerService {
       // Apply seeding to each round before freezing
       for (const round of roundsToFreeze) {
         try {
-          await this.seedingService.applySeedingToRound(round.id, round.roundNumber);
+          await this.seedingService.applyAllSeeds(round.id, round.roundNumber);
           this.logger.debug(`🌱 Applied seeding to round ${round.roundNumber}`);
         } catch (seedError) {
           this.logger.error(`Failed to apply seeding to round ${round.roundNumber}:`, seedError);
