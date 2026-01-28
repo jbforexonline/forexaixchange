@@ -249,6 +249,7 @@ export class RoundsService {
 
   /**
    * Compute final totals from database (authoritative source)
+   * v2.1: Includes system seeds in total pool for settlement, but tracks separately
    */
   private async computeRoundTotals(
     roundId: string,
@@ -266,12 +267,74 @@ export class RoundsService {
     };
 
     // Aggregate by market and selection
-    // EXCLUDE demo bets from totals - they don't affect who wins
+    // INCLUDE system seeds in totals for settlement (prevents 0-0)
+    // EXCLUDE demo bets - they don't affect who wins
     const bets = await tx.bet.findMany({
       where: {
         roundId,
         status: 'ACCEPTED',
         isDemo: false, // Only count live bets for winner determination
+        // NOTE: isSystemSeed bets ARE included in totals for settlement
+      },
+      select: {
+        market: true,
+        selection: true,
+        amountUsd: true,
+        isSystemSeed: true,
+      },
+    });
+
+    for (const bet of bets) {
+      const amount = bet.amountUsd;
+      totals.totalVolume = totals.totalVolume.add(amount);
+
+      switch (bet.market) {
+        case 'OUTER':
+          if (bet.selection === 'BUY') totals.outerBuy = totals.outerBuy.add(amount);
+          else if (bet.selection === 'SELL') totals.outerSell = totals.outerSell.add(amount);
+          break;
+        case 'MIDDLE':
+          if (bet.selection === 'BLUE') totals.middleBlue = totals.middleBlue.add(amount);
+          else if (bet.selection === 'RED') totals.middleRed = totals.middleRed.add(amount);
+          break;
+        case 'INNER':
+          if (bet.selection === 'HIGH_VOL') totals.innerHighVol = totals.innerHighVol.add(amount);
+          else if (bet.selection === 'LOW_VOL') totals.innerLowVol = totals.innerLowVol.add(amount);
+          break;
+        case 'GLOBAL':
+          if (bet.selection === 'INDECISION') {
+            totals.globalIndecision = totals.globalIndecision.add(amount);
+          }
+          break;
+      }
+    }
+
+    return totals;
+  }
+
+  /**
+   * Compute USER-ONLY totals (excludes seeds) for UI display
+   * v2.1: Power bars should reflect User Pool only
+   */
+  async computeUserOnlyTotals(roundId: string) {
+    const totals = {
+      outerBuy: new Decimal(0),
+      outerSell: new Decimal(0),
+      middleBlue: new Decimal(0),
+      middleRed: new Decimal(0),
+      innerHighVol: new Decimal(0),
+      innerLowVol: new Decimal(0),
+      globalIndecision: new Decimal(0),
+      totalVolume: new Decimal(0),
+    };
+
+    // EXCLUDE both seeds and demo bets for UI display
+    const bets = await this.prisma.bet.findMany({
+      where: {
+        roundId,
+        status: 'ACCEPTED',
+        isDemo: false,
+        isSystemSeed: false, // Exclude seeds from UI totals
       },
       select: {
         market: true,

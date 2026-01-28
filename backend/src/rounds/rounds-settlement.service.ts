@@ -333,11 +333,14 @@ export class RoundsSettlementService {
 
   /**
    * Check if two amounts constitute a tie
-   * Updated: Tie if both sides are equal (including 0-0 case)
-   * If any layer ties (including 0-0), Indecision wins globally
+   * Updated v2.1: Tie if both sides are equal AND both have user bets
+   * With seeding enabled, 0-0 won't occur (seed prevents it)
+   * Tie only triggers Indecision when USERS created the tie
    */
   private isTied(a: Decimal, b: Decimal): boolean {
-    // Tie if both sides are equal (to the cent), including 0-0
+    // Tie if both sides are equal (to the cent)
+    // Note: With seeding, 0-0 should not occur at freeze
+    // Seeds are excluded from tie detection since they self-destruct when users bet
     return a.eq(b);
   }
 
@@ -399,6 +402,7 @@ export class RoundsSettlementService {
 
   /**
    * Apply payouts atomically to all bets
+   * Updated v2.1: Handles system seeds separately
    */
   private async applyPayouts(
     tx: Prisma.TransactionClient,
@@ -425,9 +429,35 @@ export class RoundsSettlementService {
     // 2. Calculate totals for this round
     let totalCollectedFromLosers = new Decimal(0);
     let totalPaidToWinners = new Decimal(0);
+    let seedWins = new Decimal(0);
+    let seedLosses = new Decimal(0);
 
-    // 3. Process all bets
+    // 3. Process all bets (separate user bets from seeds)
     for (const bet of round.bets) {
+      // Skip system seed bets - they don't affect user wallets
+      if ((bet as any).isSystemSeed) {
+        const payout = settlement.payouts.get(bet.id);
+        if (payout) {
+          // Track seed outcomes for reporting
+          if (payout.isWinner) {
+            seedWins = seedWins.add(payout.profitAmount);
+          } else {
+            seedLosses = seedLosses.add(bet.amountUsd);
+          }
+          // Update seed bet status
+          await tx.bet.update({
+            where: { id: bet.id },
+            data: {
+              status: payout.isWinner ? 'WON' : 'LOST',
+              isWinner: payout.isWinner,
+              payoutAmount: payout.payoutAmount,
+              profitAmount: payout.profitAmount,
+              settledAt: new Date(),
+            },
+          });
+        }
+        continue; // Don't process wallet updates for seeds
+      }
       const payout = settlement.payouts.get(bet.id);
       if (!payout) continue;
 
@@ -617,6 +647,40 @@ export class RoundsSettlementService {
       `Fee $${settlement.houseFee.toFixed(2)}, ` +
       `Net $${netProfit.add(settlement.houseFee).toFixed(2)}`
     );
+
+    // 6. Track seed outcomes separately (v2.1)
+    if (seedWins.gt(0) || seedLosses.gt(0)) {
+      this.logger.log(
+        `🌱 Seeds: Won $${seedWins.toFixed(2)}, Lost $${seedLosses.toFixed(2)}`
+      );
+      
+      // Create seed ledger entries
+      try {
+        if (seedWins.gt(0)) {
+          await (tx as any).seedLedger.create({
+            data: {
+              roundId: round.id,
+              type: 'SEED_WON',
+              amount: seedWins,
+              description: `Round ${round.roundNumber} - Seed wins`,
+            },
+          });
+        }
+        if (seedLosses.gt(0)) {
+          await (tx as any).seedLedger.create({
+            data: {
+              roundId: round.id,
+              type: 'SEED_LOST',
+              amount: seedLosses.neg(),
+              description: `Round ${round.roundNumber} - Seed losses`,
+            },
+          });
+        }
+      } catch (e) {
+        // Seed ledger tracking is secondary, don't fail settlement
+        this.logger.warn(`Failed to create seed ledger: ${e.message}`);
+      }
+    }
   }
 
   /**

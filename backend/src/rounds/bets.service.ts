@@ -10,15 +10,17 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
 import { BetMarket, RoundState } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
-import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { PlaceBetDto } from './dto/place-bet.dto';
+import { SeedingService } from './seeding.service';
 
 export interface PlaceBetDtoWithRoundId extends PlaceBetDto {
   roundId: string;
@@ -32,6 +34,7 @@ export class BetsService {
     private prisma: PrismaService,
     @Inject(REDIS_CLIENT) private redis: Redis,
     private gateway: RealtimeGateway,
+    @Inject(forwardRef(() => SeedingService)) private seedingService: SeedingService,
   ) {}
 
   /**
@@ -193,6 +196,14 @@ export class BetsService {
 
       // 9. Update Redis totals for real-time UI
       await this.updateRedisTotals(dto.roundId, dto.market, dto.selection, amount);
+
+      // 9.5. v2.1: Remove any existing seed for this market (seed self-destructs when user bets)
+      try {
+        await this.seedingService.removeSeed(dto.roundId, dto.market);
+      } catch (e) {
+        // Seeding is non-critical, log but don't fail bet placement
+        this.logger.warn(`Failed to remove seed: ${e.message}`);
+      }
 
       // 10. Create transaction record
       await tx.transaction.create({
@@ -358,6 +369,18 @@ export class BetsService {
       this.logger.log(
         `❌ Bet cancelled: ${bet.user.username} - Round ${bet.round.roundNumber} ${bet.market} ${bet.selection} $${bet.amountUsd.toString()}`,
       );
+
+      // v2.1: Check if seeds need to be re-applied (if pair is now empty)
+      try {
+        await this.seedingService.checkAndReapplySeeds(
+          bet.roundId,
+          bet.round.roundNumber,
+          bet.market,
+        );
+      } catch (e) {
+        // Seeding is non-critical, log but don't fail cancellation
+        this.logger.warn(`Failed to check/reapply seeds: ${e.message}`);
+      }
 
       // Emit WebSocket event
       this.gateway.server.emit('betCancelled', {

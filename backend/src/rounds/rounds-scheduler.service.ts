@@ -8,6 +8,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
+import { SeedingService } from './seeding.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class RoundsSchedulerService {
   constructor(
     private roundsService: RoundsService,
     private settlementService: RoundsSettlementService,
+    private seedingService: SeedingService,
     private realtimeGateway: RealtimeGateway,
   ) {}
 
@@ -47,16 +49,19 @@ export class RoundsSchedulerService {
       const now = new Date();
       this.logger.debug(`🔄 Checking round transitions at ${now.toISOString()}`);
 
-      // 1. Capture checkpoints for sub-round settlements
+      // 1. Apply seeding to empty pairs before freeze (v2.1)
+      await this.applySeedingBeforeFreeze();
+
+      // 2. Capture checkpoints for sub-round settlements
       await this.captureCheckpoints();
 
-      // 2. Freeze rounds that reached freeze time
+      // 3. Freeze rounds that reached freeze time (also locks seeds)
       await this.freezeExpiredRounds();
 
-      // 3. Settle rounds that reached settle time
+      // 4. Settle rounds that reached settle time
       await this.settleExpiredRounds();
 
-      // 4. Ensure there's always an active round
+      // 5. Ensure there's always an active round
       await this.ensureActiveRound();
     } catch (error) {
       // Detect Prisma errors that indicate a missing table and flip a guard to stop noisy logs
@@ -77,6 +82,35 @@ export class RoundsSchedulerService {
       this.logger.error('Error in round transition check:', error);
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  /**
+   * v2.1: Apply seeding to empty pairs before freeze
+   * This runs periodically to ensure seeds are in place
+   */
+  private async applySeedingBeforeFreeze() {
+    try {
+      const activeRound = await this.roundsService.getActiveRound();
+      
+      if (!activeRound || activeRound.state !== 'OPEN') {
+        return; // Only seed OPEN rounds
+      }
+
+      // Check if we're approaching freeze (within 2 minutes)
+      const now = new Date();
+      const freezeAt = new Date(activeRound.freezeAt).getTime();
+      const timeUntilFreeze = (freezeAt - now.getTime()) / 1000;
+
+      // Apply seeds throughout the round, but especially important near freeze
+      if (timeUntilFreeze > 0 && timeUntilFreeze <= 120) {
+        this.logger.debug(
+          `🌱 Checking seeding for Round ${activeRound.roundNumber} (${Math.floor(timeUntilFreeze)}s until freeze)`
+        );
+        await this.seedingService.applyAllSeeds(activeRound.id, activeRound.roundNumber);
+      }
+    } catch (error) {
+      this.handlePrismaError(error, 'Error applying seeding:');
     }
   }
 
@@ -147,6 +181,7 @@ export class RoundsSchedulerService {
 
   /**
    * Freeze rounds that have reached their freeze time
+   * v2.1: Also locks seeds at freeze
    */
   private async freezeExpiredRounds() {
     try {
@@ -156,6 +191,15 @@ export class RoundsSchedulerService {
         this.logger.log(
           `❄️  Froze ${frozen.length} round(s): ${frozen.map((r) => r.roundNumber).join(', ')}`,
         );
+        
+        // v2.1: Lock seeds for each frozen round
+        for (const round of frozen) {
+          try {
+            await this.seedingService.lockSeedsAtFreeze(round.id);
+          } catch (e) {
+            this.logger.warn(`Failed to lock seeds for round ${round.roundNumber}: ${e.message}`);
+          }
+        }
         
         // Broadcast round state change
         frozen.forEach((round) => {

@@ -4,13 +4,14 @@
 // Path: backend/src/rounds/rounds.module.ts
 // =============================================================================
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { RoundsService } from './rounds.service';
 import { RoundsController } from './rounds.controller';
 import { RoundsSettlementService } from './rounds-settlement.service';
 import { RoundsFairnessService } from './rounds-fairness.service';
 import { RoundsSchedulerService } from './rounds-scheduler.service';
+import { SeedingService } from './seeding.service';
 import { BetsService } from './bets.service';
 import { BetsController } from './bets.controller';
 import { AutoSpinService } from './autospin.service';
@@ -31,6 +32,7 @@ import { LegalModule } from '../legal/legal.module';
     RoundsSettlementService,
     RoundsFairnessService,
     RoundsSchedulerService,
+    SeedingService,
     BetsService,
     AutoSpinService,
     SuggestionsService,
@@ -38,6 +40,6 @@ import { LegalModule } from '../legal/legal.module';
     RealtimeGateway,
     MockRoundsService,
   ],
-  exports: [RoundsService, BetsService, AutoSpinService, SuggestionsService],
+  exports: [RoundsService, BetsService, AutoSpinService, SuggestionsService, SeedingService],
 })
 export class RoundsModule {}
