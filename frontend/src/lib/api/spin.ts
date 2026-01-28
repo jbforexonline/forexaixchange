@@ -199,6 +199,7 @@ export interface PlaceBetDto {
   amountUsd: number;
   idempotencyKey?: string;
   isDemo?: boolean;
+  userRoundDuration?: 5 | 10 | 20; // User's selected round duration (v2.1)
 }
 
 export interface Bet {

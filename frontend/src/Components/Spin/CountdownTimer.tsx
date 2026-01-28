@@ -1,15 +1,23 @@
 /**
  * CountdownTimer Component
  * Displays countdown until round settlement with freeze indicator
+ * Updated v2.1: Supports sub-round durations (5, 10, 20 minutes)
  */
 
 import React from 'react';
+import type { UserRoundDuration } from '@/hooks/useRound';
 
 interface CountdownTimerProps {
-  countdown: number; // seconds until settlement
-  timeUntilFreeze: number; // seconds until freeze
+  countdown: number; // seconds until main round settlement
+  timeUntilFreeze: number; // seconds until main round freeze
   roundState: 'preopen' | 'open' | 'frozen' | 'settled';
   roundNumber?: number;
+  // Sub-round timing (v2.1)
+  userDuration?: UserRoundDuration;
+  subRoundCountdown?: number; // User's sub-round countdown
+  subRoundTimeUntilFreeze?: number; // User's sub-round freeze time
+  currentQuarter?: number; // Current quarter/semi for display
+  onDurationChange?: (duration: UserRoundDuration) => void;
 }
 
 export default function CountdownTimer({
@@ -17,6 +25,11 @@ export default function CountdownTimer({
   timeUntilFreeze,
   roundState,
   roundNumber,
+  userDuration = 20,
+  subRoundCountdown,
+  subRoundTimeUntilFreeze,
+  currentQuarter = 1,
+  onDurationChange,
 }: CountdownTimerProps) {
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -24,22 +37,72 @@ export default function CountdownTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Use sub-round timing if available, otherwise fall back to main round
+  const displayCountdown = subRoundCountdown !== undefined ? subRoundCountdown : countdown;
+  const displayFreezeTime = subRoundTimeUntilFreeze !== undefined ? subRoundTimeUntilFreeze : timeUntilFreeze;
+
   const getProgressPercentage = (): number => {
-    if (countdown === 0) return 100;
-    // Assuming max round duration is 60 seconds (1 minute for dev)
-    const maxDuration = 60;
-    return ((maxDuration - countdown) / maxDuration) * 100;
+    if (displayCountdown === 0) return 100;
+    // Calculate based on user's selected duration
+    const maxDuration = userDuration * 60; // Convert minutes to seconds
+    return ((maxDuration - displayCountdown) / maxDuration) * 100;
   };
 
-  const isFreezeTime = timeUntilFreeze <= 0 && roundState === 'open';
+  const isFreezeTime = displayFreezeTime <= 0 && roundState === 'open';
+
+  // Get duration label
+  const getDurationLabel = (): string => {
+    if (userDuration === 5) {
+      return `Quarter ${currentQuarter}`;
+    } else if (userDuration === 10) {
+      return `Half ${currentQuarter}`;
+    }
+    return 'Full Round';
+  };
 
   return (
     <div className={`countdown-timer ${roundState}`}>
-      {/* Round Number */}
-      {roundNumber !== undefined && (
-        <div className="round-number">
-          <span className="round-label">Round #</span>
-          <span className="round-value">{roundNumber}</span>
+      {/* Round Number and Duration Selector */}
+      <div className="round-header">
+        {roundNumber !== undefined && (
+          <div className="round-number">
+            <span className="round-label">Round #</span>
+            <span className="round-value">{roundNumber}</span>
+          </div>
+        )}
+        
+        {/* Duration Selector */}
+        {onDurationChange && roundState === 'open' && (
+          <div className="duration-selector">
+            <button
+              className={`duration-btn ${userDuration === 5 ? 'active' : ''}`}
+              onClick={() => onDurationChange(5)}
+              title="5-minute quarters"
+            >
+              5m
+            </button>
+            <button
+              className={`duration-btn ${userDuration === 10 ? 'active' : ''}`}
+              onClick={() => onDurationChange(10)}
+              title="10-minute halves"
+            >
+              10m
+            </button>
+            <button
+              className={`duration-btn ${userDuration === 20 ? 'active' : ''}`}
+              onClick={() => onDurationChange(20)}
+              title="Full 20-minute round"
+            >
+              20m
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Sub-round indicator */}
+      {userDuration !== 20 && (
+        <div className="sub-round-indicator">
+          <span className="sub-round-label">{getDurationLabel()}</span>
         </div>
       )}
 
@@ -47,8 +110,8 @@ export default function CountdownTimer({
       <div className="timer-display">
         <div className="timer-label">
           {roundState === 'preopen' && 'Waiting for Round'}
-          {roundState === 'open' && (isFreezeTime ? '❄️ Freeze Time' : 'Time Until Settlement')}
-          {roundState === 'frozen' && '❄️ Round Frozen'}
+          {roundState === 'open' && (isFreezeTime ? '❄️ Freeze Time' : `Time Until ${userDuration === 20 ? 'Settlement' : 'Your Settlement'}`)}
+          {roundState === 'frozen' && '❄️ Market Frozen'}
           {roundState === 'settled' && '✅ Round Complete'}
         </div>
         
@@ -56,14 +119,14 @@ export default function CountdownTimer({
           {roundState === 'preopen' ? (
             <span className="timer-waiting">⏳</span>
           ) : (
-            formatTime(countdown)
+            formatTime(displayCountdown)
           )}
         </div>
 
-        {/* Freeze Warning */}
-        {roundState === 'open' && timeUntilFreeze > 0 && timeUntilFreeze <= 10 && (
+        {/* Freeze Warning - show earlier for sub-rounds */}
+        {roundState === 'open' && displayFreezeTime > 0 && displayFreezeTime <= 15 && (
           <div className="freeze-warning">
-            ⚠️ Market closes in {timeUntilFreeze}s
+            ⚠️ Market closes in {displayFreezeTime}s
           </div>
         )}
 
@@ -79,7 +142,7 @@ export default function CountdownTimer({
         <div className="timer-progress-container">
           <div
             className={`timer-progress ${isFreezeTime ? 'freeze' : ''}`}
-            style={{ width: `${getProgressPercentage()}%` }}
+            style={{ width: `${Math.min(100, getProgressPercentage())}%` }}
           />
         </div>
       )}
@@ -116,13 +179,15 @@ export default function CountdownTimer({
       {roundState === 'open' && (
         <div className="timer-info">
           <div className="info-item">
-            <span className="info-label">Until Freeze:</span>
-            <span className="info-value">{formatTime(timeUntilFreeze)}</span>
+            <span className="info-label">Until Your Freeze:</span>
+            <span className="info-value">{formatTime(displayFreezeTime)}</span>
           </div>
-          <div className="info-item">
-            <span className="info-label">Until Settlement:</span>
-            <span className="info-value">{formatTime(countdown)}</span>
-          </div>
+          {userDuration !== 20 && (
+            <div className="info-item">
+              <span className="info-label">Main Round:</span>
+              <span className="info-value">{formatTime(countdown)}</span>
+            </div>
+          )}
         </div>
       )}
     </div>

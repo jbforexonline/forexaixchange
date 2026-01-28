@@ -356,6 +356,65 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
+/* Round Header with Duration Selector */
+.round-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+/* Sub-round Indicator */
+.sub-round-indicator {
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.sub-round-label {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(168, 85, 247, 0.1));
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  border-radius: 20px;
+  color: #a855f7;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Duration Selector in Timer */
+.countdown-timer .duration-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.countdown-timer .duration-btn {
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.countdown-timer .duration-btn:hover:not(.active) {
+  border-color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.countdown-timer .duration-btn.active {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(168, 85, 247, 0.15));
+  border-color: #a855f7;
+  color: #a855f7;
+  font-weight: 700;
+}
+
 .timer-info {
   display: flex;
   justify-content: space-around;
