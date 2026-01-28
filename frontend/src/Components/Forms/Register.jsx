@@ -455,7 +455,13 @@ export default function Register() {
           </button>
 
           <p className="register-login">
-            Already have an account? <a href="/login">Sign-In</a>
+            Already have an account?{' '}
+            <span 
+              onClick={() => router.push('/login')}
+              style={{ color: '#3b82f6', cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Sign-In
+            </span>
           </p>
         </div>
       </div>
