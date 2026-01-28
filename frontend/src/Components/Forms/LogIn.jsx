@@ -140,13 +140,16 @@ export default function LoginPage() {
 
       // Determine redirect route based on role
       let nextRoute = '/dashboard/spin'  // Default for regular users - go directly to spin/game
+      let isAdminRole = false
 
       if (role === 'SUPER_ADMIN') {
         console.log('🔴 Super Admin detected - redirecting to admin dashboard')
         nextRoute = '/admin/dashboard'
+        isAdminRole = true
       } else if (role === 'ADMIN') {
         console.log('🔵 Admin detected - redirecting to admin dashboard')
         nextRoute = '/admin/dashboard'
+        isAdminRole = true
       } else if (role === 'MODERATOR') {
         console.log('🟣 Moderator detected - redirecting to spin')
         nextRoute = '/dashboard/spin'
@@ -157,9 +160,14 @@ export default function LoginPage() {
 
       console.log('🚀 Redirecting to:', nextRoute)
 
-      router.replace(nextRoute)
-      // Clear browser history to prevent back navigation after login
-      window.history.replaceState(null, '', nextRoute)
+      // For admin roles, use full page reload to ensure all state is properly initialized
+      if (isAdminRole) {
+        window.location.href = nextRoute
+      } else {
+        router.replace(nextRoute)
+        // Clear browser history to prevent back navigation after login
+        window.history.replaceState(null, '', nextRoute)
+      }
     } catch (err) {
       console.error('Login error details:', err)
       const message = err instanceof Error ? err.message : 'Unexpected error'
@@ -316,10 +324,15 @@ export default function LoginPage() {
                       const user = (data.data || data).user || (data.data || data);
                       if (user?.id) {
                         localStorage.setItem('user', JSON.stringify(user));
-                        const nextRoute = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase())
-                          ? '/admin/dashboard'
-                          : '/dashboard/spin';
-                        router.replace(nextRoute);
+                        const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase());
+                        const nextRoute = isAdmin ? '/admin/dashboard' : '/dashboard/spin';
+                        
+                        // For admin roles, use full page reload to ensure all state is properly initialized
+                        if (isAdmin) {
+                          window.location.href = nextRoute;
+                        } else {
+                          router.replace(nextRoute);
+                        }
                       }
                     })
                     .catch(() => setError('Failed to authenticate. Please try again.'));
