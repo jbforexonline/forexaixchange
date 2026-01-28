@@ -154,9 +154,10 @@ async function main() {
   }
 
   // Legal: Terms & Privacy v1.0 (active)
+  console.log('📄 Creating legal documents...');
   const terms = await prisma.legalDocument.upsert({
     where: { type_version: { type: 'TERMS', version: '1.0' } },
-    update: {},
+    update: { isActive: true },
     create: {
       type: 'TERMS',
       version: '1.0',
@@ -174,9 +175,10 @@ By registering you confirm you have read and accepted these terms.`,
       createdByAdminId: superAdmin.id,
     },
   });
+  console.log(`✅ Terms document created/updated: ID=${terms.id}, Active=${terms.isActive}`);
   const privacy = await prisma.legalDocument.upsert({
     where: { type_version: { type: 'PRIVACY', version: '1.0' } },
-    update: {},
+    update: { isActive: true },
     create: {
       type: 'PRIVACY',
       version: '1.0',
@@ -195,6 +197,7 @@ You may request access or deletion of your data.`,
       createdByAdminId: superAdmin.id,
     },
   });
+  console.log(`✅ Privacy document created/updated: ID=${privacy.id}, Active=${privacy.isActive}`);
 
   const seededEmails = [
     'superadmin@forexaixchange.com',
