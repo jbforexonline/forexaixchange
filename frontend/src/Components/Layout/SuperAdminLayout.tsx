@@ -62,6 +62,7 @@ export default function SuperAdminLayout({
         { label: "Spin Configuration", href: "/admin/settings/spin" },
         { label: "Premium Plans", href: "/admin/settings/premium" },
         { label: "Commission Rules", href: "/admin/settings/commission" },
+        { label: "Legal (Terms & Privacy)", href: "/admin/legal" },
       ],
     },
     {

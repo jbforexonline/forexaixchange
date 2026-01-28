@@ -8,6 +8,7 @@ import {
   Settings,
   CreditCard,
   ChevronDown,
+  FileText,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -82,6 +83,12 @@ export default function AdminLayout({
         { label: "Pending", href: "/admin/transactions/pending" },
         { label: "Completed", href: "/admin/transactions/completed" },
       ],
+    },
+    {
+      icon: FileText,
+      label: "Legal (Terms & Privacy)",
+      href: "/admin/legal",
+      category: "legal",
     },
   ];
 
