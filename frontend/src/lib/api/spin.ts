@@ -304,6 +304,80 @@ export async function getBetStats() {
   return handleResponse(response);
 }
 
+// =============================================================================
+// STATISTICS API
+// =============================================================================
+
+export interface MarketDistribution {
+  selection: string;
+  market: string;
+  label: string;
+  count: number;
+  percentage: number;
+  amount?: number;
+}
+
+export interface DistributionResponse {
+  distribution: MarketDistribution[];
+  totalBets: number;
+  totalParticipants: number;
+  timeFilter: string;
+  fromDate: string | null;
+  toDate: string;
+}
+
+export interface LiveDistributionResponse {
+  roundId: string | null;
+  roundNumber: number | null;
+  distribution: MarketDistribution[];
+  totalBets: number;
+  totalParticipants: number;
+  totalVolume: number;
+  message?: string;
+}
+
+export type TimeFilter = 'hourly' | 'daily' | 'monthly' | 'quarterly' | 'yearly';
+
+/**
+ * Get market distribution statistics (historical)
+ */
+export async function getMarketDistribution(timeFilter?: TimeFilter): Promise<DistributionResponse> {
+  const url = timeFilter 
+    ? `${API_URL}/bets/distribution?timeFilter=${timeFilter}`
+    : `${API_URL}/bets/distribution`;
+    
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const result = await handleResponse<any>(response);
+  return result?.data ?? result;
+}
+
+/**
+ * Get live market distribution for current round
+ */
+export async function getLiveMarketDistribution(): Promise<LiveDistributionResponse> {
+  const response = await fetch(`${API_URL}/bets/distribution/live`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const result = await handleResponse<any>(response);
+  return result?.data ?? result;
+}
+
+/**
+ * Get round statistics
+ */
+export async function getRoundStats() {
+  const response = await fetch(`${API_URL}/rounds/stats`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const result = await handleResponse<any>(response);
+  return result?.data ?? result;
+}
+
 /**
  * Cancel a bet (Premium only)
  */

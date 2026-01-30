@@ -476,6 +476,175 @@ export class BetsService {
   }
 
   /**
+   * Get market distribution statistics (for statistics page)
+   * Returns percentage distribution of bets across all selections
+   */
+  async getMarketDistribution(timeFilter?: 'hourly' | 'daily' | 'monthly' | 'quarterly' | 'yearly') {
+    // Determine the date filter based on timeFilter
+    let dateFrom: Date | undefined;
+    const now = new Date();
+    
+    switch (timeFilter) {
+      case 'hourly':
+        dateFrom = new Date(now.getTime() - 60 * 60 * 1000);
+        break;
+      case 'daily':
+        dateFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'monthly':
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'quarterly':
+        dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      case 'yearly':
+        dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        // No filter - get all time
+        dateFrom = undefined;
+    }
+
+    const whereClause = dateFrom ? { createdAt: { gte: dateFrom } } : {};
+
+    // Get count of bets grouped by selection
+    const distribution = await this.prisma.bet.groupBy({
+      by: ['selection'],
+      where: whereClause,
+      _count: {
+        selection: true,
+      },
+    });
+
+    // Calculate total number of bets
+    const totalBets = distribution.reduce((sum, item) => sum + item._count.selection, 0);
+
+    // Define all possible selections with their market grouping
+    const allSelections = [
+      { selection: 'BUY', market: 'OUTER', label: 'Buy' },
+      { selection: 'SELL', market: 'OUTER', label: 'Sell' },
+      { selection: 'RED', market: 'MIDDLE', label: 'Red' },
+      { selection: 'BLUE', market: 'MIDDLE', label: 'Blue' },
+      { selection: 'HIGH_VOL', market: 'INNER', label: 'High Volatile' },
+      { selection: 'LOW_VOL', market: 'INNER', label: 'Low Volatile' },
+      { selection: 'INDECISION', market: 'GLOBAL', label: 'Indecision' },
+    ];
+
+    // Map to result with percentages
+    const result = allSelections.map(item => {
+      const found = distribution.find(d => d.selection === item.selection);
+      const count = found?._count.selection || 0;
+      const percentage = totalBets > 0 ? Math.round((count / totalBets) * 10000) / 100 : 0;
+      
+      return {
+        selection: item.selection,
+        market: item.market,
+        label: item.label,
+        count,
+        percentage,
+      };
+    });
+
+    // Also get participant count (unique users)
+    const uniqueUsers = await this.prisma.bet.groupBy({
+      by: ['userId'],
+      where: whereClause,
+      _count: true,
+    });
+
+    return {
+      distribution: result,
+      totalBets,
+      totalParticipants: uniqueUsers.length,
+      timeFilter: timeFilter || 'all',
+      fromDate: dateFrom?.toISOString() || null,
+      toDate: now.toISOString(),
+    };
+  }
+
+  /**
+   * Get live market distribution for current round (real-time from Redis)
+   */
+  async getLiveMarketDistribution() {
+    // Get current active round
+    const currentRound = await this.prisma.round.findFirst({
+      where: {
+        state: { in: [RoundState.OPEN, RoundState.FROZEN] },
+      },
+      orderBy: { openedAt: 'desc' },
+    });
+
+    if (!currentRound) {
+      return {
+        roundId: null,
+        roundNumber: null,
+        distribution: [],
+        totalBets: 0,
+        totalParticipants: 0,
+        message: 'No active round',
+      };
+    }
+
+    // Get totals from Redis
+    const totals = await this.getRedisTotals(currentRound.id);
+    
+    // Get bet counts for current round from database
+    const betCounts = await this.prisma.bet.groupBy({
+      by: ['selection'],
+      where: { roundId: currentRound.id },
+      _count: {
+        selection: true,
+      },
+    });
+
+    const totalBets = betCounts.reduce((sum, item) => sum + item._count.selection, 0);
+
+    // Get unique participants
+    const participants = await this.prisma.bet.groupBy({
+      by: ['userId'],
+      where: { roundId: currentRound.id },
+      _count: true,
+    });
+
+    const allSelections = [
+      { selection: 'BUY', market: 'outer', label: 'Buy' },
+      { selection: 'SELL', market: 'outer', label: 'Sell' },
+      { selection: 'RED', market: 'middle', label: 'Red' },
+      { selection: 'BLUE', market: 'middle', label: 'Blue' },
+      { selection: 'HIGH_VOL', market: 'inner', label: 'High Volatile' },
+      { selection: 'LOW_VOL', market: 'inner', label: 'Low Volatile' },
+      { selection: 'INDECISION', market: 'global', label: 'Indecision' },
+    ];
+
+    const distribution = allSelections.map(item => {
+      const found = betCounts.find(d => d.selection === item.selection);
+      const count = found?._count.selection || 0;
+      const percentage = totalBets > 0 ? Math.round((count / totalBets) * 10000) / 100 : 0;
+      const amount = totals[item.market]?.[item.selection] || 0;
+      
+      return {
+        selection: item.selection,
+        market: item.market.toUpperCase(),
+        label: item.label,
+        count,
+        percentage,
+        amount,
+      };
+    });
+
+    return {
+      roundId: currentRound.id,
+      roundNumber: currentRound.roundNumber,
+      distribution,
+      totalBets,
+      totalParticipants: participants.length,
+      totalVolume: Object.values(totals).reduce((sum: number, market: any) => {
+        return sum + Object.values(market || {}).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+      }, 0),
+    };
+  }
+
+  /**
    * Get current round totals from Redis (real-time)
    */
   async getRedisTotals(roundId: string) {

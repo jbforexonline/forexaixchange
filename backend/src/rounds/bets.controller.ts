@@ -206,6 +206,81 @@ export class BetsController {
     return this.betsService.getUserBetStats(user.id);
   }
 
+  @Get('distribution')
+  @ApiOperation({ summary: 'Get market distribution statistics (historical)' })
+  @ApiQuery({ 
+    name: 'timeFilter', 
+    required: false, 
+    enum: ['hourly', 'daily', 'monthly', 'quarterly', 'yearly'],
+    description: 'Time period for statistics (default: all time)' 
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Market distribution statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        distribution: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              selection: { type: 'string' },
+              market: { type: 'string' },
+              label: { type: 'string' },
+              count: { type: 'number' },
+              percentage: { type: 'number' },
+            },
+          },
+        },
+        totalBets: { type: 'number' },
+        totalParticipants: { type: 'number' },
+        timeFilter: { type: 'string' },
+        fromDate: { type: 'string', nullable: true },
+        toDate: { type: 'string' },
+      },
+    },
+  })
+  async getMarketDistribution(
+    @Query('timeFilter') timeFilter?: 'hourly' | 'daily' | 'monthly' | 'quarterly' | 'yearly',
+  ) {
+    return this.betsService.getMarketDistribution(timeFilter);
+  }
+
+  @Get('distribution/live')
+  @ApiOperation({ summary: 'Get live market distribution for current round' })
+  @ApiResponse({
+    status: 200,
+    description: 'Live market distribution retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        roundId: { type: 'string', nullable: true },
+        roundNumber: { type: 'number', nullable: true },
+        distribution: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              selection: { type: 'string' },
+              market: { type: 'string' },
+              label: { type: 'string' },
+              count: { type: 'number' },
+              percentage: { type: 'number' },
+              amount: { type: 'number' },
+            },
+          },
+        },
+        totalBets: { type: 'number' },
+        totalParticipants: { type: 'number' },
+        totalVolume: { type: 'number' },
+      },
+    },
+  })
+  async getLiveMarketDistribution() {
+    return this.betsService.getLiveMarketDistribution();
+  }
+
   @Get('round/:roundId')
   @ApiOperation({ summary: 'Get user\'s bets for a specific round' })
   @ApiResponse({ status: 200, description: 'Bets retrieved successfully' })
