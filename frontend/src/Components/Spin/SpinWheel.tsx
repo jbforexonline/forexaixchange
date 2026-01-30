@@ -417,16 +417,16 @@ export default function SpinWheel({
             </stop>
           </linearGradient>
           
-          {/* Winner celebration gradient (purple/violet - royal & calm) */}
+          {/* Winner celebration gradient (muted purple/violet - dark theme friendly) */}
           <linearGradient id="winnerCelebrationGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(192, 132, 252, 1)">
-              <animate attributeName="stop-color" values="rgba(192, 132, 252, 1);rgba(124, 58, 237, 1);rgba(216, 180, 254, 1);rgba(192, 132, 252, 1)" dur="0.8s" repeatCount="indefinite" />
+            <stop offset="0%" stopColor="rgba(139, 92, 246, 0.7)">
+              <animate attributeName="stop-color" values="rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.75);rgba(124, 58, 237, 0.65);rgba(139, 92, 246, 0.7)" dur="1s" repeatCount="indefinite" />
             </stop>
-            <stop offset="50%" stopColor="rgba(167, 139, 250, 1)">
-              <animate attributeName="stop-color" values="rgba(167, 139, 250, 1);rgba(192, 132, 252, 1);rgba(124, 58, 237, 1);rgba(167, 139, 250, 1)" dur="0.8s" repeatCount="indefinite" />
+            <stop offset="50%" stopColor="rgba(109, 40, 217, 0.65)">
+              <animate attributeName="stop-color" values="rgba(109, 40, 217, 0.65);rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.7);rgba(109, 40, 217, 0.65)" dur="1s" repeatCount="indefinite" />
             </stop>
-            <stop offset="100%" stopColor="rgba(124, 58, 237, 1)">
-              <animate attributeName="stop-color" values="rgba(124, 58, 237, 1);rgba(216, 180, 254, 1);rgba(192, 132, 252, 1);rgba(124, 58, 237, 1)" dur="0.8s" repeatCount="indefinite" />
+            <stop offset="100%" stopColor="rgba(91, 33, 182, 0.7)">
+              <animate attributeName="stop-color" values="rgba(91, 33, 182, 0.7);rgba(124, 58, 237, 0.65);rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.7)" dur="1s" repeatCount="indefinite" />
             </stop>
           </linearGradient>
 
@@ -522,19 +522,23 @@ export default function SpinWheel({
             </text>
           )}
           
-          {/* Curved SELL label */}
-          <text fill={(isHighlighted('SELL') || hasOrderPlaced('SELL')) ? '#ffffff' : '#e5f2ff'} fontSize={18} fontWeight={700} letterSpacing={2} filter={(isHighlighted('SELL') || hasOrderPlaced('SELL')) ? 'url(#glow)' : undefined}>
-            <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
-              SELL
-            </textPath>
-          </text>
+          {/* Curved SELL label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.dirLeft) && (
+            <text fill={(isHighlighted('SELL') || hasOrderPlaced('SELL')) ? '#ffffff' : '#e5f2ff'} fontSize={18} fontWeight={700} letterSpacing={2} filter={(isHighlighted('SELL') || hasOrderPlaced('SELL')) ? 'url(#glow)' : undefined}>
+              <textPath href="#sellPath" startOffset="50%" textAnchor="middle">
+                SELL
+              </textPath>
+            </text>
+          )}
           
-          {/* Curved BUY label */}
-          <text fill={(isHighlighted('BUY') || hasOrderPlaced('BUY')) ? '#ffffff' : '#e5f2ff'} fontSize={18} fontWeight={700} letterSpacing={2} filter={(isHighlighted('BUY') || hasOrderPlaced('BUY')) ? 'url(#glow)' : undefined}>
-            <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
-              BUY
-            </textPath>
-          </text>
+          {/* Curved BUY label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.dirRight) && (
+            <text fill={(isHighlighted('BUY') || hasOrderPlaced('BUY')) ? '#ffffff' : '#e5f2ff'} fontSize={18} fontWeight={700} letterSpacing={2} filter={(isHighlighted('BUY') || hasOrderPlaced('BUY')) ? 'url(#glow)' : undefined}>
+              <textPath href="#buyPath" startOffset="50%" textAnchor="middle">
+                BUY
+              </textPath>
+            </text>
+          )}
           
           {/* Order confirmation - SELL (curved arc badge in semicircle) */}
           {hasOrderPlaced('SELL') && (
@@ -661,19 +665,23 @@ export default function SpinWheel({
             </text>
           )}
           
-          {/* Curved RED label */}
-          <text fill={(isHighlighted('RED') || hasOrderPlaced('RED')) ? '#ffffff' : '#ef4444'} fontSize={16} fontWeight={700} letterSpacing={2} filter={(isHighlighted('RED') || hasOrderPlaced('RED')) ? 'url(#glow)' : undefined}>
-            <textPath href="#redPath" startOffset="50%" textAnchor="middle">
-              RED
-            </textPath>
-          </text>
+          {/* Curved RED label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.colorLeft) && (
+            <text fill={(isHighlighted('RED') || hasOrderPlaced('RED')) ? '#ffffff' : '#ef4444'} fontSize={16} fontWeight={700} letterSpacing={2} filter={(isHighlighted('RED') || hasOrderPlaced('RED')) ? 'url(#glow)' : undefined}>
+              <textPath href="#redPath" startOffset="50%" textAnchor="middle">
+                RED
+              </textPath>
+            </text>
+          )}
           
-          {/* Curved BLUE label */}
-          <text fill={(isHighlighted('BLUE') || hasOrderPlaced('BLUE')) ? '#ffffff' : '#3b82f6'} fontSize={16} fontWeight={700} letterSpacing={2} filter={(isHighlighted('BLUE') || hasOrderPlaced('BLUE')) ? 'url(#glow)' : undefined}>
-            <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
-              BLUE
-            </textPath>
-          </text>
+          {/* Curved BLUE label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.colorRight) && (
+            <text fill={(isHighlighted('BLUE') || hasOrderPlaced('BLUE')) ? '#ffffff' : '#3b82f6'} fontSize={16} fontWeight={700} letterSpacing={2} filter={(isHighlighted('BLUE') || hasOrderPlaced('BLUE')) ? 'url(#glow)' : undefined}>
+              <textPath href="#bluePath" startOffset="50%" textAnchor="middle">
+                BLUE
+              </textPath>
+            </text>
+          )}
           
           {/* Order confirmation - RED (curved arc badge in semicircle) */}
           {hasOrderPlaced('RED') && (
@@ -751,19 +759,23 @@ export default function SpinWheel({
             </text>
           )}
           
-          {/* Curved LOW VOLATILE label */}
-          <text fill={(isHighlighted('LOW_VOL') || hasOrderPlaced('LOW_VOL')) ? '#ffffff' : '#e5f2ff'} fontSize={12} fontWeight={700} letterSpacing={1} filter={(isHighlighted('LOW_VOL') || hasOrderPlaced('LOW_VOL')) ? 'url(#glow)' : undefined}>
-            <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
-              LOW VOLATILE
-            </textPath>
-          </text>
+          {/* Curved LOW VOLATILE label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.volLeft) && (
+            <text fill={(isHighlighted('LOW_VOL') || hasOrderPlaced('LOW_VOL')) ? '#ffffff' : '#e5f2ff'} fontSize={12} fontWeight={700} letterSpacing={1} filter={(isHighlighted('LOW_VOL') || hasOrderPlaced('LOW_VOL')) ? 'url(#glow)' : undefined}>
+              <textPath href="#lowPath" startOffset="50%" textAnchor="middle">
+                LOW VOLATILE
+              </textPath>
+            </text>
+          )}
           
-          {/* Curved HIGH VOLATILE label */}
-          <text fill={(isHighlighted('HIGH_VOL') || hasOrderPlaced('HIGH_VOL')) ? '#ffffff' : '#e5f2ff'} fontSize={12} fontWeight={700} letterSpacing={1} filter={(isHighlighted('HIGH_VOL') || hasOrderPlaced('HIGH_VOL')) ? 'url(#glow)' : undefined}>
-            <textPath href="#highPath" startOffset="50%" textAnchor="middle">
-              HIGH VOLATILE
-            </textPath>
-          </text>
+          {/* Curved HIGH VOLATILE label - hide when showing winner celebration */}
+          {!(showPreviousWinners && prevWin.volRight) && (
+            <text fill={(isHighlighted('HIGH_VOL') || hasOrderPlaced('HIGH_VOL')) ? '#ffffff' : '#e5f2ff'} fontSize={12} fontWeight={700} letterSpacing={1} filter={(isHighlighted('HIGH_VOL') || hasOrderPlaced('HIGH_VOL')) ? 'url(#glow)' : undefined}>
+              <textPath href="#highPath" startOffset="50%" textAnchor="middle">
+                HIGH VOLATILE
+              </textPath>
+            </text>
+          )}
           
           {/* Order confirmation - LOW (curved arc badge in semicircle) */}
           {hasOrderPlaced('LOW_VOL') && (
@@ -988,7 +1000,7 @@ export default function SpinWheel({
           
           {/* Previous winner timer indicator */}
           {showPreviousWinners && !showWinners && (
-            <text x={cx} y={cy + 35} fill="#c084fc" textAnchor="middle" fontSize={9} fontWeight={700} filter="url(#glow)">
+            <text x={cx} y={cy + 35} fill="rgba(167, 139, 250, 0.85)" textAnchor="middle" fontSize={9} fontWeight={700}>
               🎉 Celebrating Winner ({previousWinnerTimer}s) 🎊
             </text>
           )}
