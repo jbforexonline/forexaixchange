@@ -61,7 +61,7 @@ export default function GameBoard({ totals, roundState, winners }: GameBoardProp
 
       {/* OUTER Layer - Buy vs Sell */}
       <div className="game-layer outer-layer">
-        <h3 className="layer-title">OUTER - Direction</h3>
+        <h3 className="layer-title">Direction</h3>
         <div className="pair-container">
           <div 
             className={`pair-option buy-option ${isWinner('outer', 'BUY') ? 'winner' : ''} ${roundState === 'settled' && !isWinner('outer', 'BUY') ? 'loser' : ''}`}
@@ -112,7 +112,7 @@ export default function GameBoard({ totals, roundState, winners }: GameBoardProp
 
       {/* MIDDLE Layer - Blue vs Red */}
       <div className="game-layer middle-layer">
-        <h3 className="layer-title">MIDDLE - Color Mode</h3>
+        <h3 className="layer-title">Color</h3>
         <div className="pair-container">
           <div 
             className={`pair-option blue-option ${isWinner('middle', 'BLUE') ? 'winner' : ''} ${roundState === 'settled' && !isWinner('middle', 'BLUE') ? 'loser' : ''}`}
@@ -163,7 +163,7 @@ export default function GameBoard({ totals, roundState, winners }: GameBoardProp
 
       {/* INNER Layer - High Volatile vs Low Volatile */}
       <div className="game-layer inner-layer">
-        <h3 className="layer-title">INNER - Volatility</h3>
+        <h3 className="layer-title">Volatility</h3>
         <div className="pair-container">
           <div 
             className={`pair-option high-option ${isWinner('inner', 'HIGH_VOL') ? 'winner' : ''} ${roundState === 'settled' && !isWinner('inner', 'HIGH_VOL') ? 'loser' : ''}`}
@@ -214,7 +214,7 @@ export default function GameBoard({ totals, roundState, winners }: GameBoardProp
 
       {/* GLOBAL - Indecision */}
       <div className="game-layer global-layer">
-        <h3 className="layer-title">SPECIAL - Indecision</h3>
+        <h3 className="layer-title">Indecision</h3>
         <div 
           className={`indecision-container ${winners?.indecisionTriggered ? 'winner' : ''} ${roundState === 'settled' && !winners?.indecisionTriggered ? 'loser' : ''}`}
         >

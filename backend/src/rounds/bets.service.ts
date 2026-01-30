@@ -99,10 +99,13 @@ export class BetsService {
       // Premium status only affects timing cutoffs and bet limits
 
       // 4. Check timing constraints (premium vs regular)
+      // Cutoffs are measured from SETTLEMENT time, not from freezeAt
+      // - Premium users: can bet until 5 seconds before settlement
+      // - Regular users: can bet until 60 seconds before settlement
       const now = new Date();
       const cutoffTime = isPremium
-        ? new Date(round.freezeAt.getTime() - round.premiumCutoff * 1000)
-        : new Date(round.freezeAt.getTime() - round.regularCutoff * 1000);
+        ? new Date(round.settleAt.getTime() - round.premiumCutoff * 1000)
+        : new Date(round.settleAt.getTime() - round.regularCutoff * 1000);
 
       if (now >= cutoffTime) {
         throw new BadRequestException(
@@ -268,10 +271,10 @@ export class BetsService {
         );
       }
 
-      // Check cutoff time
+      // Check cutoff time - measured from settlement time
       const cutoffTime = isPremium
-        ? new Date(bet.round.freezeAt.getTime() - bet.round.premiumCutoff * 1000)
-        : new Date(bet.round.freezeAt.getTime() - bet.round.regularCutoff * 1000);
+        ? new Date(bet.round.settleAt.getTime() - bet.round.premiumCutoff * 1000)
+        : new Date(bet.round.settleAt.getTime() - bet.round.regularCutoff * 1000);
 
       if (now >= cutoffTime) {
         throw new BadRequestException(
@@ -639,7 +642,8 @@ export class BetsService {
       totalBets,
       totalParticipants: participants.length,
       totalVolume: Object.values(totals).reduce((sum: number, market: any) => {
-        return sum + Object.values(market || {}).reduce((s: number, v: any) => s + (Number(v) || 0), 0);
+        const marketTotal = Object.values(market || {}).reduce<number>((s, v) => s + (Number(v) || 0), 0);
+        return sum + marketTotal;
       }, 0),
     };
   }

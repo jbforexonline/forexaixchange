@@ -42,7 +42,7 @@ export default function ActiveBetsPanel({ bets, roundState, onBetCancelled }: Ac
   const getMarketLabel = (market: string): string => {
     const labels: Record<string, string> = {
       OUTER: 'Direction',
-      MIDDLE: 'Color Mode',
+      MIDDLE: 'Color',
       INNER: 'Volatility',
       GLOBAL: 'Indecision',
     };

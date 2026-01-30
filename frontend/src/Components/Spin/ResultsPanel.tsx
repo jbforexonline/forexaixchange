@@ -169,21 +169,21 @@ export default function ResultsPanel({ bets, roundNumber, winners }: ResultsPane
                 <div className="winner-item">
                   <span className="winner-icon">{getSelectionIcon(winners.outer)}</span>
                   <span className="winner-label">{winners.outer}</span>
-                  <span className="winner-market">Outer (Direction)</span>
+                  <span className="winner-market">Direction</span>
                 </div>
               )}
               {winners.middle && (
                 <div className="winner-item">
                   <span className="winner-icon">{getSelectionIcon(winners.middle)}</span>
                   <span className="winner-label">{winners.middle}</span>
-                  <span className="winner-market">Middle (Color)</span>
+                  <span className="winner-market">Color</span>
                 </div>
               )}
               {winners.inner && (
                 <div className="winner-item">
                   <span className="winner-icon">{getSelectionIcon(winners.inner)}</span>
                   <span className="winner-label">{winners.inner}</span>
-                  <span className="winner-market">Inner (Volatility)</span>
+                  <span className="winner-market">Volatility</span>
                 </div>
               )}
             </>

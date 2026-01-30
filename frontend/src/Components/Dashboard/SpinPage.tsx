@@ -6,7 +6,7 @@ import SpinWheel from "../Spin/SpinWheel";
 import RecentSpinsTable from "../Spin/RecentSpinsTable";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
-import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory, cancelBet } from "@/lib/api/spin";
+import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory, cancelBet, getRecentRounds } from "@/lib/api/spin";
 import type { Bet, BetMarket, BetSelection } from "@/lib/api/spin";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
 import { getCurrentUser, logout } from "@/lib/auth";
@@ -129,6 +129,17 @@ export default function SpinPage() {
   
   // Navigation menu state
   const [activeNavPopup, setActiveNavPopup] = useState<string | null>(null);
+  
+  // Previous round winners (for 40-second highlight)
+  const [previousWinners, setPreviousWinners] = useState<{
+    outer?: "BUY" | "SELL";
+    color?: "BLUE" | "RED";
+    vol?: "HIGH" | "LOW";
+    indecision?: boolean;
+  } | undefined>(undefined);
+  
+  // Recent bet placed (for confirmation animation on wheel)
+  const [recentBetPlaced, setRecentBetPlaced] = useState<{ selection: string; amount: number } | null>(null);
   
   // Close popup when clicking outside
   useEffect(() => {
@@ -316,8 +327,12 @@ export default function SpinPage() {
         userRoundDuration: effectiveRoundDuration as 5 | 10 | 20, // v2.1: Pass user's duration preference
       });
 
-      setBetSuccess(`${isDemo ? '[DEMO] ' : ''}$${pendingBetAmount} on ${selectedOption.label}`);
+      // Don't show toast - wheel will display confirmation on semicircle
       refreshWallet();
+      
+      // Trigger wheel confirmation animation (shows on the semicircle)
+      setRecentBetPlaced({ selection: selectedOption.selection, amount: pendingBetAmount, label: selectedOption.label });
+      setTimeout(() => setRecentBetPlaced(null), 3500);
       
       // Refresh bets
       if (round) {
@@ -360,6 +375,108 @@ export default function SpinPage() {
       indecision: false,
     };
   }, [roundState, round]);
+  
+  // Store winners when round settles for 40-second highlight in next round
+  const [previousRoundNumber, setPreviousRoundNumber] = useState<number | null>(null);
+  const [previousWinnersFetchedForRound, setPreviousWinnersFetchedForRound] = useState<number | null>(null);
+  
+  useEffect(() => {
+    if (winners && roundState === 'settled' && round) {
+      console.log('Storing previous winners:', winners, 'from round:', round.roundNumber);
+      setPreviousWinners(winners as any);
+      setPreviousRoundNumber(round.roundNumber);
+    }
+  }, [winners, roundState, round]);
+  
+  // Fetch previous round winners on page load if we're in an open state and within first 40 seconds
+  useEffect(() => {
+    const fetchPreviousRoundWinners = async () => {
+      if (!round || roundState !== 'open' || previousWinners || previousWinnersFetchedForRound === round.roundNumber) {
+        return;
+      }
+      
+      // Only show previous winners in first 40 seconds of the round
+      const roundOpenedAt = new Date(round.openedAt).getTime();
+      const now = Date.now();
+      const secondsSinceOpen = (now - roundOpenedAt) / 1000;
+      
+      if (secondsSinceOpen > 40) {
+        console.log('Round already past 40s, not fetching previous winners');
+        return;
+      }
+      
+      console.log('Fetching previous round winners for highlight...');
+      setPreviousWinnersFetchedForRound(round.roundNumber);
+      
+      try {
+        const { data: recentRounds } = await getRecentRounds(1);
+        if (recentRounds && recentRounds.length > 0) {
+          const lastRound = recentRounds[0];
+          console.log('Found last settled round:', lastRound.roundNumber, lastRound);
+          
+          if (lastRound.indecisionTriggered) {
+            setPreviousWinners({ indecision: true, outer: undefined, color: undefined, vol: undefined });
+          } else {
+            let vol: "HIGH" | "LOW" | undefined = undefined;
+            if (lastRound.innerWinner === "HIGH_VOL") vol = "HIGH";
+            else if (lastRound.innerWinner === "LOW_VOL") vol = "LOW";
+            
+            setPreviousWinners({
+              outer: lastRound.outerWinner || undefined,
+              color: lastRound.middleWinner || undefined,
+              vol: vol,
+              indecision: false,
+            });
+          }
+          setPreviousRoundNumber(lastRound.roundNumber);
+          
+          // Set timeout to clear after remaining time (40s - time already passed)
+          const remainingTime = Math.max(0, (40 - secondsSinceOpen) * 1000);
+          console.log(`Will clear previous winners in ${remainingTime / 1000}s`);
+          setTimeout(() => {
+            console.log('Clearing previous winners after timeout');
+            setPreviousWinners(undefined);
+            setPreviousRoundNumber(null);
+          }, remainingTime);
+        }
+      } catch (error) {
+        console.error('Failed to fetch previous round winners:', error);
+      }
+    };
+    
+    fetchPreviousRoundWinners();
+  }, [round, roundState, previousWinners, previousWinnersFetchedForRound]);
+  
+  // Clear previous winners after 40 seconds into the new round (when we captured winners from settlement)
+  useEffect(() => {
+    if (roundState === 'open' && previousWinners && round && previousRoundNumber !== null && previousRoundNumber !== round.roundNumber) {
+      console.log('New round started, will clear previous winners in 40s');
+      const timer = setTimeout(() => {
+        console.log('Clearing previous winners after 40s');
+        setPreviousWinners(undefined);
+        setPreviousRoundNumber(null);
+      }, 40000);
+      return () => clearTimeout(timer);
+    }
+  }, [roundState, previousWinners, round, previousRoundNumber]);
+  
+  // Convert user bets to format for SpinWheel
+  const placedBetsForWheel = useMemo(() => {
+    return userBets.map(bet => ({
+      market: bet.market,
+      selection: bet.selection,
+      amount: Number(bet.amountUsd),
+      timestamp: new Date(bet.createdAt).getTime(),
+    }));
+  }, [userBets]);
+  
+  // Current selection for wheel highlighting
+  const currentSelectionForWheel = useMemo(() => {
+    return {
+      market: selectedOption.market,
+      selection: selectedOption.selection,
+    };
+  }, [selectedOption]);
 
   // User can bet if their sub-round is still open (not frozen)
   const canBet = roundState === 'open' && round && !isPlacingBet && effectiveTimeUntilFreeze > 0;
@@ -1211,8 +1328,10 @@ export default function SpinPage() {
             countdownSec={displayCountdown} 
             winners={winners}
             roundDurationMin={effectiveRoundDuration}
-            currentQuarter={currentQuarter}
-            timeUntilFreeze={effectiveTimeUntilFreeze}
+            currentSelection={currentSelectionForWheel}
+            placedBets={placedBetsForWheel}
+            recentBetPlaced={recentBetPlaced}
+            previousWinners={previousWinners}
           />
         </div>
 
@@ -1254,7 +1373,7 @@ export default function SpinPage() {
           
           <button 
             className="nav-btn"
-            onClick={() => router.push('/dashboard/settings')}
+            onClick={() => router.push('/statistics')}
             title="Statistics"
           >
             <BarChart3 size={18} />

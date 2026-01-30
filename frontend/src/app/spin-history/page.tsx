@@ -46,6 +46,13 @@ const SELECTION_LABELS: Record<string, string> = {
   INDECISION: 'Indecision'
 };
 
+const MARKET_LABELS: Record<string, string> = {
+  OUTER: 'Direction',
+  MIDDLE: 'Color',
+  INNER: 'Volatility',
+  GLOBAL: 'Indecision'
+};
+
 interface Round {
   id: string;
   roundNumber: number;
@@ -200,6 +207,8 @@ export default function SpinHistoryPage() {
     if (activeTab === 'rounds') {
       fetchRounds();
     } else {
+      // Fetch both rounds and bets for personal history to show outcomes
+      fetchRounds();
       fetchBets();
       fetchUserStats();
     }
@@ -318,12 +327,10 @@ export default function SpinHistoryPage() {
                       <tr>
                         <th>Round #</th>
                         <th>Date</th>
-                        <th>Outer Winner</th>
-                        <th>Middle Winner</th>
-                        <th>Inner Winner</th>
+                        <th>Direction Winner</th>
+                        <th>Color Winner</th>
+                        <th>Volatility Winner</th>
                         <th>Indecision</th>
-                        <th>Volume</th>
-                        <th>Orders</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -349,10 +356,6 @@ export default function SpinHistoryPage() {
                               <span className="no-indecision">NO</span>
                             )}
                           </td>
-                          <td className="volume-cell">
-                            ${(round.totalVolume || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                          </td>
-                          <td className="orders-cell">{round._count?.bets || 0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -463,7 +466,8 @@ export default function SpinHistoryPage() {
                         <th>Round</th>
                         <th>Date</th>
                         <th>Market</th>
-                        <th>Selection</th>
+                        <th>Your Selection</th>
+                        <th>Outcome</th>
                         <th>Amount</th>
                         <th>Status</th>
                         <th>Payout</th>
@@ -471,34 +475,56 @@ export default function SpinHistoryPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {bets.map((bet) => (
-                        <tr key={bet.id} className={bet.status === 'ACCEPTED' ? 'pending-row' : ''}>
-                          <td className="round-number">
-                            #{bet.round?.roundNumber || '-'}
-                          </td>
-                          <td className="date-cell">{formatDate(bet.createdAt)}</td>
-                          <td className="market-cell">{bet.market}</td>
-                          <td>
-                            <WinnerBadge selection={bet.selection} />
-                          </td>
-                          <td className="amount-cell">
-                            ${Number(bet.amountUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </td>
-                          <td>
-                            <StatusBadge status={bet.status} />
-                          </td>
-                          <td className="payout-cell">
-                            {bet.payoutAmount !== null && bet.payoutAmount !== undefined
-                              ? `$${Number(bet.payoutAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : '-'}
-                          </td>
-                          <td className={`profit-cell ${bet.profitAmount !== null && bet.profitAmount !== undefined ? (Number(bet.profitAmount) >= 0 ? 'profit' : 'loss') : ''}`}>
-                            {bet.profitAmount !== null && bet.profitAmount !== undefined
-                              ? `${Number(bet.profitAmount) >= 0 ? '+' : ''}$${Number(bet.profitAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                              : '-'}
-                          </td>
-                        </tr>
-                      ))}
+                      {bets.map((bet) => {
+                        // Find the round to get the winner for this market
+                        const round = rounds.find(r => r.roundNumber === bet.round?.roundNumber);
+                        let outcome: string | null = null;
+                        
+                        if (bet.status !== 'ACCEPTED' && bet.status !== 'CANCELLED') {
+                          if (bet.market === 'OUTER') outcome = round?.outerWinner || null;
+                          else if (bet.market === 'MIDDLE') outcome = round?.middleWinner || null;
+                          else if (bet.market === 'INNER') outcome = round?.innerWinner || null;
+                          else if (bet.market === 'GLOBAL') outcome = round?.indecisionTriggered ? 'INDECISION' : null;
+                        }
+                        
+                        return (
+                          <tr key={bet.id} className={bet.status === 'ACCEPTED' ? 'pending-row' : ''}>
+                            <td className="round-number">
+                              #{bet.round?.roundNumber || '-'}
+                            </td>
+                            <td className="date-cell">{formatDate(bet.createdAt)}</td>
+                            <td className="market-cell">{MARKET_LABELS[bet.market] || bet.market}</td>
+                            <td>
+                              <WinnerBadge selection={bet.selection} />
+                            </td>
+                            <td>
+                              {outcome ? (
+                                <WinnerBadge selection={outcome} />
+                              ) : (
+                                <span className="no-winner">
+                                  {bet.status === 'ACCEPTED' ? 'Pending' : '-'}
+                                </span>
+                              )}
+                            </td>
+                            <td className="amount-cell">
+                              ${Number(bet.amountUsd).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td>
+                              <StatusBadge status={bet.status} />
+                            </td>
+                            <td className="payout-cell">
+                              {bet.payoutAmount !== null && bet.payoutAmount !== undefined
+                                ? `$${Number(bet.payoutAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : '-'}
+                            </td>
+                            <td className={`profit-cell ${bet.profitAmount !== null && bet.profitAmount !== undefined ? (Number(bet.profitAmount) >= 0 ? 'profit' : 'loss') : ''}`}>
+                              {bet.profitAmount !== null && bet.profitAmount !== undefined
+                                ? `${Number(bet.profitAmount) >= 0 ? '+' : ''}$${Number(bet.profitAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -764,7 +790,6 @@ export default function SpinHistoryPage() {
           text-transform: uppercase;
         }
 
-        .volume-cell,
         .amount-cell,
         .payout-cell {
           font-family: monospace;
@@ -781,10 +806,6 @@ export default function SpinHistoryPage() {
 
         .profit-cell.loss {
           color: #ef4444;
-        }
-
-        .orders-cell {
-          text-align: center;
         }
 
         .winner-badge {
