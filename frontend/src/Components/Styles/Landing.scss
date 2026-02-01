@@ -7,6 +7,46 @@
     min-height: 100vh;
     display: flex;
     flex-direction: column;
+
+    /* =======================
+       MAINTENANCE DISCLAIMER BANNER
+       ======================= */
+    .maintenance-disclaimer {
+      background: linear-gradient(90deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      text-align: center;
+      z-index: 100;
+      animation: maintenancePulse 3s ease-in-out infinite;
+
+      .disclaimer-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        font-size: 0.9rem;
+
+        svg {
+          flex-shrink: 0;
+          animation: iconBounce 1.5s ease-in-out infinite;
+        }
+
+        strong {
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+      }
+    }
+
+    @keyframes maintenancePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.9; }
+    }
+
+    @keyframes iconBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
   
     /* =======================
        HEADER - Solid background to cover video

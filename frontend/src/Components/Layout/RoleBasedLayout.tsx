@@ -22,38 +22,67 @@ export default function RoleBasedLayout({ children }) {
   const [subscriptionTier, setSubscriptionTier] = useState<SubscriptionTier>(
     SubscriptionTier.FREE,
   );
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [maintenanceChecked, setMaintenanceChecked] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
+  // Check maintenance status first
   useEffect(() => {
-    const checkStatus = async () => {
+    const checkMaintenanceStatus = async () => {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}/status`);
-        const data = await res.json();
-        
-        const currentUser = getCurrentUser();
-        const userRole = currentUser ? getUserRole(currentUser) : UserRole.USER;
-        const isUserAdmin = isAdminRole(userRole);
-        
-        if (data.maintenance && !isUserAdmin && pathname !== '/maintenance' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
-          router.replace('/maintenance');
-          return;
-        }
-
-        if (!data.maintenance && pathname === '/maintenance') {
-          router.replace('/');
-          return;
-        }
+        const response = await res.json();
+        // Backend wraps response in { data: ..., message: ..., statusCode: ... }
+        const statusData = response.data || response;
+        setIsMaintenanceMode(statusData.maintenance === true);
       } catch (error) {
         console.error("Status check failed", error);
+        setIsMaintenanceMode(false);
+      } finally {
+        setMaintenanceChecked(true);
       }
     };
 
-    checkStatus();
+    checkMaintenanceStatus();
+    
+    // Re-check maintenance status every 30 seconds
+    const interval = setInterval(checkMaintenanceStatus, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle maintenance mode redirects
+  useEffect(() => {
+    if (!maintenanceChecked) return;
+    
+    const currentUser = getCurrentUser();
+    const userRole = currentUser ? getUserRole(currentUser) : UserRole.USER;
+    const isUserAdmin = isAdminRole(userRole);
+    
+    // Paths that are always accessible
+    const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback'];
+    const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
+    
+    if (isMaintenanceMode && !isUserAdmin && !isExemptPath) {
+      // User is not admin and site is in maintenance - redirect to maintenance page
+      router.replace('/maintenance');
+      return;
+    }
+    
+    if (!isMaintenanceMode && pathname === '/maintenance') {
+      // Maintenance is over, redirect away from maintenance page
+      router.replace('/');
+      return;
+    }
+  }, [isMaintenanceMode, maintenanceChecked, pathname, router]);
+
+  // Handle user authentication and routing
+  useEffect(() => {
+    if (!maintenanceChecked) return;
 
     const currentUser = getCurrentUser();
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy'];
-    const isPublicPath = publicPaths.includes(pathname);
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance'];
+    const isPublicPath = publicPaths.some(p => pathname.startsWith(p));
 
     // No user found
     if (!currentUser) {
@@ -87,7 +116,7 @@ export default function RoleBasedLayout({ children }) {
     }
 
     setIsLoading(false);
-  }, [pathname, router]);
+  }, [pathname, router, maintenanceChecked]);
 
   // Listen for logout events
   useEffect(() => {
@@ -109,7 +138,8 @@ export default function RoleBasedLayout({ children }) {
     };
   }, [router]);
 
-  if (isLoading) {
+  // Wait for maintenance check to complete
+  if (!maintenanceChecked || isLoading) {
     return (
       <div className="layout-loading">
         <div className="spinner" />
@@ -118,9 +148,30 @@ export default function RoleBasedLayout({ children }) {
     );
   }
 
+  // If in maintenance mode and not admin, don't render anything (redirect will happen)
+  const currentUserForCheck = getCurrentUser();
+  const currentRoleForCheck = currentUserForCheck ? getUserRole(currentUserForCheck) : UserRole.USER;
+  const isCurrentUserAdmin = isAdminRole(currentRoleForCheck);
+  const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback'];
+  const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
+  
+  if (isMaintenanceMode && !isCurrentUserAdmin && !isExemptPath) {
+    return (
+      <div className="layout-loading">
+        <div className="spinner" />
+        <p>Redirecting to maintenance...</p>
+      </div>
+    );
+  }
+
+  // Maintenance page should always render without any layout wrapper
+  if (pathname === '/maintenance') {
+    return <>{children}</>;
+  }
+
   if (!user) {
     // Only allow specific public paths to render without authentication
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance'];
     const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
     
     if (pathname === '/' || isPublicPath) {

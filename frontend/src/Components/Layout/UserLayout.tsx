@@ -11,8 +11,10 @@ import {
   ArrowDownCircle,
   History,
   BarChart3,
+  LogOut,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
+import { logout } from "@/lib/auth";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
 import "../Layout/UserLayout.scss";
 
@@ -89,6 +91,11 @@ export default function UserLayout({
         ? prev.filter((c) => c !== category)
         : [...prev, category],
     );
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.replace('/login');
   };
 
   const isActive = (href?: string, submenu?: { label: string; href: string }[]) => {
@@ -233,6 +240,10 @@ export default function UserLayout({
                 </p>
               </div>
             </div>
+
+            <button className="logout-btn" onClick={handleLogout} title="Logout">
+              <LogOut size={20} />
+            </button>
           </div>
         </header>
 

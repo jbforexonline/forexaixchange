@@ -7,6 +7,7 @@ import TradingViewWidget from "./TradingViewWidget";
 import { useRound } from "@/hooks/useRound";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
 import { getRecentRounds } from "@/lib/api/spin";
+import { AlertTriangle } from "lucide-react";
 import "./Styles/Landing.scss";
 
 export default function Landing() {
@@ -14,9 +15,27 @@ export default function Landing() {
   const [premiumSlideIndex, setPremiumSlideIndex] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const carouselIntervalRef = useRef(null);
+  const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
   
   // Use the same round hook as the logged-in version for synchronization
   const { round, state: roundState, countdown, loading, error } = useRound();
+  
+  // Check maintenance mode status
+  useEffect(() => {
+    const checkMaintenanceStatus = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000'}/status`);
+        const response = await res.json();
+        // Backend wraps response in { data: ..., message: ..., statusCode: ... }
+        const statusData = response.data || response;
+        setIsMaintenanceMode(statusData.maintenance === true);
+      } catch (error) {
+        console.error("Failed to check maintenance status:", error);
+      }
+    };
+    
+    checkMaintenanceStatus();
+  }, []);
   
   // v3.2: Previous winners for 20m round celebration effect on landing page
   const [previousWinners, setPreviousWinners] = useState(undefined);
@@ -298,6 +317,19 @@ export default function Landing() {
 
   return (
     <div className="home">
+      {/* MAINTENANCE DISCLAIMER BANNER */}
+      {isMaintenanceMode && (
+        <div className="maintenance-disclaimer">
+          <div className="disclaimer-content">
+            <AlertTriangle size={20} />
+            <span>
+              <strong>Scheduled Maintenance</strong> — We are currently performing system maintenance. 
+              Some features may be temporarily unavailable. Thank you for your patience.
+            </span>
+          </div>
+        </div>
+      )}
+      
       {/* HEADER */}
       <header className="site-header">
         <div className="header-inner">

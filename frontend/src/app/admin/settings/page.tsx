@@ -8,6 +8,8 @@ import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import { useToast } from "@/Components/Common/Toast/ToastContext";
 
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:4000";
+
 export default function SystemSettingsPage() {
   const { role } = useLayoutState();
   const toast = useToast();
@@ -16,22 +18,41 @@ export default function SystemSettingsPage() {
   const [configs, setConfigs] = useState<any[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
-
-  const fetchSettings = async () => {
+  // Fetch live maintenance status (single source of truth)
+  const fetchMaintenanceStatus = async () => {
     try {
-      const data = await getSystemConfig();
-      setConfigs(data);
-      const maintenance = data.find(c => c.key === 'maintenance_mode');
-      if (maintenance) setMaintenanceEnabled(maintenance.value === 'true');
+      const res = await fetch(`${API_URL}/status`);
+      const response = await res.json();
+      const statusData = response.data ?? response;
+      setMaintenanceEnabled(statusData.maintenance === true);
     } catch (error) {
-      console.error("Failed to fetch settings");
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch maintenance status", error);
     }
   };
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await getSystemConfig();
+        setConfigs(data);
+        const maintenance = data.find((c: any) => c.key === "maintenance_mode");
+        if (maintenance) setMaintenanceEnabled(maintenance.value === "true");
+        // Sync with live status so toggle always matches reality
+        await fetchMaintenanceStatus();
+      } catch (error) {
+        console.error("Failed to fetch settings", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
+
+  // Keep toggle in sync with live status when viewing this page
+  useEffect(() => {
+    const interval = setInterval(fetchMaintenanceStatus, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleToggleMaintenance = async () => {
     setIsProcessing(true);

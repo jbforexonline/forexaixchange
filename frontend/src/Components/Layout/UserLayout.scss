@@ -365,6 +365,25 @@ $basic-gradient: linear-gradient(135deg, #10b981 0%, #059669 100%);
             }
           }
         }
+
+        .logout-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(239, 68, 68, 0.15);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          color: #ef4444;
+          width: 40px;
+          height: 40px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+
+          &:hover {
+            background: rgba(239, 68, 68, 0.25);
+            transform: scale(1.05);
+          }
+        }
       }
     }
 

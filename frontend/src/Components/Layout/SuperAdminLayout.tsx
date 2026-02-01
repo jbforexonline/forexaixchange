@@ -16,6 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
+import MaintenanceBanner from "../Common/MaintenanceBanner";
 import "../Layout/SuperAdminLayout.scss";
 
 interface SuperAdminLayoutProps {
@@ -142,6 +143,9 @@ export default function SuperAdminLayout({
 
   return (
     <div className="super-admin-layout">
+      {/* Maintenance Mode Banner */}
+      <MaintenanceBanner />
+      
       {/* Header */}
       <header className="super-admin-header">
         <div className="header-left">

@@ -15,6 +15,7 @@ import {
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
+import MaintenanceBanner from "../Common/MaintenanceBanner";
 import "../Layout/AdminLayout.scss";
 
 interface AdminLayoutProps {
@@ -71,9 +72,13 @@ export default function AdminLayout({
     },
     {
       icon: Settings,
-      label: "Affiliate Settings",
-      href: "/admin/affiliate-settings",
-      category: "affiliate",
+      label: "System Settings",
+      href: "/admin/settings",
+      category: "system",
+      submenu: [
+        { label: "General & Maintenance", href: "/admin/settings" },
+        { label: "Affiliate Settings", href: "/admin/affiliate-settings" },
+      ],
     },
     {
       icon: DollarSign,
@@ -122,6 +127,9 @@ export default function AdminLayout({
 
   return (
     <div className="admin-layout">
+      {/* Maintenance Mode Banner */}
+      <MaintenanceBanner />
+      
       {/* Header */}
       <header className="admin-header">
         <div className="header-left">
