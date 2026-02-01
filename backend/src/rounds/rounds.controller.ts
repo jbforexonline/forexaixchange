@@ -177,6 +177,14 @@ export class RoundsController {
     return this.roundsService.getRoundHistory(page, limit);
   }
 
+  /** Public: live market distribution for current round (no auth - used by landing Analytics chart) */
+  @Get('distribution/live')
+  @ApiOperation({ summary: 'Get live market distribution for current round (public)' })
+  @ApiResponse({ status: 200, description: 'Live market distribution retrieved successfully' })
+  async getLiveMarketDistributionPublic() {
+    return this.betsService.getLiveMarketDistribution();
+  }
+
   // v3.0: Market instance history by duration
   @Get('market-instances/history')
   @ApiOperation({ summary: 'Get market instance history by duration with filtering' })

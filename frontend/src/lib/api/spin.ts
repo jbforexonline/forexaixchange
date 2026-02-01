@@ -445,15 +445,30 @@ export async function getMarketDistribution(timeFilter?: TimeFilter): Promise<Di
 }
 
 /**
- * Get live market distribution for current round
+ * Get live market distribution for current round.
+ * Uses public /rounds/distribution/live so it works on landing (Analytics chart) and when logged in (Market Statistics).
  */
 export async function getLiveMarketDistribution(): Promise<LiveDistributionResponse> {
-  const response = await fetch(`${API_URL}/bets/distribution/live`, {
+  const response = await fetch(`${API_URL}/rounds/distribution/live`, {
     method: 'GET',
     headers: getHeaders(),
   });
-  const result = await handleResponse<any>(response);
-  return result?.data ?? result;
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((raw as any).message || `HTTP ${response.status}`);
+  }
+  // Unwrap backend envelope: { data: { distribution, roundId, ... }, message, statusCode }
+  const payload = (raw as any)?.data ?? raw;
+  const distribution = Array.isArray(payload?.distribution) ? payload.distribution : [];
+  return {
+    roundId: payload?.roundId ?? null,
+    roundNumber: payload?.roundNumber ?? null,
+    distribution,
+    totalBets: payload?.totalBets ?? 0,
+    totalParticipants: payload?.totalParticipants ?? 0,
+    totalVolume: payload?.totalVolume ?? 0,
+    message: payload?.message,
+  };
 }
 
 /**

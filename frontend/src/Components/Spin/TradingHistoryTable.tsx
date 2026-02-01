@@ -164,6 +164,7 @@ export default function TradingHistoryTable({
       } else {
         // Premium users: Use getMarketInstanceHistory with selectedDuration from sidebar
         // selectedDuration comes from the ROUND DURATION controls on the right sidebar
+        // Use same high limit as normal users so premium sees full history and can scroll
         const response = await getMarketInstanceHistory(selectedDuration, 1, limit, period);
         
         if (response.data && response.data.length > 0) {
@@ -178,7 +179,7 @@ export default function TradingHistoryTable({
             forexAI: 'AI ANALYSING MARKET',
             suggestion: 'WAITING RESULTS',
             resultType: 'info',
-            durationMinutes: DURATION_LABELS[response.data[0]?.durationMinutes] || `${effectiveDuration}m`,
+            durationMinutes: DURATION_LABELS[response.data[0]?.durationMinutes] || `${selectedDuration}m`,
           });
           
           // Add historical rows from market instances
