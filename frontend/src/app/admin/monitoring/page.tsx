@@ -3,6 +3,9 @@ import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole } from "@/lib/layoutConfig";
 
+// Monitoring accessible by SUPER_ADMIN and SYSTEM_ADMIN
+const MONITORING_ALLOWED_ROLES = [UserRole.SUPER_ADMIN, UserRole.SYSTEM_ADMIN];
+
 interface SystemStatus {
   apiStatus: "online" | "offline" | "degraded";
   databaseStatus: "online" | "offline" | "degraded";
@@ -33,7 +36,7 @@ export default function MonitoringPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN) {
+    if (!MONITORING_ALLOWED_ROLES.includes(role)) {
       return;
     }
 
@@ -92,11 +95,11 @@ export default function MonitoringPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN) {
+  if (!MONITORING_ALLOWED_ROLES.includes(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>
-        <p>Only Super Admins can access monitoring.</p>
+        <p>Only Super Admins and System Admins can access monitoring.</p>
       </div>
     );
   }

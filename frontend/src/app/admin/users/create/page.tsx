@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import styles from "./create.module.scss";
 
 interface NewUserPayload {
@@ -48,7 +48,7 @@ export default function CreateUserPage() {
     }
   }, []);
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div className={styles.accessDenied}>
         <h2>Access Denied</h2>

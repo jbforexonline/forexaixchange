@@ -3,6 +3,9 @@ import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole } from "@/lib/layoutConfig";
 
+// Activity logs accessible by SUPER_ADMIN and AUDIT_ADMIN
+const ACTIVITY_ALLOWED_ROLES = [UserRole.SUPER_ADMIN, UserRole.AUDIT_ADMIN];
+
 interface Activity {
   id: string;
   type:
@@ -28,7 +31,7 @@ export default function ActivityPage() {
   const [timeRange, setTimeRange] = useState("24hours");
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN) {
+    if (!ACTIVITY_ALLOWED_ROLES.includes(role)) {
       return;
     }
 
@@ -81,11 +84,11 @@ export default function ActivityPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN) {
+  if (!ACTIVITY_ALLOWED_ROLES.includes(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>
-        <p>Only Super Admins can access activity logs.</p>
+        <p>Only Super Admins and Audit Admins can access activity logs.</p>
       </div>
     );
   }

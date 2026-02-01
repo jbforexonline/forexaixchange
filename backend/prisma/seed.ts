@@ -361,6 +361,171 @@ You may request access or deletion of your data.`,
     });
   }
 
+  // =========================================================================
+  // FINANCE SYSTEM v2 - Initialize Ledger Accounts & Configuration
+  // =========================================================================
+  console.log('🏦 Initializing Finance System v2...');
+
+  // Create System Ledger Accounts (Simplified: No RESERVE_FUND - solvency tracked via Bank Balance / User Liabilities)
+  const systemAccounts = [
+    { id: 'SYS_HOUSE_PROFIT', type: 'HOUSE_PROFIT', name: 'House Profit - Round settlement profits' },
+    { id: 'SYS_OPERATING_CAPITAL', type: 'OPERATING_CAPITAL', name: 'Operating Capital (Treasury) - Bank connected' },
+    { id: 'SYS_CLEARING', type: 'CLEARING', name: 'Clearing - Temp holding during settlements' },
+    { id: 'SYS_FEE_COLLECTION', type: 'FEE_COLLECTION', name: 'Fee Collection - 2% platform fees' },
+  ];
+
+  // Initial balances for house accounts
+  const accountBalances: Record<string, number> = {
+    'SYS_HOUSE_PROFIT': 5000,       // $5,000 accumulated profit
+    'SYS_OPERATING_CAPITAL': 15000, // $15,000 treasury (increased since no reserve fund)
+    'SYS_CLEARING': 0,              // Clearing always starts at 0
+    'SYS_FEE_COLLECTION': 500,      // $500 in collected fees
+  };
+
+  for (const account of systemAccounts) {
+    await prisma.ledgerAccount.upsert({
+      where: { id: account.id },
+      update: { balance: accountBalances[account.id] || 0 },
+      create: {
+        id: account.id,
+        type: account.type as any,
+        ownerId: null,
+        name: account.name,
+        currency: 'USD',
+        isActive: true,
+        balance: accountBalances[account.id] || 0,
+      },
+    });
+  }
+  console.log('✅ System ledger accounts created with initial balances');
+
+  // Create Fee Configuration
+  const feeConfigs = [
+    {
+      feeType: 'WITHDRAWAL',
+      tiers: JSON.stringify([
+        { minAmount: 0, maxAmount: 50, feeAmount: 1, feePercent: 0 },
+        { minAmount: 50, maxAmount: 100, feeAmount: 2, feePercent: 0 },
+        { minAmount: 100, maxAmount: 500, feeAmount: 3, feePercent: 0 },
+        { minAmount: 500, maxAmount: 2000, feeAmount: 6, feePercent: 0 },
+        { minAmount: 2000, maxAmount: null, feeAmount: 0, feePercent: 1 },
+      ]),
+      minFee: 1,
+      maxFee: null,
+      premiumDiscount: 100, // 100% discount for premium = free
+    },
+    {
+      feeType: 'DEPOSIT',
+      tiers: JSON.stringify([]),
+      minFee: 0,
+      maxFee: null,
+      premiumDiscount: 0,
+    },
+  ];
+
+  for (const config of feeConfigs) {
+    await prisma.feeConfiguration.upsert({
+      where: { feeType: config.feeType },
+      update: {},
+      create: {
+        feeType: config.feeType,
+        tiers: config.tiers,
+        minFee: config.minFee,
+        maxFee: config.maxFee,
+        premiumDiscount: config.premiumDiscount,
+        updatedBy: superAdmin.id,
+      },
+    });
+  }
+  console.log('✅ Fee configurations created');
+
+  // Create Withdrawal Limits
+  const withdrawalLimits = [
+    {
+      limitType: 'FREE_DAILY',
+      dailyLimit: 500,
+      singleTransactionMax: 250,
+      largeWithdrawalThreshold: 200,
+    },
+    {
+      limitType: 'PREMIUM_DAILY',
+      dailyLimit: 10000,
+      singleTransactionMax: 5000,
+      largeWithdrawalThreshold: 1000,
+    },
+  ];
+
+  for (const limit of withdrawalLimits) {
+    await prisma.withdrawalLimit.upsert({
+      where: { limitType: limit.limitType },
+      update: {},
+      create: {
+        limitType: limit.limitType,
+        dailyLimit: limit.dailyLimit,
+        singleTransactionMax: limit.singleTransactionMax,
+        largeWithdrawalThreshold: limit.largeWithdrawalThreshold,
+        updatedBy: superAdmin.id,
+      },
+    });
+  }
+  console.log('✅ Withdrawal limits created');
+
+  // Create Initial Bank Snapshot (for reserve ratio)
+  await prisma.bankSnapshot.upsert({
+    where: { id: 'initial-snapshot' },
+    update: {},
+    create: {
+      id: 'initial-snapshot',
+      bankBalance: 50000, // $50,000 initial bank balance
+      bankAccountRef: 'SEED_INITIAL',
+      totalUserLiabilities: 29000, // Sum of seeded user wallets
+      reserveRatio: 1.72, // 50000 / 29000 = 1.72 (HEALTHY)
+      minRatioThreshold: 1.1,
+      warningRatioThreshold: 1.2,
+      isWithdrawalsLocked: false,
+      isLargeWithdrawalsPaused: false,
+      createdBy: superAdmin.id,
+      notes: 'Initial seed snapshot',
+    },
+  });
+  console.log('✅ Initial bank snapshot created (Reserve Ratio: 172%)');
+
+  // Create Finance Admin user
+  const financeAdminPassword = await bcrypt.hash('admin123', 12);
+  await prisma.user.upsert({
+    where: { email: 'finance@forexaixchange.com' },
+    update: {},
+    create: {
+      email: 'finance@forexaixchange.com',
+      phone: '+1234567896',
+      password: financeAdminPassword,
+      username: 'financeadmin',
+      firstName: 'Finance',
+      lastName: 'Admin',
+      role: 'FINANCE_ADMIN' as any,
+      isActive: true,
+      isVerified: true,
+      verificationBadge: true,
+      kycStatus: KycStatus.APPROVED,
+      premium: true,
+      ...AGE_SEED,
+      wallet: {
+        create: {
+          available: 0,
+          held: 0,
+          totalDeposited: 0,
+          totalWithdrawn: 0,
+          totalWon: 0,
+          totalLost: 0,
+        },
+      },
+    },
+  });
+  console.log('✅ Finance Admin user created');
+
+  console.log('🏦 Finance System v2 initialized!');
+  console.log('');
+
   console.log('✅ Database seeding completed!');
   console.log('');
   console.log('👑 ADMIN ACCOUNTS:');
@@ -373,6 +538,11 @@ You may request access or deletion of your data.`,
   console.log('📱 Admin Phone: +1234567891');
   console.log('🔑 Admin Password: admin123');
   console.log('💰 Admin Balance: $5,000');
+  console.log('');
+  console.log('📧 Finance Admin Email: finance@forexaixchange.com');
+  console.log('📱 Finance Admin Phone: +1234567896');
+  console.log('🔑 Finance Admin Password: admin123');
+  console.log('🏦 Finance Admin can approve deposits/withdrawals');
   console.log('');
   console.log('👤 TEST USER ACCOUNTS:');
   console.log('📧 User 1 Email: user1@test.com | Phone: +1234567892 | Password: password123 | Balance: $2,500 (Premium)');

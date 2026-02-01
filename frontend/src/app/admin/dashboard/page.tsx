@@ -1,12 +1,12 @@
 "use client";
 import React from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 
 export default function AdminDashboard() {
   const { user, role, layoutConfig } = useLayoutState();
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>
@@ -93,7 +93,10 @@ export default function AdminDashboard() {
                 margin: 0,
                 color: "#fff",
                 backgroundColor:
-                  role === UserRole.SUPER_ADMIN ? "#dc2626" : "#2563eb",
+                  role === UserRole.SUPER_ADMIN ? "#dc2626" :
+                  role === UserRole.FINANCE_ADMIN ? "#059669" :
+                  role === UserRole.SYSTEM_ADMIN ? "#7c3aed" :
+                  role === UserRole.AUDIT_ADMIN ? "#d97706" : "#2563eb",
                 padding: "0.25rem 0.75rem",
                 borderRadius: "6px",
                 display: "inline-block",
@@ -205,9 +208,7 @@ export default function AdminDashboard() {
               fontSize: "1.8rem",
             }}
           >
-            {role === UserRole.ADMIN || role === UserRole.SUPER_ADMIN
-              ? "✓"
-              : "—"}
+            {isAdminRole(role) ? "✓" : "—"}
           </p>
         </div>
 

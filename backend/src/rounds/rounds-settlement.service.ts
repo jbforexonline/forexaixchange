@@ -1,18 +1,20 @@
 // =============================================================================
-// ROUNDS SETTLEMENT SERVICE - Core Settlement Algorithm
+// ROUNDS SETTLEMENT SERVICE - Core Settlement Algorithm v2
 // =============================================================================
 // Path: backend/src/rounds/rounds-settlement.service.ts
 // Implements: Minority rule + Indecision override from Spin V1 spec
+// v2: Uses ledger-based accounting with idempotency
 // =============================================================================
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { RoundState, BetMarket, Prisma } from '@prisma/client';
+import { RoundState, BetMarket, Prisma, LedgerEntryType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { LedgerService, SYSTEM_ACCOUNTS } from '../ledger/ledger.service';
 
 interface LayerTotals {
   a: Decimal;
@@ -41,12 +43,14 @@ export class RoundsSettlementService {
     private prisma: PrismaService,
     @Inject(REDIS_CLIENT) private redis: Redis,
     private gateway: RealtimeGateway,
+    private ledgerService: LedgerService, // v2: Ledger-based accounting
   ) {}
 
   /**
    * Main settlement entry point
+   * v2: Includes idempotency check via RoundSettlement model
    */
-  async settleRound(roundId: string) {
+  async settleRound(roundId: string, settledByAdminId?: string) {
     // Acquire Redis lock to prevent concurrent settlement
     const lockKey = `lock:settle:round:${roundId}`;
     const lockValue = Date.now().toString();
@@ -72,6 +76,16 @@ export class RoundsSettlementService {
     try {
       return await this.prisma.$transaction(
         async (tx) => {
+          // 0. IDEMPOTENCY CHECK: If settlement already exists, return early
+          const existingSettlement = await tx.roundSettlement.findUnique({
+            where: { roundId },
+          });
+
+          if (existingSettlement) {
+            this.logger.warn(`⚠️ Round ${roundId} already settled (version ${existingSettlement.settlementVersion}). Skipping re-settlement.`);
+            return tx.round.findUnique({ where: { id: roundId } });
+          }
+
           // 1. Lock the round
           const round = await tx.round.findUnique({
             where: { id: roundId },
@@ -103,7 +117,7 @@ export class RoundsSettlementService {
           const settlement = await this.computeSettlement(round, round.bets);
 
           // 4. Apply payouts to all bets
-          await this.applyPayouts(tx, round, settlement);
+          const payoutResult = await this.applyPayouts(tx, round, settlement, settledByAdminId);
 
           // 5. Update round with results
           const settledRound = await tx.round.update({
@@ -119,6 +133,25 @@ export class RoundsSettlementService {
               middleTied: settlement.layerResults.middle.tied,
               innerTied: settlement.layerResults.inner.tied,
               totalHouseFee: settlement.houseFee,
+            },
+          });
+
+          // 5.1. Create RoundSettlement record for idempotency
+          await tx.roundSettlement.create({
+            data: {
+              roundId,
+              roundNumber: round.roundNumber,
+              settlementVersion: 1,
+              totalPool: payoutResult.totalPool,
+              totalPayouts: payoutResult.totalPayouts,
+              houseFee: settlement.houseFee,
+              houseProfit: payoutResult.houseProfit,
+              totalBets: round.bets.length,
+              winningBets: payoutResult.winningBetsCount,
+              losingBets: payoutResult.losingBetsCount,
+              settledBy: settledByAdminId,
+              clearingLedgerEntryId: payoutResult.clearingLedgerEntryId,
+              profitLedgerEntryId: payoutResult.profitLedgerEntryId,
             },
           });
 
@@ -387,12 +420,22 @@ export class RoundsSettlementService {
 
   /**
    * Apply payouts atomically to all bets
+   * v2: Returns settlement metrics for RoundSettlement record
    */
   private async applyPayouts(
     tx: Prisma.TransactionClient,
     round: any,
     settlement: SettlementResult,
-  ) {
+    settledByAdminId?: string,
+  ): Promise<{
+    totalPool: Decimal;
+    totalPayouts: Decimal;
+    houseProfit: Decimal;
+    winningBetsCount: number;
+    losingBetsCount: number;
+    clearingLedgerEntryId?: string;
+    profitLedgerEntryId?: string;
+  }> {
     // 1. First, ensure PlatformAccount exists
     let platformAccount = await (tx as any).platformAccount.findUnique({
       where: { id: 'HOUSE' },
@@ -599,11 +642,68 @@ export class RoundsSettlementService {
       });
     }
 
+    // 6. Create ledger entries for house profit (v2)
+    let profitLedgerEntryId: string | undefined;
+    let clearingLedgerEntryId: string | undefined;
+    
+    const houseProfit = totalCollectedFromLosers.sub(totalPaidToWinners);
+    
+    try {
+      // Record house profit via ledger if positive
+      if (houseProfit.gt(0)) {
+        const profitResult = await this.ledgerService.recordHouseProfit(
+          houseProfit,
+          round.id,
+          round.roundNumber,
+          `round-profit-${round.id}`,
+          tx,
+        );
+        profitLedgerEntryId = profitResult.ledgerEntryId;
+      }
+      
+      // Record fees via ledger
+      if (settlement.houseFee.gt(0)) {
+        const feeResult = await this.ledgerService.recordFee(
+          settlement.houseFee,
+          `Round ${round.roundNumber} house fee (2%)`,
+          'ROUND',
+          round.id,
+          `round-fee-${round.id}`,
+          tx,
+        );
+        clearingLedgerEntryId = feeResult.ledgerEntryId;
+      }
+    } catch (ledgerError) {
+      this.logger.warn(`Ledger entry creation failed (non-critical): ${ledgerError.message}`);
+    }
+
+    // Calculate total pool
+    const totalPool = round.outerBuy
+      .add(round.outerSell)
+      .add(round.middleBlue)
+      .add(round.middleRed)
+      .add(round.innerHighVol)
+      .add(round.innerLowVol)
+      .add(round.globalIndecision);
+
+    const winningBetsCount = Array.from(settlement.payouts.values()).filter(p => p.isWinner).length;
+    const losingBetsCount = Array.from(settlement.payouts.values()).filter(p => !p.isWinner).length;
+
     this.logger.log(
       `🏦 House: Collected $${totalCollectedFromLosers.toFixed(2)}, ` +
       `Paid $${totalPaidToWinners.toFixed(2)}, ` +
       `Fee $${settlement.houseFee.toFixed(2)}, ` +
-      `Net $${netProfit.add(settlement.houseFee).toFixed(2)}`
+      `Net $${houseProfit.toFixed(2)}`
     );
+
+    return {
+      totalPool,
+      totalPayouts: totalPaidToWinners,
+      houseProfit,
+      winningBetsCount,
+      losingBetsCount,
+      clearingLedgerEntryId,
+      profitLedgerEntryId,
+    };
   }
 }

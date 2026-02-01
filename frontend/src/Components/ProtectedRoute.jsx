@@ -41,10 +41,11 @@ export default function ProtectedRoute({ children, requireAuth = true, allowedRo
         
         if (!hasAccess) {
           // User doesn't have required role, redirect to appropriate page
-          if (userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') {
-            router.replace('/dashboard');
+          const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN'];
+          if (adminRoles.includes(userRole)) {
+            router.replace('/admin/dashboard');
           } else {
-            router.replace('/spin');
+            router.replace('/dashboard/spin');
           }
           return;
         }

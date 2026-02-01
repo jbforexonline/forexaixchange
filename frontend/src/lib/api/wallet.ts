@@ -162,56 +162,44 @@ export async function createWithdrawal(
   return handleResponse(response);
 }
 
+/**
+ * @deprecated Internal transfers have been permanently disabled
+ * This function will throw an error if called
+ */
 export async function searchUsersForTransfer(query: string): Promise<any[]> {
-  const response = await fetch(
-    `${API_URL}/wallet/transfer/search?q=${encodeURIComponent(query)}`,
-    {
-      method: 'GET',
-      headers: getHeaders(),
-    }
-  );
-  return handleResponse(response);
+  throw new Error('Internal transfers have been permanently disabled. Please use deposits and withdrawals through official channels.');
 }
 
+/**
+ * @deprecated Internal transfers have been permanently disabled
+ * This function will throw an error if called
+ */
 export async function createTransfer(
   recipient: string,
   amount: number,
   feePayer: 'SENDER' | 'RECIPIENT' = 'SENDER'
 ): Promise<TransferDetails> {
-  const response = await fetch(`${API_URL}/wallet/transfer`, {
-    method: 'POST',
-    headers: getHeaders(),
-    body: JSON.stringify({
-      recipient,
-      amount,
-      feePayer,
-      idempotencyKey: `transfer-${Date.now()}-${Math.random()}`,
-    }),
-  });
-  return handleResponse(response);
+  throw new Error('Internal transfers have been permanently disabled. Please use deposits and withdrawals through official channels.');
 }
 
+/**
+ * @deprecated Internal transfers have been permanently disabled
+ * Returns empty array for backward compatibility
+ */
 export async function getTransferHistory(
   page = 1,
   limit = 20
 ): Promise<{ data: TransferDetails[]; meta: any }> {
-  const params = new URLSearchParams({
-    page: page.toString(),
-    limit: limit.toString(),
-  });
-  const response = await fetch(`${API_URL}/wallet/transfers?${params.toString()}`, {
-    method: 'GET',
-    headers: getHeaders(),
-  });
-  return handleResponse(response);
+  console.warn('getTransferHistory is deprecated - internal transfers have been disabled');
+  return { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } };
 }
 
+/**
+ * @deprecated Internal transfers have been permanently disabled
+ * This function will throw an error if called
+ */
 export async function getTransferDetails(transferId: string): Promise<TransferDetails> {
-  const response = await fetch(`${API_URL}/wallet/transfer/${transferId}`, {
-    method: 'GET',
-    headers: getHeaders(),
-  });
-  return handleResponse(response);
+  throw new Error('Internal transfers have been permanently disabled.');
 }
 
 export async function resetDemoBalance(amount: number): Promise<Wallet> {

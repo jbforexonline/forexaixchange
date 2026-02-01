@@ -21,7 +21,7 @@ import {
 import "./UserManagement.scss";
 import { getAllUsers, updateUser, User, UsersResponse } from "@/lib/api/admin-users";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import { useToast } from "@/Components/Common/Toast/ToastContext";
 
 export default function UserManagementPage() {
@@ -127,7 +127,7 @@ export default function UserManagementPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div className="access-denied">
         <ShieldCheck size={48} />
@@ -380,7 +380,7 @@ export default function UserManagementPage() {
                     <select 
                       value={selectedUser.role} 
                       onChange={e => setSelectedUser({...selectedUser, role: e.target.value})}
-                      disabled={role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN}
+                      disabled={!isAdminRole(role)}
                     >
                       <option value="USER">Regular User</option>
                       <option value="MODERATOR">Moderator</option>

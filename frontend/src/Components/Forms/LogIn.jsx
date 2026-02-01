@@ -28,7 +28,8 @@ export default function LoginPage() {
           // User is already authenticated, redirect to appropriate page
           const user = JSON.parse(localStorage.getItem('user') || '{}')
           const role = (user.role || 'USER').toUpperCase()
-          const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+          const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN']
+          const nextRoute = adminRoles.includes(role)
             ? '/admin/dashboard'
             : '/dashboard/spin'
           router.replace(nextRoute)
@@ -58,7 +59,8 @@ export default function LoginPage() {
       if (isAuthenticated()) {
         const user = JSON.parse(localStorage.getItem('user') || '{}')
         const role = (user.role || 'USER').toUpperCase()
-        const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
+        const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN']
+        const nextRoute = adminRoles.includes(role)
           ? '/admin/dashboard'
           : '/dashboard/spin'
         router.replace(nextRoute)
@@ -138,16 +140,15 @@ export default function LoginPage() {
       // Get user role from response
       const role = (payload.user.role || 'USER').toUpperCase()
 
+      // Admin roles that should go to admin dashboard
+      const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN']
+
       // Determine redirect route based on role
       let nextRoute = '/dashboard/spin'  // Default for regular users - go directly to spin/game
       let isAdminRole = false
 
-      if (role === 'SUPER_ADMIN') {
-        console.log('🔴 Super Admin detected - redirecting to admin dashboard')
-        nextRoute = '/admin/dashboard'
-        isAdminRole = true
-      } else if (role === 'ADMIN') {
-        console.log('🔵 Admin detected - redirecting to admin dashboard')
+      if (adminRoles.includes(role)) {
+        console.log(`🔴 ${role} detected - redirecting to admin dashboard`)
         nextRoute = '/admin/dashboard'
         isAdminRole = true
       } else if (role === 'MODERATOR') {
@@ -318,7 +319,8 @@ export default function LoginPage() {
                       const user = (data.data || data).user || (data.data || data);
                       if (user?.id) {
                         localStorage.setItem('user', JSON.stringify(user));
-                        const isAdmin = ['ADMIN', 'SUPER_ADMIN'].includes((user.role || 'USER').toUpperCase());
+                        const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN'];
+                        const isAdmin = adminRoles.includes((user.role || 'USER').toUpperCase());
                         const nextRoute = isAdmin ? '/admin/dashboard' : '/dashboard/spin';
                         
                         // Use full page reload to ensure all state is properly initialized

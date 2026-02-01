@@ -5,8 +5,23 @@
 export enum UserRole {
   SUPER_ADMIN = "SUPER_ADMIN",
   ADMIN = "ADMIN",
+  FINANCE_ADMIN = "FINANCE_ADMIN",
+  SYSTEM_ADMIN = "SYSTEM_ADMIN",
+  AUDIT_ADMIN = "AUDIT_ADMIN",
   MODERATOR = "MODERATOR",
   USER = "USER",
+}
+
+// Helper to check if a role is an admin role
+export function isAdminRole(role: UserRole | string): boolean {
+  const adminRoles = [
+    UserRole.SUPER_ADMIN,
+    UserRole.ADMIN,
+    UserRole.FINANCE_ADMIN,
+    UserRole.SYSTEM_ADMIN,
+    UserRole.AUDIT_ADMIN,
+  ];
+  return adminRoles.includes(role as UserRole);
 }
 
 export enum SubscriptionTier {
@@ -26,9 +41,9 @@ export interface LayoutConfig {
 }
 
 export interface MenuItem {
-  icon: any;
-  label: string;
-  href: string;
+  icon?: any;
+  label?: string;
+  href?: string;
   badge?: string;
   requiredRole?: UserRole[];
   requiredSubscription?: SubscriptionTier[];
@@ -118,6 +133,102 @@ export const ROLE_LAYOUT_CONFIG: Record<UserRole, LayoutConfig> = {
       secondaryColor: "#1e40af",
       accentColor: "#93c5fd",
       backgroundColor: "#0c2340",
+    },
+  },
+
+  [UserRole.FINANCE_ADMIN]: {
+    menuItems: [
+      { icon: "Home", label: "Dashboard", href: "/admin/dashboard", badge: "Finance" },
+      { divider: true },
+      { icon: "DollarSign", label: "Financial Management", href: "/admin/financial" },
+      { icon: "ArrowDownCircle", label: "User Deposits", href: "/admin/financial?tab=deposits" },
+      { icon: "ArrowUpCircle", label: "User Withdrawals", href: "/admin/financial?tab=withdrawals" },
+      { icon: "AlertTriangle", label: "Disputes", href: "/admin/financial?tab=disputes" },
+      { divider: true },
+      { icon: "Building", label: "House Accounts", href: "/admin/house-accounts" },
+      { icon: "Wallet", label: "Manage Accounts", href: "/admin/house-accounts?tab=accounts" },
+      { icon: "Banknote", label: "Bank & Reserve", href: "/admin/house-accounts?tab=bank" },
+      { icon: "BarChart3", label: "Settlements", href: "/admin/house-accounts?tab=settlements" },
+      { divider: true },
+      { icon: "Users", label: "User Management", href: "/admin/users" },
+    ],
+    features: [
+      "finance_management",
+      "approve_deposits",
+      "approve_withdrawals",
+      "manage_house_accounts",
+      "view_reserve_status",
+      "view_settlements",
+      "view_audit_log",
+    ],
+    permissions: [
+      { name: "approve_deposits", roles: [UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "approve_withdrawals", roles: [UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "view_house_accounts", roles: [UserRole.FINANCE_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "view_audit_log", roles: [UserRole.FINANCE_ADMIN, UserRole.AUDIT_ADMIN, UserRole.SUPER_ADMIN] },
+    ],
+    theme: {
+      primaryColor: "#059669",
+      secondaryColor: "#047857",
+      accentColor: "#6ee7b7",
+      backgroundColor: "#064e3b",
+    },
+  },
+
+  [UserRole.SYSTEM_ADMIN]: {
+    menuItems: [
+      { icon: "Home", label: "Dashboard", href: "/admin/dashboard", badge: "System" },
+      { icon: "Server", label: "System Status", href: "/admin/system" },
+      { icon: "Database", label: "Database", href: "/admin/database" },
+      { icon: "Settings", label: "Configuration", href: "/admin/config" },
+      { divider: true },
+      { icon: "Activity", label: "Monitoring", href: "/admin/monitoring" },
+      { icon: "FileText", label: "Logs", href: "/admin/logs" },
+    ],
+    features: [
+      "system_management",
+      "view_system_status",
+      "manage_configuration",
+      "view_logs",
+    ],
+    permissions: [
+      { name: "manage_system", roles: [UserRole.SYSTEM_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "view_logs", roles: [UserRole.SYSTEM_ADMIN, UserRole.AUDIT_ADMIN, UserRole.SUPER_ADMIN] },
+    ],
+    theme: {
+      primaryColor: "#7c3aed",
+      secondaryColor: "#6d28d9",
+      accentColor: "#c4b5fd",
+      backgroundColor: "#4c1d95",
+    },
+  },
+
+  [UserRole.AUDIT_ADMIN]: {
+    menuItems: [
+      { icon: "Home", label: "Dashboard", href: "/admin/dashboard", badge: "Audit" },
+      { icon: "Eye", label: "Activity Monitor", href: "/admin/audit/activity" },
+      { icon: "FileSearch", label: "Audit Logs", href: "/admin/audit/logs" },
+      { icon: "Shield", label: "Security Events", href: "/admin/audit/security" },
+      { divider: true },
+      { icon: "FileText", label: "Reports", href: "/admin/audit/reports" },
+      { icon: "Download", label: "Export", href: "/admin/audit/export" },
+    ],
+    features: [
+      "audit_management",
+      "view_all_logs",
+      "view_security_events",
+      "export_reports",
+    ],
+    permissions: [
+      { name: "view_all_logs", roles: [UserRole.AUDIT_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "view_security_events", roles: [UserRole.AUDIT_ADMIN, UserRole.SUPER_ADMIN] },
+      { name: "export_reports", roles: [UserRole.AUDIT_ADMIN, UserRole.SUPER_ADMIN] },
+    ],
+    theme: {
+      primaryColor: "#d97706",
+      secondaryColor: "#b45309",
+      accentColor: "#fcd34d",
+      backgroundColor: "#78350f",
     },
   },
 

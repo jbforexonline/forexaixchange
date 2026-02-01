@@ -48,6 +48,25 @@ model User {
   wallet                    Wallet?
   legalAcceptances          UserLegalAcceptance[]
   legalDocumentsCreated     LegalDocument[]       @relation("LegalDocumentCreatedBy")
+  
+  // Finance system v2 relations
+  ledgerAccounts            LedgerAccount[]
+  deposits                  Deposit[]
+  depositsApproved          Deposit[]             @relation("DepositApprover")
+  depositsRejected          Deposit[]             @relation("DepositRejecter")
+  withdrawals               Withdrawal[]
+  withdrawalsReviewed       Withdrawal[]          @relation("WithdrawalReviewer")
+  withdrawalsApproved       Withdrawal[]          @relation("WithdrawalApprover")
+  withdrawalsRejected       Withdrawal[]          @relation("WithdrawalRejecter")
+  withdrawalsPaid           Withdrawal[]          @relation("WithdrawalPayer")
+  bankSnapshots             BankSnapshot[]
+  adminActions              AdminAction[]         @relation("AdminActions")
+  adminActionsTarget        AdminAction[]         @relation("AdminActionsTarget")
+  roundSettlements          RoundSettlement[]
+  payoutTransactions        PayoutTransaction[]
+  alertsAcknowledged        AlertLog[]
+  feeConfigsUpdated         FeeConfiguration[]
+  withdrawalLimitsUpdated   WithdrawalLimit[]
 }
 
 enum LegalDocumentType {
@@ -266,6 +285,7 @@ model Round {
   updatedAt            DateTime          @updatedAt
   bets                Bet[]
   artifact            FairnessArtifact?
+  settlement          RoundSettlement?  // v2.2: Settlement record for idempotency
 
   @@index([state, freezeAt])
   @@index([state, settleAt])
@@ -376,6 +396,9 @@ model UserPreferences {
 enum UserRole {
   SUPER_ADMIN
   ADMIN
+  FINANCE_ADMIN
+  SYSTEM_ADMIN
+  AUDIT_ADMIN
   USER
 }
 
@@ -551,4 +574,463 @@ enum AutoSpinStatus {
   COMPLETED
   CANCELLED
   EXPIRED
+}
+
+// =============================================================================
+// FINANCE SYSTEM v2 - Ledger-Based Accounting
+// =============================================================================
+
+// Deposit status flow: PENDING -> APPROVED -> CREDITED (or REJECTED)
+enum DepositStatus {
+  PENDING
+  APPROVED
+  CREDITED
+  REJECTED
+}
+
+// Withdrawal status flow: DRAFT -> CONFIRMED -> PENDING_REVIEW -> APPROVED -> PAID (or REJECTED -> REFUNDED)
+enum WithdrawalStatus {
+  DRAFT
+  CONFIRMED
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+  REFUNDED
+}
+
+// Ledger account types
+enum LedgerAccountType {
+  USER_AVAILABLE        // User's available balance (spendable)
+  USER_HELD             // User's held balance (locked for bets/withdrawals)
+  HOUSE_PROFIT          // Accumulates round profits
+  RESERVE_FUND          // Must be >= 120% of total user balances
+  OPERATING_CAPITAL     // Operating expenses
+  CLEARING              // Settlement clearing account
+  FEE_COLLECTION        // Collected fees
+}
+
+// Ledger entry types for audit
+enum LedgerEntryType {
+  DEPOSIT_CREDIT
+  WITHDRAWAL_HOLD
+  WITHDRAWAL_RELEASE
+  WITHDRAWAL_DEBIT
+  BET_HOLD
+  BET_RELEASE
+  BET_LOSS
+  BET_WIN
+  ROUND_SETTLEMENT
+  FEE_COLLECTION
+  HOUSE_PROFIT
+  RESERVE_TRANSFER
+  ADMIN_ADJUSTMENT
+  REFUND
+}
+
+// Alert severity levels
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+// Admin action types for audit
+enum AdminActionType {
+  DEPOSIT_APPROVE
+  DEPOSIT_REJECT
+  WITHDRAWAL_APPROVE
+  WITHDRAWAL_REJECT
+  WITHDRAWAL_PAID
+  CONFIG_UPDATE
+  USER_UPDATE
+  ROUND_FORCE_SETTLE
+  RESERVE_UPDATE
+  ALERT_ACKNOWLEDGE
+}
+
+// =============================================================================
+// LEDGER ACCOUNT - Source of truth for all balances
+// =============================================================================
+model LedgerAccount {
+  id          String            @id @default(cuid())
+  type        LedgerAccountType
+  ownerId     String?           // User ID for user accounts, null for system accounts
+  name        String            // Display name (e.g., "User Available - john@example.com")
+  currency    String            @default("USD")
+  balance     Decimal           @default(0) @db.Decimal(18, 2) // Cached balance for performance
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  // Relations
+  owner       User?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  debits      LedgerEntry[]     @relation("DebitAccount")
+  credits     LedgerEntry[]     @relation("CreditAccount")
+  
+  @@unique([type, ownerId])
+  @@index([ownerId])
+  @@index([type])
+}
+
+// =============================================================================
+// LEDGER ENTRY - Append-only double-entry accounting
+// =============================================================================
+model LedgerEntry {
+  id              String          @id @default(cuid())
+  entryType       LedgerEntryType
+  debitAccountId  String
+  creditAccountId String
+  amount          Decimal         @db.Decimal(18, 2)
+  
+  // Reference to related entity
+  referenceType   String?         // 'DEPOSIT', 'WITHDRAWAL', 'BET', 'ROUND', etc.
+  referenceId     String?         // ID of the related entity
+  
+  // Audit fields
+  description     String
+  metadata        Json?           // Additional context (round number, bet details, etc.)
+  createdBy       String?         // Admin or system user who initiated
+  idempotencyKey  String?         @unique
+  
+  createdAt       DateTime        @default(now())
+  
+  // Relations - double entry: debit one account, credit another
+  debitAccount    LedgerAccount   @relation("DebitAccount", fields: [debitAccountId], references: [id])
+  creditAccount   LedgerAccount   @relation("CreditAccount", fields: [creditAccountId], references: [id])
+  
+  @@index([debitAccountId])
+  @@index([creditAccountId])
+  @@index([referenceType, referenceId])
+  @@index([entryType])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// DEPOSIT - Admin-controlled deposit workflow
+// =============================================================================
+model Deposit {
+  id              String        @id @default(cuid())
+  userId          String
+  amount          Decimal       @db.Decimal(18, 2)
+  fee             Decimal       @default(0) @db.Decimal(18, 2)
+  netAmount       Decimal       @db.Decimal(18, 2) // amount - fee
+  
+  // Payment details
+  method          String        // 'MOMO', 'BANK', 'CRYPTO', etc.
+  referenceId     String?       // External payment reference
+  paymentProof    String?       // URL or file path to proof
+  
+  // Status tracking
+  status          DepositStatus @default(PENDING)
+  
+  // Admin action tracking
+  approvedBy      String?
+  approvedAt      DateTime?
+  creditedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  
+  // Ledger reference
+  ledgerEntryId   String?       @unique
+  
+  // Idempotency
+  idempotencyKey  String?       @unique
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  
+  // Relations
+  user            User          @relation(fields: [userId], references: [id])
+  approver        User?         @relation("DepositApprover", fields: [approvedBy], references: [id])
+  rejecter        User?         @relation("DepositRejecter", fields: [rejectedBy], references: [id])
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([method])
+}
+
+// =============================================================================
+// WITHDRAWAL - User-initiated with OTP + Admin approval
+// =============================================================================
+model Withdrawal {
+  id                String           @id @default(cuid())
+  userId            String
+  amount            Decimal          @db.Decimal(18, 2)
+  fee               Decimal          @default(0) @db.Decimal(18, 2)
+  netAmount         Decimal          @db.Decimal(18, 2) // amount - fee (user receives this)
+  
+  // Payout details
+  payoutMethod      String           // 'MOMO', 'BANK', 'CRYPTO', etc.
+  payoutDestination String           // Phone number, bank account, wallet address
+  payoutReference   String?          // External payout reference (after paid)
+  
+  // Status tracking
+  status            WithdrawalStatus @default(DRAFT)
+  
+  // OTP confirmation
+  otpCode           String?
+  otpExpiresAt      DateTime?
+  otpVerifiedAt     DateTime?
+  
+  // Admin action tracking
+  confirmedAt       DateTime?        // When user confirmed with OTP
+  reviewedBy        String?
+  reviewedAt        DateTime?
+  approvedBy        String?
+  approvedAt        DateTime?
+  rejectedBy        String?
+  rejectedAt        DateTime?
+  rejectionReason   String?
+  paidBy            String?
+  paidAt            DateTime?
+  refundedAt        DateTime?
+  
+  // Ledger references
+  holdLedgerEntryId     String?      @unique // Entry for holding funds
+  releaseLedgerEntryId  String?      @unique // Entry for releasing (reject) or debiting (paid)
+  
+  // Idempotency
+  idempotencyKey    String?          @unique
+  
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  
+  // Relations
+  user              User              @relation(fields: [userId], references: [id])
+  reviewer          User?             @relation("WithdrawalReviewer", fields: [reviewedBy], references: [id])
+  approver          User?             @relation("WithdrawalApprover", fields: [approvedBy], references: [id])
+  rejecter          User?             @relation("WithdrawalRejecter", fields: [rejectedBy], references: [id])
+  payer             User?             @relation("WithdrawalPayer", fields: [paidBy], references: [id])
+  payoutTransactions PayoutTransaction[]
+  
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([payoutMethod])
+}
+
+// =============================================================================
+// BANK SNAPSHOT - For reserve ratio calculation
+// =============================================================================
+model BankSnapshot {
+  id                    String   @id @default(cuid())
+  
+  // Bank balance (admin-updated or from integration)
+  bankBalance           Decimal  @db.Decimal(18, 2)
+  bankAccountRef        String?  // Reference to external bank account
+  
+  // Calculated values at snapshot time
+  totalUserLiabilities  Decimal  @db.Decimal(18, 2) // Sum of all user balances
+  reserveRatio          Decimal  @db.Decimal(10, 4) // bankBalance / totalUserLiabilities
+  
+  // Thresholds at time of snapshot
+  minRatioThreshold     Decimal  @db.Decimal(10, 4) // e.g., 1.1
+  warningRatioThreshold Decimal  @db.Decimal(10, 4) // e.g., 1.2
+  
+  // Status
+  isWithdrawalsLocked   Boolean  @default(false)
+  isLargeWithdrawalsPaused Boolean @default(false)
+  
+  // Audit
+  createdBy             String?
+  notes                 String?
+  
+  createdAt             DateTime @default(now())
+  
+  // Relations
+  creator               User?    @relation(fields: [createdBy], references: [id])
+  
+  @@index([createdAt])
+}
+
+// =============================================================================
+// ADMIN ACTION - Immutable audit trail
+// =============================================================================
+model AdminAction {
+  id            String          @id @default(cuid())
+  adminId       String
+  actionType    AdminActionType
+  
+  // Target of the action
+  targetUserId  String?
+  targetType    String?         // 'DEPOSIT', 'WITHDRAWAL', 'USER', 'CONFIG', etc.
+  targetId      String?         // ID of the target entity
+  
+  // Action details
+  amount        Decimal?        @db.Decimal(18, 2)
+  reasonCode    String?
+  reason        String?
+  metadata      Json?           // Additional context
+  
+  // Request context for security
+  ipAddress     String?
+  userAgent     String?
+  
+  createdAt     DateTime        @default(now())
+  
+  // Relations
+  admin         User            @relation("AdminActions", fields: [adminId], references: [id])
+  targetUser    User?           @relation("AdminActionsTarget", fields: [targetUserId], references: [id])
+  
+  @@index([adminId])
+  @@index([targetUserId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@index([targetType, targetId])
+}
+
+// =============================================================================
+// ROUND SETTLEMENT - Idempotency for settlement
+// =============================================================================
+model RoundSettlement {
+  id                  String   @id @default(cuid())
+  roundId             String   @unique
+  roundNumber         Int
+  
+  // Settlement version for idempotency
+  settlementVersion   Int      @default(1)
+  
+  // Snapshot at settlement time
+  totalPool           Decimal  @db.Decimal(18, 2)
+  totalPayouts        Decimal  @db.Decimal(18, 2)
+  houseFee            Decimal  @db.Decimal(18, 2)
+  houseProfit         Decimal  @db.Decimal(18, 2) // totalPool - totalPayouts - houseFee
+  
+  // Counts
+  totalBets           Int
+  winningBets         Int
+  losingBets          Int
+  
+  // Ledger references
+  clearingLedgerEntryId String? @unique
+  profitLedgerEntryId   String? @unique
+  
+  // Audit
+  settledBy           String?  // Admin who triggered (if manual)
+  settledAt           DateTime @default(now())
+  
+  // Relations
+  round               Round    @relation(fields: [roundId], references: [id])
+  settler             User?    @relation(fields: [settledBy], references: [id])
+  
+  @@index([roundNumber])
+  @@index([settledAt])
+}
+
+// =============================================================================
+// PAYOUT TRANSACTION - Track external payouts
+// =============================================================================
+model PayoutTransaction {
+  id                String   @id @default(cuid())
+  withdrawalId      String
+  
+  // External payment details
+  externalRef       String?  // Reference from payment provider
+  payoutMethod      String
+  payoutDestination String
+  amount            Decimal  @db.Decimal(18, 2)
+  
+  // Status
+  status            String   @default("PENDING") // PENDING, SUCCESS, FAILED
+  failureReason     String?
+  
+  // Response from payment provider
+  providerResponse  Json?
+  
+  // Audit
+  initiatedBy       String
+  initiatedAt       DateTime @default(now())
+  completedAt       DateTime?
+  
+  // Relations
+  withdrawal        Withdrawal @relation(fields: [withdrawalId], references: [id])
+  initiator         User       @relation(fields: [initiatedBy], references: [id])
+  
+  @@index([withdrawalId])
+  @@index([status])
+  @@index([initiatedAt])
+}
+
+// =============================================================================
+// ALERT LOG - System alerts for reserve ratio, etc.
+// =============================================================================
+model AlertLog {
+  id              String        @id @default(cuid())
+  alertType       String        // 'RESERVE_RATIO_LOW', 'RESERVE_RATIO_CRITICAL', 'LARGE_WITHDRAWAL', etc.
+  severity        AlertSeverity
+  
+  // Alert details
+  title           String
+  message         String
+  metadata        Json?
+  
+  // Status
+  isAcknowledged  Boolean       @default(false)
+  acknowledgedBy  String?
+  acknowledgedAt  DateTime?
+  
+  createdAt       DateTime      @default(now())
+  
+  // Relations
+  acknowledger    User?         @relation(fields: [acknowledgedBy], references: [id])
+  
+  @@index([alertType])
+  @@index([severity])
+  @@index([isAcknowledged])
+  @@index([createdAt])
+}
+
+// =============================================================================
+// FEE CONFIGURATION - Dynamic fee settings
+// =============================================================================
+model FeeConfiguration {
+  id              String   @id @default(cuid())
+  feeType         String   @unique // 'WITHDRAWAL', 'DEPOSIT', etc.
+  
+  // Tiered fee structure (JSON array of {minAmount, maxAmount, feeAmount, feePercent})
+  tiers           Json
+  
+  // Caps
+  minFee          Decimal  @db.Decimal(18, 2)
+  maxFee          Decimal? @db.Decimal(18, 2)
+  
+  // Premium user discount
+  premiumDiscount Decimal  @default(100) @db.Decimal(5, 2) // 100 = free for premium
+  
+  isActive        Boolean  @default(true)
+  
+  updatedBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Relations
+  updater         User?    @relation(fields: [updatedBy], references: [id])
+  
+  @@index([feeType])
+}
+
+// =============================================================================
+// WITHDRAWAL LIMIT - User-specific and tier-based limits
+// =============================================================================
+model WithdrawalLimit {
+  id                  String   @id @default(cuid())
+  limitType           String   @unique // 'FREE_DAILY', 'PREMIUM_DAILY', 'FREE_SINGLE', 'PREMIUM_SINGLE'
+  
+  dailyLimit          Decimal  @db.Decimal(18, 2)
+  singleTransactionMax Decimal @db.Decimal(18, 2)
+  
+  // Large withdrawal threshold (requires extra review)
+  largeWithdrawalThreshold Decimal @db.Decimal(18, 2)
+  
+  isActive            Boolean  @default(true)
+  
+  updatedBy           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  // Relations
+  updater             User?    @relation(fields: [updatedBy], references: [id])
 }

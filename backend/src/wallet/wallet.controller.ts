@@ -108,82 +108,53 @@ export class WalletController {
   }
 
   @Post('transfer')
-  @ApiOperation({ summary: 'Create internal transfer (Premium only)' })
-  @ApiResponse({ status: 201, description: 'Transfer request created successfully' })
-  @ApiResponse({ status: 403, description: 'Premium subscription required' })
+  @ApiOperation({ summary: 'Create internal transfer - DISABLED' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async createTransfer(@Body() createTransferDto: CreateTransferDto, @CurrentUser() user: any) {
-    // Premium-only feature
-    if (!user.premium || (user.premiumExpiresAt && new Date(user.premiumExpiresAt) < new Date())) {
-      throw new ForbiddenException('Internal transfers are available to premium users only');
+    // SECURITY: Internal transfers are disabled by default
+    // Feature flag must be explicitly enabled AND this code path should NEVER be reached in production
+    const transfersEnabled = process.env.TRANSFERS_ENABLED === 'true';
+    if (!transfersEnabled) {
+      throw new ForbiddenException(
+        'Internal transfers between users are permanently disabled. ' +
+        'Please use deposits and withdrawals through official channels.'
+      );
     }
 
-    const amount = new Decimal(createTransferDto.amount);
-    
-    // Find recipient by username, ID, or email (for contact purposes)
-    const recipient = await this.walletService.findUserByIdentifier(createTransferDto.recipient);
-
-    if (!recipient) {
-      throw new NotFoundException('Recipient not found. Search by username, ID, or email.');
+    // Even if flag is enabled, block this endpoint in production
+    if (process.env.NODE_ENV === 'production') {
+      throw new ForbiddenException(
+        'Internal transfers are not available in production environment.'
+      );
     }
 
-    // Create transfer
-    const transfer = await this.walletService.transferFunds(
-      user.id,
-      recipient.id,
-      amount,
-      createTransferDto.feePayer,
-      createTransferDto.idempotencyKey,
-    );
-
-    // Return transfer with recipient email for contact
-    return {
-      ...transfer,
-      recipient: {
-        id: recipient.id,
-        username: recipient.username,
-        email: recipient.email, // Allow contact via email
-        isVerified: recipient.verificationBadge,
-        isPremium: recipient.premium,
-      },
-    };
+    throw new ForbiddenException('Internal transfers are disabled.');
   }
 
   @Get('transfer/search')
-  @ApiOperation({ summary: 'Search users for transfer by username or email (Premium only)' })
-  @ApiResponse({ status: 200, description: 'Users found' })
-  @ApiQuery({ name: 'q', description: 'Search by username or email' })
+  @ApiOperation({ summary: 'Search users for transfer - DISABLED' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async searchUsersForTransfer(
     @Query('q') query: string,
     @CurrentUser() user: any,
   ) {
-    // Premium-only feature
-    if (!user.premium || (user.premiumExpiresAt && new Date(user.premiumExpiresAt) < new Date())) {
-      throw new ForbiddenException('This feature is available to premium users only');
-    }
-
-    if (!query || query.length < 2) {
-      throw new BadRequestException('Search query must be at least 2 characters');
-    }
-
-    const users = await this.walletService.searchUsers(query, user.id);
-
-    return users;
+    // SECURITY: Internal transfers are disabled
+    throw new ForbiddenException(
+      'Internal transfers between users are permanently disabled.'
+    );
   }
 
   @Get('transfer/:transferId')
-  @ApiOperation({ summary: 'Get transfer details with recipient info (Premium only)' })
-  @ApiResponse({ status: 200, description: 'Transfer retrieved successfully' })
-  @ApiResponse({ status: 404, description: 'Transfer not found' })
+  @ApiOperation({ summary: 'Get transfer details - DISABLED' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async getTransfer(
     @Param('transferId') transferId: string,
     @CurrentUser() user: any,
   ) {
-    // Premium-only feature
-    if (!user.premium || (user.premiumExpiresAt && new Date(user.premiumExpiresAt) < new Date())) {
-      throw new ForbiddenException('This feature is available to premium users only');
-    }
-
-    return this.walletService.getTransferWithRecipient(transferId, user.id);
+    // SECURITY: Internal transfers are disabled
+    throw new ForbiddenException(
+      'Internal transfers between users are permanently disabled.'
+    );
   }
 
   @Get('transactions')
@@ -204,7 +175,7 @@ export class WalletController {
   // Admin endpoints
   @Get('admin/transactions')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN', 'AUDIT_ADMIN')
   @ApiOperation({ summary: 'Get all transactions (Admin only)' })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -222,7 +193,7 @@ export class WalletController {
 
   @Get('admin/transactions/pending')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN')
   @ApiOperation({ summary: 'Get pending transactions (Admin only)' })
   @ApiResponse({ status: 200, description: 'Pending transactions retrieved successfully' })
   async getPendingTransactions() {
@@ -231,7 +202,7 @@ export class WalletController {
 
   @Post('admin/transactions/:id/approve')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN')
   @ApiOperation({ summary: 'Approve transaction (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transaction approved successfully' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
@@ -241,7 +212,7 @@ export class WalletController {
 
   @Post('admin/transactions/:id/reject')
   @UseGuards(RolesGuard)
-  @Roles('ADMIN', 'SUPER_ADMIN')
+  @Roles('ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN')
   @ApiOperation({ summary: 'Reject transaction (Admin only)' })
   @ApiResponse({ status: 200, description: 'Transaction rejected successfully' })
   @ApiResponse({ status: 404, description: 'Transaction not found' })
@@ -252,31 +223,40 @@ export class WalletController {
   @Get('admin/transfers')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Get internal transfers (Admin only)' })
-  @ApiQuery({ name: 'status', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Transfers retrieved successfully' })
+  @ApiOperation({ summary: 'Get internal transfers - DISABLED (legacy endpoint)' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async getInternalTransfers(@Query('status') status?: string) {
-    return this.walletService.getAllTransfers(status);
+    // SECURITY: Internal transfers are disabled - return empty for legacy compatibility
+    // This endpoint exists only to prevent 404s from legacy clients
+    return { 
+      message: 'Internal transfers are permanently disabled',
+      transfers: [],
+      count: 0 
+    };
   }
 
   @Post('admin/transfers/:id/approve')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Approve internal transfer (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Transfer approved successfully' })
-  @ApiResponse({ status: 404, description: 'Transfer not found' })
+  @ApiOperation({ summary: 'Approve internal transfer - DISABLED' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async approveTransfer(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.walletService.processTransfer(id, true, user.id);
+    // SECURITY: Internal transfers are disabled
+    throw new ForbiddenException(
+      'Internal transfers are permanently disabled. Cannot approve transfers.'
+    );
   }
 
   @Post('admin/transfers/:id/reject')
   @UseGuards(RolesGuard)
   @Roles('ADMIN', 'SUPER_ADMIN')
-  @ApiOperation({ summary: 'Reject internal transfer (Admin only)' })
-  @ApiResponse({ status: 200, description: 'Transfer rejected successfully' })
-  @ApiResponse({ status: 404, description: 'Transfer not found' })
+  @ApiOperation({ summary: 'Reject internal transfer - DISABLED' })
+  @ApiResponse({ status: 403, description: 'Internal transfers are disabled' })
   async rejectTransfer(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.walletService.processTransfer(id, false, user.id);
+    // SECURITY: Internal transfers are disabled
+    throw new ForbiddenException(
+      'Internal transfers are permanently disabled. Cannot reject transfers.'
+    );
   }
   
   @Post('demo/reset')

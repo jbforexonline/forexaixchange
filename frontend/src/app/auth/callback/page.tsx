@@ -82,9 +82,10 @@ export default function AuthCallbackPage() {
             } else {
               // Normal redirect flow (not in popup)
               const role = (user.role || 'USER').toUpperCase();
-              const nextRoute = role === 'ADMIN' || role === 'SUPER_ADMIN'
-                ? '/dashboard'
-                : '/spin';
+              const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN'];
+              const nextRoute = adminRoles.includes(role)
+                ? '/admin/dashboard'
+                : '/dashboard/spin';
               
               setStatus('success');
               setMessage('Authentication successful! Redirecting...');

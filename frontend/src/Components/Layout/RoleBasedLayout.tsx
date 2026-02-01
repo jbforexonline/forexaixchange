@@ -6,6 +6,7 @@ import {
   getUserRole,
   getSubscriptionTier,
   getLayoutConfig,
+  isAdminRole,
 } from "@/lib/layoutConfig";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
 import SuperAdminLayout from "./SuperAdminLayout";
@@ -32,9 +33,9 @@ export default function RoleBasedLayout({ children }) {
         
         const currentUser = getCurrentUser();
         const userRole = currentUser ? getUserRole(currentUser) : UserRole.USER;
-        const isAdminRole = userRole === UserRole.ADMIN || userRole === UserRole.SUPER_ADMIN;
+        const isUserAdmin = isAdminRole(userRole);
         
-        if (data.maintenance && !isAdminRole && pathname !== '/maintenance' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+        if (data.maintenance && !isUserAdmin && pathname !== '/maintenance' && !pathname.startsWith('/login') && !pathname.startsWith('/register')) {
           router.replace('/maintenance');
           return;
         }
@@ -75,18 +76,12 @@ export default function RoleBasedLayout({ children }) {
 
     // If authenticated user tries to access root path, redirect based on role
     if (pathname === '/') {
-      switch (userRole) {
-        case UserRole.SUPER_ADMIN:
-        case UserRole.ADMIN:
-          router.replace('/admin/dashboard');
-          break;
-        case UserRole.MODERATOR:
-          router.replace('/dashboard/spin');
-          break;
-        case UserRole.USER:
-        default:
-          router.replace('/dashboard/spin');
-          break;
+      if (isAdminRole(userRole)) {
+        router.replace('/admin/dashboard');
+      } else if (userRole === UserRole.MODERATOR) {
+        router.replace('/dashboard/spin');
+      } else {
+        router.replace('/dashboard/spin');
       }
       return;
     }
@@ -147,6 +142,9 @@ export default function RoleBasedLayout({ children }) {
     case UserRole.SUPER_ADMIN:
       return <SuperAdminLayout {...layoutProps} />;
     case UserRole.ADMIN:
+    case UserRole.FINANCE_ADMIN:
+    case UserRole.SYSTEM_ADMIN:
+    case UserRole.AUDIT_ADMIN:
       return <AdminLayout {...layoutProps} />;
     case UserRole.MODERATOR:
       return <ModeratorLayout {...layoutProps} />;

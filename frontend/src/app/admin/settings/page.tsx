@@ -5,7 +5,7 @@ import "./SystemSettings.scss";
 import { getSystemConfig, updateSystemConfig } from "@/lib/api/admin-finance";
 import { setMaintenanceMode } from "@/lib/api/admin-users";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import { useToast } from "@/Components/Common/Toast/ToastContext";
 
 export default function SystemSettingsPage() {
@@ -47,7 +47,8 @@ export default function SystemSettingsPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  // Settings accessible by SUPER_ADMIN, ADMIN, and SYSTEM_ADMIN
+  if (!isAdminRole(role)) {
     return <div className="p-8 text-red-500">Access Denied</div>;
   }
 

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 
 interface AnalyticsData {
   totalUsers: number;
@@ -39,7 +39,7 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("7days");
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+    if (!isAdminRole(role)) {
       return;
     }
 
@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>

@@ -570,221 +570,48 @@ export class WalletService {
     });
   }
 
+  /**
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * This method exists only for legacy compatibility and will throw ForbiddenException
+   * User-to-user transfers are not allowed per security policy
+   */
   async transferFunds(senderId: string, recipientId: string, amount: Decimal, feePayer: 'SENDER' | 'RECIPIENT', idempotencyKey?: string) {
-    return this.prisma.$transaction(async (tx) => {
-      // Check idempotency
-      if (idempotencyKey) {
-        const existing = await tx.internalTransfer.findUnique({
-          where: { idempotencyKey },
-        });
-        if (existing) {
-          this.logger.warn(`Duplicate transfer attempt: ${idempotencyKey}`);
-          return existing;
-        }
-      }
+    // SECURITY: Internal transfers are permanently disabled
+    const transfersEnabled = process.env.TRANSFERS_ENABLED === 'true';
+    
+    if (!transfersEnabled || process.env.NODE_ENV === 'production') {
+      this.logger.warn(`⚠️ BLOCKED: Attempted internal transfer from ${senderId} to ${recipientId} for $${amount}`);
+      throw new ForbiddenException(
+        'Internal transfers between users are permanently disabled. ' +
+        'All financial transactions must go through official deposit/withdrawal channels with admin approval.'
+      );
+    }
 
-      const senderWallet = await tx.wallet.findUnique({
-        where: { userId: senderId },
-      });
-
-      const recipientWallet = await tx.wallet.findUnique({
-        where: { userId: recipientId },
-      });
-
-      if (!senderWallet || !recipientWallet) {
-        throw new NotFoundException('Wallet not found');
-      }
-
-      const fee = this.calculateTransferFee(amount);
-      const totalDeduction = feePayer === 'SENDER' ? amount.add(fee) : amount;
-
-      if (senderWallet.available.lt(totalDeduction)) {
-        throw new BadRequestException('Insufficient funds');
-      }
-
-      // Create internal transfer record
-      const transfer = await tx.internalTransfer.create({
-        data: {
-          senderId,
-          recipientId,
-          amount,
-          fee,
-          feePayer,
-          status: 'PENDING',
-          idempotencyKey,
-        },
-      });
-
-      // Hold the funds (instant deduction from available)
-      await tx.wallet.update({
-        where: { userId: senderId },
-        data: {
-          available: {
-            decrement: totalDeduction,
-          },
-          held: {
-            increment: totalDeduction,
-          },
-        },
-      });
-
-      return transfer;
-    }).then(async (transfer) => {
-      // Emit real-time balance update for sender (funds held instantly)
-      await this.emitWalletUpdate(senderId);
-      return transfer;
-    });
+    // Even in development with flag enabled, log warning
+    this.logger.warn(`⚠️ DEPRECATED: transferFunds called - this should not happen in production`);
+    throw new ForbiddenException('Internal transfers are disabled.');
   }
 
   /**
-   * Get transfer details with recipient info for contact
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * This method exists only for legacy compatibility
    */
   async getTransferWithRecipient(transferId: string, userId: string) {
-    const transfer = await this.prisma.internalTransfer.findUnique({
-      where: { id: transferId },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        recipient: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-            verificationBadge: true,
-            premium: true,
-          },
-        },
-      },
-    });
-
-    if (!transfer) {
-      throw new NotFoundException('Transfer not found');
-    }
-
-    // Only sender or recipient can view
-    if (transfer.senderId !== userId && transfer.recipientId !== userId) {
-      throw new ForbiddenException('Not authorized to view this transfer');
-    }
-
-    return transfer;
+    this.logger.warn(`⚠️ BLOCKED: Attempted to get transfer details - feature disabled`);
+    throw new ForbiddenException(
+      'Internal transfers are permanently disabled.'
+    );
   }
 
+  /**
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * This method exists only for legacy compatibility
+   */
   async processTransfer(transferId: string, approved: boolean, approverId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      const transfer = await tx.internalTransfer.findUnique({
-        where: { id: transferId },
-        include: {
-          sender: { include: { wallet: true } },
-          recipient: { include: { wallet: true } },
-        },
-      });
-
-      if (!transfer) {
-        throw new NotFoundException('Transfer not found');
-      }
-
-      const status = approved ? 'APPROVED' : 'REJECTED';
-
-      if (approved) {
-        // Move funds to recipient
-        const recipientAmount = transfer.feePayer === 'RECIPIENT'
-          ? transfer.amount.sub(transfer.fee)
-          : transfer.amount;
-
-        await tx.wallet.update({
-          where: { userId: transfer.recipientId },
-          data: {
-            available: {
-              increment: recipientAmount,
-            },
-          },
-        });
-
-        // Remove held funds from sender
-        const senderDeduction = transfer.feePayer === 'SENDER'
-          ? transfer.amount.add(transfer.fee)
-          : transfer.amount;
-
-        await tx.wallet.update({
-          where: { userId: transfer.senderId },
-          data: {
-            held: {
-              decrement: senderDeduction,
-            },
-          },
-        });
-
-        // Create transaction records
-        await tx.transaction.createMany({
-          data: [
-            {
-              userId: transfer.senderId,
-              type: TransactionType.INTERNAL_TRANSFER_SENT,
-              amount: transfer.amount,
-              fee: transfer.feePayer === 'SENDER' ? transfer.fee : new Decimal(0),
-              status: TransactionStatus.COMPLETED,
-              description: `Internal transfer to ${transfer.recipient.username}`,
-            },
-            {
-              userId: transfer.recipientId,
-              type: TransactionType.INTERNAL_TRANSFER_RECEIVED,
-              amount: recipientAmount,
-              fee: transfer.feePayer === 'RECIPIENT' ? transfer.fee : new Decimal(0),
-              status: TransactionStatus.COMPLETED,
-              description: `Internal transfer from ${transfer.sender.username}`,
-            },
-          ],
-        });
-      } else {
-        // Return held funds to sender
-        const returnAmount = transfer.feePayer === 'SENDER'
-          ? transfer.amount.add(transfer.fee)
-          : transfer.amount;
-
-        await tx.wallet.update({
-          where: { userId: transfer.senderId },
-          data: {
-            available: {
-              increment: returnAmount,
-            },
-            held: {
-              decrement: returnAmount,
-            },
-          },
-        });
-      }
-
-      // Update transfer status
-      const updatedTransfer = await tx.internalTransfer.update({
-        where: { id: transferId },
-        data: {
-          status,
-          approvedBy: approverId,
-          approvedAt: new Date(),
-        },
-      });
-
-      return updatedTransfer;
-    }).then(async (transfer) => {
-      // Emit real-time wallet updates for both sender and recipient
-      await this.emitWalletUpdate(transfer.senderId);
-      if (approved) {
-        await this.emitWalletUpdate(transfer.recipientId);
-        this.logger.log(
-          `💰 Transfer APPROVED - Sender: ${transfer.senderId}, Recipient: ${transfer.recipientId} - Balances updated in real-time`,
-        );
-      } else {
-        this.logger.log(
-          `❌ Transfer REJECTED - Sender: ${transfer.senderId} - Funds returned, balance updated in real-time`,
-        );
-      }
-      return transfer;
-    });
+    this.logger.warn(`⚠️ BLOCKED: Attempted to process transfer - feature disabled`);
+    throw new ForbiddenException(
+      'Internal transfers are permanently disabled. Cannot process transfers.'
+    );
   }
 
   calculateWithdrawalFee(amount: Decimal): Decimal {
@@ -799,16 +626,13 @@ export class WalletService {
     return amount.mul(0.01);
   }
 
+  /**
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * This method exists only for legacy compatibility - returns 0
+   */
   calculateTransferFee(amount: Decimal): Decimal {
-    const amountNum = amount.toNumber();
-
-    if (amountNum < 50) return new Decimal(1);
-    if (amountNum < 100) return new Decimal(2);
-    if (amountNum < 500) return new Decimal(3);
-    if (amountNum < 2000) return new Decimal(6);
-
-    // 1% for amounts >= $2000
-    return amount.mul(0.01);
+    // Transfers are disabled - no fee calculation needed
+    return new Decimal(0);
   }
 
   calculateAffiliateCommission(amount: Decimal): Decimal {
@@ -852,59 +676,21 @@ export class WalletService {
   }
 
   /**
-   * Search users for transfer
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * Search users - returns empty array
    */
   async searchUsers(query: string, excludeUserId: string) {
-    return this.prisma.user.findMany({
-      where: {
-        OR: [
-          { username: { contains: query, mode: 'insensitive' } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
-        id: { not: excludeUserId },
-        isActive: true,
-        isBanned: false,
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        verificationBadge: true,
-        premium: true,
-        isVerified: true,
-      },
-      take: 10,
-    });
+    this.logger.warn(`⚠️ BLOCKED: User search for transfers attempted - feature disabled`);
+    return [];
   }
 
   /**
-   * Get all internal transfers (admin)
+   * @deprecated Internal transfers are PERMANENTLY DISABLED
+   * Get all internal transfers - returns empty array for legacy compatibility
    */
   async getAllTransfers(status?: string) {
-    const where: any = {};
-    if (status) {
-      where.status = status;
-    }
-    return this.prisma.internalTransfer.findMany({
-      where,
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        recipient: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    this.logger.warn(`⚠️ DEPRECATED: getAllTransfers called - internal transfers are disabled`);
+    return [];
   }
   /**
    * Reset demo balance

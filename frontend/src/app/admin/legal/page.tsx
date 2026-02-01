@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import {
   listVersions,
   getPreview,
@@ -43,7 +43,7 @@ export default function AdminLegalPage() {
   }, []);
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) return;
+    if (!isAdminRole(role)) return;
     fetchVersions();
   }, [role, fetchVersions]);
 
@@ -90,7 +90,7 @@ export default function AdminLegalPage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>

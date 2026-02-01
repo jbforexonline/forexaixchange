@@ -9,7 +9,7 @@ import { CurrentUser } from '../auth/decorators/user.decorator';
 @ApiTags('Admin')
 @Controller('sysadmin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles('ADMIN', 'SUPER_ADMIN')
+@Roles('ADMIN', 'SUPER_ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN')
 @ApiBearerAuth('JWT-auth')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {

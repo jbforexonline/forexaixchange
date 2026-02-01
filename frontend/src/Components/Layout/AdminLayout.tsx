@@ -9,6 +9,8 @@ import {
   CreditCard,
   ChevronDown,
   FileText,
+  Building2,
+  DollarSign,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -74,14 +76,27 @@ export default function AdminLayout({
       category: "affiliate",
     },
     {
-      icon: CreditCard,
+      icon: DollarSign,
       label: "Financial Management",
       href: "/admin/financial",
       category: "financial",
       submenu: [
         { label: "Overview", href: "/admin/financial" },
-        { label: "Pending Approvals", href: "/admin/financial?tab=pending" },
-        { label: "Configuration", href: "/admin/financial?tab=config" },
+        { label: "User Deposits", href: "/admin/financial?tab=deposits" },
+        { label: "User Withdrawals", href: "/admin/financial?tab=withdrawals" },
+        { label: "Disputes / Pending", href: "/admin/financial?tab=disputes" },
+      ],
+    },
+    {
+      icon: Building2,
+      label: "House Accounts",
+      href: "/admin/house-accounts",
+      category: "house",
+      submenu: [
+        { label: "Overview", href: "/admin/house-accounts" },
+        { label: "Manage Accounts", href: "/admin/house-accounts?tab=accounts" },
+        { label: "Bank & Reserve", href: "/admin/house-accounts?tab=bank" },
+        { label: "Settlements", href: "/admin/house-accounts?tab=settlements" },
       ],
     },
     {

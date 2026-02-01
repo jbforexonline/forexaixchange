@@ -417,17 +417,10 @@ export default function SpinWheel({
             </stop>
           </linearGradient>
           
-          {/* Winner celebration gradient (muted purple/violet - dark theme friendly) */}
+          {/* Winner celebration gradient (muted violet - matching ring brightness) */}
           <linearGradient id="winnerCelebrationGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="rgba(139, 92, 246, 0.7)">
-              <animate attributeName="stop-color" values="rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.75);rgba(124, 58, 237, 0.65);rgba(139, 92, 246, 0.7)" dur="1s" repeatCount="indefinite" />
-            </stop>
-            <stop offset="50%" stopColor="rgba(109, 40, 217, 0.65)">
-              <animate attributeName="stop-color" values="rgba(109, 40, 217, 0.65);rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.7);rgba(109, 40, 217, 0.65)" dur="1s" repeatCount="indefinite" />
-            </stop>
-            <stop offset="100%" stopColor="rgba(91, 33, 182, 0.7)">
-              <animate attributeName="stop-color" values="rgba(91, 33, 182, 0.7);rgba(124, 58, 237, 0.65);rgba(139, 92, 246, 0.7);rgba(91, 33, 182, 0.7)" dur="1s" repeatCount="indefinite" />
-            </stop>
+            <stop offset="0%" stopColor="rgba(120, 80, 180, 0.5)" />
+            <stop offset="100%" stopColor="rgba(90, 60, 160, 0.35)" />
           </linearGradient>
 
           {/* Curved text paths for labels */}

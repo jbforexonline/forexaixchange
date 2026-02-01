@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import "./UserReports.scss";
 
 type Report = {
@@ -134,7 +134,7 @@ export default function UserReportsPage() {
     }
   }
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div className="accessDenied">
         <h2>Access Denied</h2>

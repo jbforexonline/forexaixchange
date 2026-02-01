@@ -3,6 +3,9 @@ import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole } from "@/lib/layoutConfig";
 
+// Database accessible by SUPER_ADMIN and SYSTEM_ADMIN
+const DATABASE_ALLOWED_ROLES = [UserRole.SUPER_ADMIN, UserRole.SYSTEM_ADMIN];
+
 interface DatabaseInfo {
   name: string;
   version: string;
@@ -40,7 +43,7 @@ export default function DatabasePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN) {
+    if (!DATABASE_ALLOWED_ROLES.includes(role)) {
       return;
     }
 
@@ -91,11 +94,11 @@ export default function DatabasePage() {
     }
   };
 
-  if (role !== UserRole.SUPER_ADMIN) {
+  if (!DATABASE_ALLOWED_ROLES.includes(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>
-        <p>Only Super Admins can access database management.</p>
+        <p>Only Super Admins and System Admins can access database management.</p>
       </div>
     );
   }

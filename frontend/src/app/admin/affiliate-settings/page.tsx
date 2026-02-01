@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useLayoutState } from "@/hooks/useLayoutState";
-import { UserRole } from "@/lib/layoutConfig";
+import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 import { useToast } from "@/Components/Common/Toast/ToastContext";
 
 import { getAffiliateSettings, updateAffiliateSettings } from "@/lib/api/admin-affiliate";
@@ -64,7 +64,7 @@ export default function AffiliateSettingsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+    if (!isAdminRole(role)) {
       return;
     }
 
@@ -111,7 +111,7 @@ export default function AffiliateSettingsPage() {
     }));
   };
 
-  if (role !== UserRole.SUPER_ADMIN && role !== UserRole.ADMIN) {
+  if (!isAdminRole(role)) {
     return (
       <div style={{ padding: "2rem", color: "#dc2626" }}>
         <h2>Access Denied</h2>
