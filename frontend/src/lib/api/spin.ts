@@ -123,14 +123,23 @@ export async function getRoundTotals(roundId: string): Promise<{ roundId: string
 }
 
 /**
- * Get round history
+ * Get round history (settled rounds with pagination).
+ * Backend returns { data: roundsArray, meta } wrapped in { data, message, statusCode }.
  */
-export async function getRoundHistory(page = 1, limit = 20) {
+export async function getRoundHistory(page = 1, limit = 20): Promise<{ data: any[]; meta?: { total: number; page: number; limit: number; totalPages: number } }> {
   const response = await fetch(`${API_URL}/rounds/history?page=${page}&limit=${limit}`, {
     method: 'GET',
     headers: getHeaders(),
   });
-  return handleResponse(response);
+  const raw = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((raw as any).message || `HTTP ${response.status}`);
+  }
+  // Unwrap backend envelope: { data: { data: [...], meta }, message, statusCode }
+  const payload = (raw as any)?.data ?? raw;
+  const data = Array.isArray(payload) ? payload : (payload?.data ?? []);
+  const meta = Array.isArray(payload) ? undefined : payload?.meta;
+  return { data: Array.isArray(data) ? data : [], meta };
 }
 
 /**

@@ -248,11 +248,8 @@ export default function Histogram({
         // This is the authoritative source and consistent with all other tables
         const response = await getRoundHistory(1, limit).catch(() => ({ data: [] }));
         
-        // Handle different response structures
-        let rounds = response?.data?.data || response?.data || [];
-        if (!Array.isArray(rounds)) {
-          rounds = [];
-        }
+        // getRoundHistory returns { data: roundsArray, meta }
+        const rounds = Array.isArray(response?.data) ? response.data : [];
         
         console.log('Round history (authoritative):', rounds);
         

@@ -108,11 +108,7 @@ export default function TradingHistoryTable({
       if (!showDurationFilter) {
         // Normal users: Use master round history (20m only)
         const roundResponse = await getRoundHistory(1, limit);
-        let rounds = roundResponse?.data?.data || roundResponse?.data || [];
-        
-        if (!Array.isArray(rounds)) {
-          rounds = [];
-        }
+        const rounds = Array.isArray(roundResponse?.data) ? roundResponse.data : [];
         
         // Filter by time period if specified
         if (period && rounds.length > 0) {
