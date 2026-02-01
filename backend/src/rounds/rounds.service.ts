@@ -271,6 +271,8 @@ export class RoundsService {
 
   /**
    * Compute final totals from database (authoritative source)
+   * v3.1: CRITICAL FIX - Only count 20m bets for the master round!
+   * This ensures pool separation between 5m/10m/20m durations.
    */
   private async computeRoundTotals(
     roundId: string,
@@ -289,11 +291,14 @@ export class RoundsService {
 
     // Aggregate by market and selection
     // EXCLUDE demo bets from totals - they don't affect who wins
+    // v3.1 FIX: ONLY count 20-minute duration bets for master round!
+    // 5m and 10m bets have their own separate market instances.
     const bets = await tx.bet.findMany({
       where: {
         roundId,
         status: 'ACCEPTED',
         isDemo: false, // Only count live bets for winner determination
+        durationMinutes: 'TWENTY', // v3.1: CRITICAL - Only 20m bets for master round
       },
       select: {
         market: true,
@@ -390,6 +395,140 @@ export class RoundsService {
         page,
         limit,
         totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * v3.0: Get market instance history by duration with time period filtering
+   */
+  async getMarketInstanceHistory(
+    duration?: number,
+    page = 1,
+    limit = 20,
+    period?: string,
+  ) {
+    const skip = (page - 1) * limit;
+
+    // Build where clause
+    const whereClause: any = {
+      status: 'SETTLED',
+    };
+
+    // Filter by duration if specified
+    if (duration) {
+      const durationMap: Record<number, string> = {
+        5: 'FIVE',
+        10: 'TEN',
+        20: 'TWENTY',
+      };
+      if (durationMap[duration]) {
+        whereClause.durationMinutes = durationMap[duration];
+      }
+    }
+
+    // Filter by time period
+    if (period) {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (period) {
+        case 'hourly':
+          startDate = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case 'daily':
+          startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case 'weekly':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case 'monthly':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case 'quarterly':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        case 'annually':
+          startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // All time
+      }
+
+      whereClause.settledAt = {
+        gte: startDate,
+      };
+    }
+
+    const [instances, total] = await Promise.all([
+      this.prisma.marketInstance.findMany({
+        where: whereClause,
+        skip,
+        take: limit,
+        orderBy: { settledAt: 'desc' },
+        include: {
+          masterRound: {
+            select: {
+              roundNumber: true,
+              settledAt: true,
+            },
+          },
+        },
+      }),
+      this.prisma.marketInstance.count({ where: whereClause }),
+    ]);
+
+    // Transform the data to include formatted results
+    const formattedInstances = instances.map((instance: any) => {
+      // Determine winners - use correct field names from settlement
+      const outerWinner = instance.outerWinner;
+      const middleWinner = instance.middleWinner;
+      const innerWinner = instance.innerWinner;
+      const indecisionTriggered = instance.indecisionTriggered || false;
+
+      // Format result text
+      let resultText = '';
+      
+      if (indecisionTriggered) {
+        resultText = 'INDECISION';
+      } else {
+        const winners = [];
+        if (outerWinner) winners.push(outerWinner);
+        if (middleWinner) winners.push(middleWinner);
+        if (innerWinner) winners.push(innerWinner);
+        resultText = winners.join(', ') || 'N/A';
+      }
+
+      return {
+        id: instance.id,
+        masterRoundId: instance.masterRoundId,
+        roundNumber: instance.masterRound?.roundNumber,
+        durationMinutes: instance.durationMinutes,
+        windowStart: instance.windowStartMinutes,
+        windowEnd: instance.windowEndMinutes,
+        status: instance.status,
+        settledAt: instance.settledAt,
+        openedAt: instance.openedAt,
+        // Results
+        outerWinner,
+        middleWinner,
+        innerWinner,
+        indecisionTriggered,
+        resultText,
+        // Pools
+        totalVolume: instance.totalVolume,
+      };
+    });
+
+    return {
+      data: formattedInstances,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+        duration: duration || 'all',
+        period: period || 'all',
       },
     };
   }

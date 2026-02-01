@@ -1,10 +1,12 @@
 "use client";
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import SpinWheel from "../Components/Spin/SpinWheel";
 import Historigram from "./Historigram";
 import TradingViewWidget from "./TradingViewWidget";
 import { useRound } from "@/hooks/useRound";
+import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
+import { getRecentRounds } from "@/lib/api/spin";
 import "./Styles/Landing.scss";
 
 export default function Landing() {
@@ -15,6 +17,126 @@ export default function Landing() {
   
   // Use the same round hook as the logged-in version for synchronization
   const { round, state: roundState, countdown, loading, error } = useRound();
+  
+  // v3.2: Previous winners for 20m round celebration effect on landing page
+  const [previousWinners, setPreviousWinners] = useState(undefined);
+  const [winnersFetchedForRound, setWinnersFetchedForRound] = useState(null);
+  
+  // Initialize WebSocket for round settlement events
+  useEffect(() => {
+    initWebSocket();
+  }, []);
+  
+  // Listen for round settlement to show celebration effects
+  useEffect(() => {
+    const wsClient = getWebSocketClient();
+    
+    // Handler for 20m round settlement
+    const handleRoundSettled = (data) => {
+      console.log('🏁 Landing: Round settled', data);
+      if (data.winners) {
+        const winnersData = data.indecisionTriggered 
+          ? { indecision: true }
+          : {
+              outer: data.winners.outer?.winner,
+              color: data.winners.middle?.winner,
+              vol: data.winners.inner?.winner === 'HIGH_VOL' ? 'HIGH' : 
+                   data.winners.inner?.winner === 'LOW_VOL' ? 'LOW' : undefined,
+            };
+        setPreviousWinners(winnersData);
+        
+        // Clear after 40 seconds
+        setTimeout(() => {
+          setPreviousWinners(undefined);
+        }, 40000);
+      }
+    };
+    
+    // Handler for market instance settlement (also catches 20m)
+    const handleMarketInstanceSettled = (data) => {
+      // Only care about 20m settlements for landing page
+      const durationMins = data.durationMinutes === 'FIVE' ? 5 : 
+                          data.durationMinutes === 'TEN' ? 10 : 20;
+      
+      if (durationMins === 20 && data.winners) {
+        console.log('🏁 Landing: 20m market instance settled', data);
+        const winnersData = data.indecisionTriggered 
+          ? { indecision: true }
+          : {
+              outer: data.winners.outer?.winner,
+              color: data.winners.middle?.winner,
+              vol: data.winners.inner?.winner === 'HIGH_VOL' ? 'HIGH' : 
+                   data.winners.inner?.winner === 'LOW_VOL' ? 'LOW' : undefined,
+            };
+        setPreviousWinners(winnersData);
+        
+        // Clear after 40 seconds
+        setTimeout(() => {
+          setPreviousWinners(undefined);
+        }, 40000);
+      }
+    };
+    
+    // Subscribe to events
+    const unsubRound = wsClient.on('roundSettled', handleRoundSettled);
+    const unsubInstance = wsClient.on('marketInstanceSettled', handleMarketInstanceSettled);
+    
+    return () => {
+      unsubRound?.();
+      unsubInstance?.();
+    };
+  }, []);
+  
+  // Fetch previous round winners on page load if within first 40 seconds
+  useEffect(() => {
+    const fetchPreviousWinners = async () => {
+      if (!round || roundState !== 'open' || previousWinners || winnersFetchedForRound === round.roundNumber) {
+        return;
+      }
+      
+      // Only show previous winners in first 40 seconds of the round
+      const roundOpenedAt = new Date(round.openedAt).getTime();
+      const now = Date.now();
+      const secondsSinceOpen = (now - roundOpenedAt) / 1000;
+      
+      if (secondsSinceOpen > 40) {
+        return;
+      }
+      
+      setWinnersFetchedForRound(round.roundNumber);
+      
+      try {
+        const { data: recentRounds } = await getRecentRounds(1);
+        if (recentRounds && recentRounds.length > 0) {
+          const lastRound = recentRounds[0];
+          
+          if (lastRound.indecisionTriggered) {
+            setPreviousWinners({ indecision: true });
+          } else {
+            let vol = undefined;
+            if (lastRound.innerWinner === "HIGH_VOL") vol = "HIGH";
+            else if (lastRound.innerWinner === "LOW_VOL") vol = "LOW";
+            
+            setPreviousWinners({
+              outer: lastRound.outerWinner || undefined,
+              color: lastRound.middleWinner || undefined,
+              vol: vol,
+            });
+          }
+          
+          // Clear after remaining time
+          const remainingTime = Math.max(0, (40 - secondsSinceOpen) * 1000);
+          setTimeout(() => {
+            setPreviousWinners(undefined);
+          }, remainingTime);
+        }
+      } catch (error) {
+        console.error('Landing: Failed to fetch previous winners:', error);
+      }
+    };
+    
+    fetchPreviousWinners();
+  }, [round, roundState, previousWinners, winnersFetchedForRound]);
   const premiumFeatures = [
     "✅ Verification Badge",
     "✅ Internal Transfers between users",
@@ -280,6 +402,7 @@ export default function Landing() {
                 countdownSec={countdown}
                 winners={undefined}
                 roundDurationMin={20}
+                previousWinners={previousWinners}
               />
             </div>
           </div>

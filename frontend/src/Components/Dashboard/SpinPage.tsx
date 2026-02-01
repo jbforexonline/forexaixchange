@@ -1,9 +1,9 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import "../Styles/SpinPage.scss";
 import SpinWheel from "../Spin/SpinWheel";
-import RecentSpinsTable from "../Spin/RecentSpinsTable";
+import TradingHistoryTable from "../Spin/TradingHistoryTable";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
 import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory, cancelBet, getRecentRounds } from "@/lib/api/spin";
@@ -75,10 +75,39 @@ type FutureRound = {
   checkpointLabel: string; // Q1, Q2, H1, H2, or Full
 };
 
+// v3.2: Winners data type for per-duration celebrations
+type WinnersData = {
+  outer?: "BUY" | "SELL";
+  color?: "BLUE" | "RED";
+  vol?: "HIGH" | "LOW";
+  indecision?: boolean;
+};
+
 export default function SpinPage() {
   const router = useRouter();
+  
   // Premium features state - must be defined before useRound
-  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(20);
+  // v3.2: Persist duration selection to localStorage for better UX
+  const [selectedRoundDuration, setSelectedRoundDuration] = useState<number>(() => {
+    // Initialize from localStorage if available (client-side only)
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('forexai_round_duration');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if ([5, 10, 20].includes(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return 20; // Default to 20m
+  });
+  
+  // Persist duration selection to localStorage when it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('forexai_round_duration', selectedRoundDuration.toString());
+    }
+  }, [selectedRoundDuration]);
   
   // Pass user's selected duration to useRound for sub-round timing calculation
   const { 
@@ -130,16 +159,22 @@ export default function SpinPage() {
   // Navigation menu state
   const [activeNavPopup, setActiveNavPopup] = useState<string | null>(null);
   
-  // Previous round winners (for 40-second highlight)
-  const [previousWinners, setPreviousWinners] = useState<{
-    outer?: "BUY" | "SELL";
-    color?: "BLUE" | "RED";
-    vol?: "HIGH" | "LOW";
-    indecision?: boolean;
-  } | undefined>(undefined);
-  
   // Recent bet placed (for confirmation animation on wheel)
   const [recentBetPlaced, setRecentBetPlaced] = useState<{ selection: string; amount: number } | null>(null);
+  
+  // v3.0: Settled tickets with animation (tickets transitioning from Active to Previous)
+  const [settledTickets, setSettledTickets] = useState<{
+    bet: Bet;
+    isWinner: boolean;
+    payoutAmount?: number;
+    animating: boolean;
+  }[]>([]);
+  
+  // Track which tickets are being highlighted after settlement
+  const [highlightedTicketIds, setHighlightedTicketIds] = useState<Set<string>>(new Set());
+  
+  // v3.0: Force refresh flag for Previous tab after settlement
+  const [shouldRefreshHistory, setShouldRefreshHistory] = useState(false);
   
   // Close popup when clicking outside
   useEffect(() => {
@@ -160,6 +195,27 @@ export default function SpinPage() {
   
   // Normal users always get 20-minute rounds
   const effectiveRoundDuration = isPremium ? selectedRoundDuration : 20;
+  
+  // Ref to track latest effectiveRoundDuration for use in event handlers
+  const effectiveRoundDurationRef = useRef(effectiveRoundDuration);
+  useEffect(() => {
+    effectiveRoundDurationRef.current = effectiveRoundDuration;
+  }, [effectiveRoundDuration]);
+  
+  // v3.2: Store winners SEPARATELY for each duration (5m, 10m, 20m)
+  // Each duration has its own celebration that persists for 40 seconds
+  // Switching durations shows only that duration's celebration
+  const [durationWinners, setDurationWinners] = useState<{
+    [key: number]: { winners: WinnersData; expiresAt: number } | undefined;
+  }>({});
+  
+  // Derive previousWinners from durationWinners based on current selected duration
+  const previousWinners = useMemo(() => {
+    const entry = durationWinners[effectiveRoundDuration];
+    if (!entry) return undefined;
+    if (Date.now() > entry.expiresAt) return undefined;
+    return entry.winners;
+  }, [durationWinners, effectiveRoundDuration]);
   
   // Sync local duration state with useRound hook when duration changes
   useEffect(() => {
@@ -208,6 +264,256 @@ export default function SpinPage() {
     });
     return unsubscribe;
   }, [round?.id]);
+
+  // v3.0: Handle settlement events - move tickets from Active to Previous with animation
+  useEffect(() => {
+    const wsClient = getWebSocketClient();
+    
+    // v3.2: Helper to store winners for a SPECIFIC duration
+    // Each duration has its own celebration that lasts 40 seconds
+    const setWinnersForDuration = (
+      durationMins: number,
+      winners: {
+        outer: { winner: string | null; tied: boolean };
+        middle: { winner: string | null; tied: boolean };
+        inner: { winner: string | null; tied: boolean };
+      }, 
+      indecisionTriggered: boolean
+    ) => {
+      const winnersData: WinnersData = indecisionTriggered 
+        ? { indecision: true }
+        : {
+            outer: winners.outer.winner as "BUY" | "SELL" | undefined,
+            color: winners.middle.winner as "BLUE" | "RED" | undefined,
+            vol: winners.inner.winner === 'HIGH_VOL' ? 'HIGH' : 
+                 winners.inner.winner === 'LOW_VOL' ? 'LOW' : undefined,
+          };
+      
+      const expiresAt = Date.now() + 40000; // 40 seconds from now
+      
+      setDurationWinners(prev => ({
+        ...prev,
+        [durationMins]: { winners: winnersData, expiresAt }
+      }));
+      
+      console.log(`🎉 Stored winners for ${durationMins}m:`, winnersData, `expires in 40s`);
+      
+      // Clear this specific duration's winners after 40 seconds
+      setTimeout(() => {
+        setDurationWinners(prev => {
+          const newState = { ...prev };
+          delete newState[durationMins];
+          return newState;
+        });
+        console.log(`⏰ Cleared ${durationMins}m winners after 40s`);
+      }, 40000);
+    };
+    
+    // Helper to refresh previous bets from API
+    const refreshPreviousBets = async () => {
+      try {
+        console.log('📜 Refreshing previous bets...');
+        const response = await getBetHistory(1, 50);
+        console.log('📜 getBetHistory response:', response);
+        
+        // Handle both direct data and envelope formats
+        const betsData = response?.data || response;
+        if (Array.isArray(betsData)) {
+          setPreviousBets(betsData);
+          setShouldRefreshHistory(false); // Clear the refresh flag
+          console.log('📜 Set previousBets:', betsData.length, 'items');
+        } else if (betsData && typeof betsData === 'object') {
+          // Check if it's nested
+          const nested = (betsData as any).data;
+          if (Array.isArray(nested)) {
+            setPreviousBets(nested);
+            setShouldRefreshHistory(false);
+            console.log('📜 Set previousBets (nested):', nested.length, 'items');
+          }
+        }
+      } catch (error) {
+        console.error('📜 Failed to refresh previous bets:', error);
+        // Set flag so it tries again when user opens Previous tab
+        setShouldRefreshHistory(true);
+      }
+    };
+    
+    // Handler for market instance settlement (ALL durations: 5m, 10m, 20m)
+    // Each duration has its own market instance that settles independently
+    // v3.2: Store winners for THIS duration regardless of user selection
+    // User will see the effect when they switch to this duration (within 40s)
+    const handleMarketInstanceSettled = (data: {
+      instanceId: string;
+      durationMinutes: string;
+      windowStart: number;
+      windowEnd: number;
+      indecisionTriggered: boolean;
+      winners: {
+        outer: { winner: string | null; tied: boolean };
+        middle: { winner: string | null; tied: boolean };
+        inner: { winner: string | null; tied: boolean };
+      };
+    }) => {
+      // Convert duration from enum to number
+      const durationMins = data.durationMinutes === 'FIVE' ? 5 : 
+                          data.durationMinutes === 'TEN' ? 10 : 20;
+      
+      const currentUserDuration = effectiveRoundDurationRef.current;
+      console.log(`🎯 Market instance settled: ${durationMins}m (user selected: ${currentUserDuration}m)`);
+      
+      // v3.2: ALWAYS store winners for this duration
+      // The wheel will show the celebration only if user has this duration selected
+      // If user switches to this duration within 40s, they'll see the celebration
+      if (data.winners) {
+        setWinnersForDuration(durationMins, data.winners, data.indecisionTriggered);
+      }
+      
+      setUserBets(prev => {
+        const settledBets: Bet[] = [];
+        const remainingBets: Bet[] = [];
+        
+        prev.forEach(bet => {
+          const betDuration = bet.userRoundDuration || 20;
+          if (betDuration === durationMins) {
+            settledBets.push(bet);
+          } else {
+            remainingBets.push(bet);
+          }
+        });
+        
+        // Add settled bets to animation queue
+        if (settledBets.length > 0) {
+          const newSettled = settledBets.map(bet => {
+            // Determine if this bet won
+            const isWinner = determineWinStatus(bet, data.winners, data.indecisionTriggered);
+            return {
+              bet,
+              isWinner,
+              payoutAmount: isWinner ? Number(bet.amountUsd) * 2 : 0,
+              animating: true,
+            };
+          });
+          
+          setSettledTickets(prev => [...prev, ...newSettled]);
+          
+          // Highlight these tickets
+          const newHighlights = new Set(highlightedTicketIds);
+          settledBets.forEach(bet => newHighlights.add(bet.id));
+          setHighlightedTicketIds(newHighlights);
+          
+          // After animation, move to previous and refresh
+          setTimeout(() => {
+            setSettledTickets(prev => prev.filter(s => !settledBets.some(b => b.id === s.bet.id)));
+            setHighlightedTicketIds(prev => {
+              const next = new Set(prev);
+              settledBets.forEach(bet => next.delete(bet.id));
+              return next;
+            });
+            // Set flag for history refresh
+            setShouldRefreshHistory(true);
+            // Refresh previous bets
+            refreshPreviousBets();
+          }, 3000);
+        }
+        
+        return remainingBets;
+      });
+    };
+    
+    // Handler for full round settlement (20m or legacy)
+    const handleRoundSettled = (data: {
+      roundId: string;
+      roundNumber: number;
+      indecisionTriggered: boolean;
+      winners?: {
+        outer: { winner: string | null; tied: boolean };
+        middle: { winner: string | null; tied: boolean };
+        inner: { winner: string | null; tied: boolean };
+      };
+    }) => {
+      console.log(`🏁 Round settled (20m master round)`);
+      
+      // v3.2: Store winners for 20m duration
+      // The wheel shows celebration only if user has 20m selected
+      // Note: marketInstanceSettled also fires for 20m, so this is a backup
+      if (data.winners) {
+        setWinnersForDuration(20, data.winners, data.indecisionTriggered);
+      }
+      
+      // Move ALL active bets to settled with animation
+      setUserBets(prev => {
+        if (prev.length > 0) {
+          const newSettled = prev.map(bet => {
+            const isWinner = data.winners 
+              ? determineWinStatus(bet, data.winners, data.indecisionTriggered)
+              : false;
+            return {
+              bet,
+              isWinner,
+              payoutAmount: isWinner ? Number(bet.amountUsd) * 2 : 0,
+              animating: true,
+            };
+          });
+          
+          setSettledTickets(p => [...p, ...newSettled]);
+          
+          // Highlight all tickets
+          const newHighlights = new Set(highlightedTicketIds);
+          prev.forEach(bet => newHighlights.add(bet.id));
+          setHighlightedTicketIds(newHighlights);
+          
+          // After animation, clear and refresh
+          setTimeout(() => {
+            setSettledTickets([]);
+            setHighlightedTicketIds(new Set());
+            // Set flag for history refresh
+            setShouldRefreshHistory(true);
+            refreshPreviousBets();
+          }, 3000);
+        }
+        return [];
+      });
+    };
+    
+    const unsub1 = wsClient.on('marketInstanceSettled', handleMarketInstanceSettled);
+    const unsub2 = wsClient.on('roundSettled', handleRoundSettled);
+    
+    return () => {
+      unsub1();
+      unsub2();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency - handlers use functional updates for state
+  
+  // Helper function to determine if a bet won
+  const determineWinStatus = (
+    bet: Bet,
+    winners: {
+      outer: { winner: string | null; tied: boolean };
+      middle: { winner: string | null; tied: boolean };
+      inner: { winner: string | null; tied: boolean };
+    },
+    indecisionTriggered: boolean
+  ): boolean => {
+    // If indecision triggered, only INDECISION bets win
+    if (indecisionTriggered) {
+      return bet.selection === 'INDECISION';
+    }
+    
+    // Otherwise check by market
+    switch (bet.market) {
+      case 'OUTER':
+        return bet.selection === winners.outer.winner;
+      case 'MIDDLE':
+        return bet.selection === winners.middle.winner;
+      case 'INNER':
+        return bet.selection === winners.inner.winner;
+      case 'GLOBAL':
+        return false; // Indecision only wins when triggered
+      default:
+        return false;
+    }
+  };
 
   // Clear messages after 3 seconds
   useEffect(() => {
@@ -376,89 +682,10 @@ export default function SpinPage() {
     };
   }, [roundState, round]);
   
-  // Store winners when round settles for 40-second highlight in next round
-  const [previousRoundNumber, setPreviousRoundNumber] = useState<number | null>(null);
-  const [previousWinnersFetchedForRound, setPreviousWinnersFetchedForRound] = useState<number | null>(null);
-  
-  useEffect(() => {
-    if (winners && roundState === 'settled' && round) {
-      console.log('Storing previous winners:', winners, 'from round:', round.roundNumber);
-      setPreviousWinners(winners as any);
-      setPreviousRoundNumber(round.roundNumber);
-    }
-  }, [winners, roundState, round]);
-  
-  // Fetch previous round winners on page load if we're in an open state and within first 40 seconds
-  useEffect(() => {
-    const fetchPreviousRoundWinners = async () => {
-      if (!round || roundState !== 'open' || previousWinners || previousWinnersFetchedForRound === round.roundNumber) {
-        return;
-      }
-      
-      // Only show previous winners in first 40 seconds of the round
-      const roundOpenedAt = new Date(round.openedAt).getTime();
-      const now = Date.now();
-      const secondsSinceOpen = (now - roundOpenedAt) / 1000;
-      
-      if (secondsSinceOpen > 40) {
-        console.log('Round already past 40s, not fetching previous winners');
-        return;
-      }
-      
-      console.log('Fetching previous round winners for highlight...');
-      setPreviousWinnersFetchedForRound(round.roundNumber);
-      
-      try {
-        const { data: recentRounds } = await getRecentRounds(1);
-        if (recentRounds && recentRounds.length > 0) {
-          const lastRound = recentRounds[0];
-          console.log('Found last settled round:', lastRound.roundNumber, lastRound);
-          
-          if (lastRound.indecisionTriggered) {
-            setPreviousWinners({ indecision: true, outer: undefined, color: undefined, vol: undefined });
-          } else {
-            let vol: "HIGH" | "LOW" | undefined = undefined;
-            if (lastRound.innerWinner === "HIGH_VOL") vol = "HIGH";
-            else if (lastRound.innerWinner === "LOW_VOL") vol = "LOW";
-            
-            setPreviousWinners({
-              outer: lastRound.outerWinner || undefined,
-              color: lastRound.middleWinner || undefined,
-              vol: vol,
-              indecision: false,
-            });
-          }
-          setPreviousRoundNumber(lastRound.roundNumber);
-          
-          // Set timeout to clear after remaining time (40s - time already passed)
-          const remainingTime = Math.max(0, (40 - secondsSinceOpen) * 1000);
-          console.log(`Will clear previous winners in ${remainingTime / 1000}s`);
-          setTimeout(() => {
-            console.log('Clearing previous winners after timeout');
-            setPreviousWinners(undefined);
-            setPreviousRoundNumber(null);
-          }, remainingTime);
-        }
-      } catch (error) {
-        console.error('Failed to fetch previous round winners:', error);
-      }
-    };
-    
-    fetchPreviousRoundWinners();
-  }, [round, roundState, previousWinners, previousWinnersFetchedForRound]);
-  
-  // Clear previous winners after 40 seconds into the new round (when we captured winners from settlement)
-  useEffect(() => {
-    if (roundState === 'open' && previousWinners && round && previousRoundNumber !== null && previousRoundNumber !== round.roundNumber) {
-      console.log('New round started, will clear previous winners in 40s');
-      const timer = setTimeout(() => {
-        console.log('Clearing previous winners after 40s');
-        setPreviousWinners(undefined);
-        setPreviousRoundNumber(null);
-      }, 40000);
-      return () => clearTimeout(timer);
-    }
-  }, [roundState, previousWinners, round, previousRoundNumber]);
+  // v3.2: Per-duration winners are managed by WebSocket handlers above
+  // The durationWinners state stores winners for each duration (5m, 10m, 20m) separately
+  // The previousWinners useMemo automatically shows the correct celebration based on selected duration
+  // No need for legacy round-based winner fetching since we handle it via WebSocket events
   
   // Convert user bets to format for SpinWheel
   const placedBetsForWheel = useMemo(() => {
@@ -842,30 +1069,21 @@ export default function SpinPage() {
                 className={`tab-btn ${ticketTab === 'previous' ? 'active' : ''}`}
                 onClick={async () => {
                   setTicketTab('previous');
-                  if (previousBets.length === 0 && !loadingHistory) {
+                  // Fetch if no bets yet OR if refresh is needed after settlement
+                  if ((previousBets.length === 0 || shouldRefreshHistory) && !loadingHistory) {
                     setLoadingHistory(true);
                     try {
                       const response = await getBetHistory(1, 50);
-                      console.log('Bet history response:', response);
+                      console.log('📜 Bet history response:', response);
                       
-                      // Handle different response structures
-                      let bets = [];
-                      if (Array.isArray(response)) {
-                        bets = response;
-                      } else if (response.data?.data && Array.isArray(response.data.data)) {
-                        bets = response.data.data;
-                      } else if (response.data && Array.isArray(response.data)) {
-                        bets = response.data;
-                      } else if (response.bets && Array.isArray(response.bets)) {
-                        bets = response.bets;
-                      } else if (response.data?.bets && Array.isArray(response.data.bets)) {
-                        bets = response.data.bets;
-                      }
+                      // getBetHistory now returns { data: bets[], meta: {...} }
+                      const bets = response?.data || [];
                       
-                      console.log('Parsed bets:', bets);
+                      console.log('📜 Parsed bets:', bets.length, 'items');
                       setPreviousBets(bets);
+                      setShouldRefreshHistory(false);
                     } catch (error) {
-                      console.error('Error loading bet history:', error);
+                      console.error('📜 Error loading bet history:', error);
                       setPreviousBets([]);
                     } finally {
                       setLoadingHistory(false);
@@ -873,55 +1091,98 @@ export default function SpinPage() {
                   }
                 }}
               >
-                Previous
+                Previous {shouldRefreshHistory && previousBets.length === 0 && '(...)'}
               </button>
             </div>
 
             {/* Active Tickets */}
             {ticketTab === 'active' && (
               <div className="tickets-list">
-                {betsArray.length === 0 ? (
+                {/* Show settling tickets with animation */}
+                {settledTickets.map(({ bet, isWinner, payoutAmount, animating }) => (
+                  <div 
+                    key={`settling-${bet.id}`} 
+                    className={`ticket-row active-ticket settling ${isWinner ? 'won-animation' : 'lost-animation'} ${animating ? 'animating' : ''}`}
+                  >
+                    <div className="ticket-main">
+                      <span className="ticket-result-emoji">
+                        {isWinner ? '🎉' : '😢'}
+                      </span>
+                      <span className="ticket-market">
+                        {getTicketMarketLabel(bet.market)}
+                      </span>
+                      <span className="ticket-selection">
+                        {getTicketSelectionLabel(bet.selection)}
+                      </span>
+                      <span className={`ticket-status ${isWinner ? 'won' : 'lost'}`}>
+                        {isWinner ? '✓ WON' : '✗ LOST'}
+                      </span>
+                    </div>
+                    <div className="ticket-meta">
+                      <span className="ticket-amount">
+                        ${Number(bet.amountUsd || 0).toFixed(2)}
+                      </span>
+                      {isWinner && payoutAmount && (
+                        <span className="ticket-win payout-animation">
+                          +${payoutAmount.toFixed(2)} 💰
+                        </span>
+                      )}
+                      <span className="ticket-settling-label">
+                        Moving to Previous...
+                      </span>
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Regular active tickets */}
+                {betsArray.length === 0 && settledTickets.length === 0 ? (
                   <div className="empty-state">
                     You have no active tickets for this round yet.
                   </div>
                 ) : (
-                  betsArray.map((bet) => (
-                    <div key={bet.id} className="ticket-row active-ticket">
-                      <div className="ticket-main">
-                        <span className="ticket-market">
-                          {getTicketMarketLabel(bet.market)}
-                        </span>
-                        <span className="ticket-selection">
-                          {getTicketSelectionLabel(bet.selection)}
-                        </span>
-                        <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
-                          {bet.isDemo ? 'Demo' : 'Live'}
-                        </span>
-                        {bet.userRoundDuration && (
-                          <span className="ticket-duration">{bet.userRoundDuration}m</span>
-                        )}
+                  betsArray.map((bet) => {
+                    const isHighlighted = highlightedTicketIds.has(bet.id);
+                    return (
+                      <div 
+                        key={bet.id} 
+                        className={`ticket-row active-ticket ${isHighlighted ? 'highlighted' : ''}`}
+                      >
+                        <div className="ticket-main">
+                          <span className="ticket-market">
+                            {getTicketMarketLabel(bet.market)}
+                          </span>
+                          <span className="ticket-selection">
+                            {getTicketSelectionLabel(bet.selection)}
+                          </span>
+                          <span className={`ticket-mode ${bet.isDemo ? 'demo' : 'live'}`}>
+                            {bet.isDemo ? 'Demo' : 'Live'}
+                          </span>
+                          {bet.userRoundDuration && (
+                            <span className="ticket-duration">{bet.userRoundDuration}m</span>
+                          )}
+                        </div>
+                        <div className="ticket-meta">
+                          <span className="ticket-amount">
+                            ${Number(bet.amountUsd || 0).toFixed(2)}
+                          </span>
+                          <span className="ticket-time">
+                            {new Date(bet.createdAt).toLocaleTimeString()}
+                          </span>
+                          {/* Cancel button for premium users (before freeze) */}
+                          {isPremium && effectiveTimeUntilFreeze > 0 && (
+                            <button
+                              className="cancel-btn"
+                              onClick={() => handleCancelActiveBet(bet)}
+                              disabled={cancellingBetId === bet.id}
+                              title="Cancel order (refund to wallet)"
+                            >
+                              {cancellingBetId === bet.id ? '...' : '✕ Cancel'}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="ticket-meta">
-                        <span className="ticket-amount">
-                          ${Number(bet.amountUsd || 0).toFixed(2)}
-                        </span>
-                        <span className="ticket-time">
-                          {new Date(bet.createdAt).toLocaleTimeString()}
-                        </span>
-                        {/* Cancel button for premium users (before freeze) */}
-                        {isPremium && effectiveTimeUntilFreeze > 0 && (
-                          <button
-                            className="cancel-btn"
-                            onClick={() => handleCancelActiveBet(bet)}
-                            disabled={cancellingBetId === bet.id}
-                            title="Cancel order (refund to wallet)"
-                          >
-                            {cancellingBetId === bet.id ? '...' : '✕ Cancel'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             )}
@@ -996,7 +1257,12 @@ export default function SpinPage() {
                     const pending = bet.status === 'PENDING' || bet.status === 'ACCEPTED';
                     
                     const statusClass = won ? 'won' : lost ? 'lost' : cancelled ? 'cancelled' : 'pending';
+                    // Emojis for different statuses
+                    const statusEmoji = won ? '🎉' : lost ? '💔' : cancelled ? '↩️' : '⏳';
                     const statusLabel = won ? '✓ WON' : lost ? '✗ LOST' : cancelled ? '⊘ CANCELLED' : '⏳ PENDING';
+                    
+                    // Duration display
+                    const duration = bet.userRoundDuration || 20;
                     
                     return (
                       <div 
@@ -1004,6 +1270,7 @@ export default function SpinPage() {
                         className={`ticket-row previous-ticket ${statusClass}`}
                       >
                         <div className="ticket-main">
+                          <span className="ticket-result-emoji">{statusEmoji}</span>
                           <span className="ticket-market">
                             {getTicketMarketLabel(bet.market)}
                           </span>
@@ -1013,23 +1280,31 @@ export default function SpinPage() {
                           <span className={`ticket-status ${statusClass}`}>
                             {statusLabel}
                           </span>
+                          {duration !== 20 && (
+                            <span className="ticket-duration-badge">{duration}m</span>
+                          )}
                         </div>
                         <div className="ticket-meta">
                           <span className="ticket-amount">
                             ${Number(bet.amountUsd || 0).toFixed(2)}
                           </span>
-                          {won && bet.winAmountUsd && (
+                          {won && (bet.winAmountUsd || bet.payoutAmount || bet.profitAmount) && (
                             <span className="ticket-win">
-                              +${Number(bet.winAmountUsd).toFixed(2)}
+                              +${Number(bet.winAmountUsd || bet.profitAmount || bet.amountUsd).toFixed(2)} 💰
+                            </span>
+                          )}
+                          {lost && (
+                            <span className="ticket-loss">
+                              -${Number(bet.amountUsd || 0).toFixed(2)}
                             </span>
                           )}
                           {cancelled && (
                             <span className="ticket-refund">
-                              Refunded
+                              ↩️ Refunded
                             </span>
                           )}
                           <span className="ticket-round">
-                            Round #{bet.roundNumber || bet.round?.roundNumber || 'N/A'}
+                            R#{bet.roundNumber || bet.round?.roundNumber || 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -1428,9 +1703,14 @@ export default function SpinPage() {
           </button>
         </nav>
         
-        {/* Recent Results Table */}
+        {/* Trading History Table */}
         <div className="results-panel">
-          <RecentSpinsTable maxResults={4} />
+          <TradingHistoryTable 
+            selectedDuration={effectiveRoundDuration as 5 | 10 | 20} 
+            showDurationFilter={isPremium} // Only premium users see duration filter
+            showTimeFilter={true}
+            scrollable={true}
+          />
         </div>
       </div>
 

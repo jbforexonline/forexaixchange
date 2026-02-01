@@ -22,6 +22,8 @@ import {
   getRoundHistory,
   getBetHistory,
   getBetStats,
+  getMarketInstanceHistory,
+  isPremiumUser,
   type Bet
 } from '@/lib/api/spin';
 
@@ -64,6 +66,7 @@ interface Round {
   innerWinner?: string | null;
   indecisionTriggered?: boolean;
   totalVolume?: number;
+  durationMinutes?: string; // v3.1: Added for multi-duration display (FIVE, TEN, TWENTY)
   _count?: {
     bets: number;
   };
@@ -135,8 +138,28 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
   );
 };
 
+// Time period options
+const TIME_PERIODS = [
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'annually', label: 'Annually' },
+  { value: 'all', label: 'All Time' },
+];
+
+// Duration options (premium only)
+const DURATION_OPTIONS = [
+  { value: null, label: 'All' },
+  { value: 5, label: '5m' },
+  { value: 10, label: '10m' },
+  { value: 20, label: '20m' },
+];
+
 export default function SpinHistoryPage() {
   const [activeTab, setActiveTab] = useState<'rounds' | 'personal'>('rounds');
+  const [isPremium, setIsPremium] = useState(false);
   
   // Rounds state
   const [rounds, setRounds] = useState<Round[]>([]);
@@ -153,23 +176,70 @@ export default function SpinHistoryPage() {
   // User stats
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   
-  // Filter state for personal history
+  // Filter state
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+  const [timePeriod, setTimePeriod] = useState<string>('all');
+  const [durationFilter, setDurationFilter] = useState<number | null>(null);
+
+  // Check premium status on mount
+  useEffect(() => {
+    setIsPremium(isPremiumUser());
+  }, []);
 
   const fetchRounds = useCallback(async () => {
     setRoundsLoading(true);
     try {
-      const response = await getRoundHistory(roundsPage, 20);
-      // Handle response format - could be { data: [...], meta: {...} } or just the envelope
-      const payload = response?.data ?? response;
-      setRounds(Array.isArray(payload) ? payload : payload?.data || []);
-      setRoundsMeta(payload?.meta || response?.meta || null);
+      const period = timePeriod === 'all' ? undefined : timePeriod;
+      
+      if (isPremium) {
+        // Premium users: Use market instance API for ALL duration history
+        // When durationFilter is null (All), fetch all durations
+        // When durationFilter is set (5, 10, 20), fetch that specific duration
+        const response = await getMarketInstanceHistory(durationFilter || undefined, roundsPage, 50, period);
+        setRounds(response.data.map((instance: any) => ({
+          id: instance.id,
+          roundNumber: instance.roundNumber,
+          state: 'SETTLED',
+          openedAt: instance.openedAt,
+          settledAt: instance.settledAt,
+          outerWinner: instance.outerWinner,
+          middleWinner: instance.middleWinner,
+          innerWinner: instance.innerWinner,
+          indecisionTriggered: instance.indecisionTriggered,
+          durationMinutes: instance.durationMinutes,
+        })));
+        setRoundsMeta(response.meta || null);
+      } else {
+        // Non-premium users: Use regular round history (20m only)
+        const response = await getRoundHistory(roundsPage, 50);
+        const payload = response?.data ?? response;
+        let roundsData = Array.isArray(payload) ? payload : payload?.data || [];
+        
+        // Filter by time period if set
+        if (period) {
+          const now = new Date();
+          let startDate: Date;
+          switch(period) {
+            case 'hourly': startDate = new Date(now.getTime() - 60 * 60 * 1000); break;
+            case 'daily': startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+            case 'weekly': startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+            case 'monthly': startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+            case 'quarterly': startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+            case 'annually': startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
+            default: startDate = new Date(0);
+          }
+          roundsData = roundsData.filter((r: Round) => new Date(r.settledAt || r.openedAt) >= startDate);
+        }
+        
+        setRounds(roundsData);
+        setRoundsMeta(payload?.meta || response?.meta || null);
+      }
     } catch (error) {
       console.error('Error fetching rounds:', error);
     } finally {
       setRoundsLoading(false);
     }
-  }, [roundsPage]);
+  }, [roundsPage, timePeriod, durationFilter, isPremium]);
 
   const fetchBets = useCallback(async () => {
     setBetsLoading(true);
@@ -213,6 +283,13 @@ export default function SpinHistoryPage() {
       fetchUserStats();
     }
   }, [activeTab, fetchRounds, fetchBets, fetchUserStats]);
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (activeTab === 'rounds') {
+      fetchRounds();
+    }
+  }, [timePeriod, durationFilter]);
 
   useEffect(() => {
     fetchBets();
@@ -304,8 +381,36 @@ export default function SpinHistoryPage() {
           /* Rounds History */
           <div className="history-section">
             <div className="section-header">
-              <h2>Round Results</h2>
-              <p>Complete history of all settled rounds</p>
+              <div>
+                <h2>Round Results</h2>
+                <p>Complete history of all settled rounds</p>
+              </div>
+              <div className="filter-section">
+                {/* Duration filter - premium only */}
+                {isPremium && (
+                  <div className="duration-filter">
+                    {DURATION_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value || 'all'}
+                        className={`filter-btn ${durationFilter === opt.value ? 'active' : ''}`}
+                        onClick={() => setDurationFilter(opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Time period filter */}
+                <select 
+                  value={timePeriod} 
+                  onChange={(e) => setTimePeriod(e.target.value)}
+                  className="filter-select"
+                >
+                  {TIME_PERIODS.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {roundsLoading ? (
@@ -326,6 +431,7 @@ export default function SpinHistoryPage() {
                     <thead>
                       <tr>
                         <th>Round #</th>
+                        {isPremium && <th>Duration</th>}
                         <th>Date</th>
                         <th>Direction Winner</th>
                         <th>Color Winner</th>
@@ -337,6 +443,14 @@ export default function SpinHistoryPage() {
                       {rounds.map((round) => (
                         <tr key={round.id} className={round.state !== 'SETTLED' ? 'pending-row' : ''}>
                           <td className="round-number">#{round.roundNumber}</td>
+                          {isPremium && (
+                            <td className="duration-cell">
+                              <span className={`duration-badge duration-${round.durationMinutes?.toLowerCase() || 'twenty'}`}>
+                                {round.durationMinutes === 'FIVE' ? '5m' : 
+                                 round.durationMinutes === 'TEN' ? '10m' : '20m'}
+                              </span>
+                            </td>
+                          )}
                           <td className="date-cell">
                             {round.settledAt ? formatDate(round.settledAt) : formatDate(round.openedAt)}
                           </td>
@@ -431,6 +545,31 @@ export default function SpinHistoryPage() {
                 <p>Complete history of your orders and outcomes</p>
               </div>
               <div className="filter-section">
+                {/* Duration filter - premium only */}
+                {isPremium && (
+                  <div className="duration-filter">
+                    {DURATION_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value || 'all'}
+                        className={`filter-btn ${durationFilter === opt.value ? 'active' : ''}`}
+                        onClick={() => setDurationFilter(opt.value)}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {/* Time period filter */}
+                <select 
+                  value={timePeriod} 
+                  onChange={(e) => setTimePeriod(e.target.value)}
+                  className="filter-select"
+                >
+                  {TIME_PERIODS.map(p => (
+                    <option key={p.value} value={p.value}>{p.label}</option>
+                  ))}
+                </select>
+                {/* Status filter */}
                 <Filter size={16} />
                 <select 
                   value={statusFilter || ''} 
@@ -667,8 +806,37 @@ export default function SpinHistoryPage() {
         .filter-section {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
           color: rgba(165, 213, 255, 0.7);
+          flex-wrap: wrap;
+        }
+
+        .duration-filter {
+          display: flex;
+          gap: 0.25rem;
+        }
+
+        .duration-filter .filter-btn {
+          padding: 0.4rem 0.75rem;
+          font-size: 0.75rem;
+          font-weight: 600;
+          border: 1px solid rgba(100, 200, 255, 0.3);
+          background: transparent;
+          color: rgba(165, 213, 255, 0.8);
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+
+        .duration-filter .filter-btn:hover {
+          border-color: rgba(100, 200, 255, 0.5);
+          color: #64c8ff;
+        }
+
+        .duration-filter .filter-btn.active {
+          background: rgba(100, 200, 255, 0.2);
+          border-color: #64c8ff;
+          color: #64c8ff;
         }
 
         .filter-select {
@@ -732,7 +900,40 @@ export default function SpinHistoryPage() {
         .rounds-table-container,
         .bets-table-container {
           overflow-x: auto;
+          overflow-y: auto;
+          max-height: 500px;
           margin-bottom: 1rem;
+        }
+
+        .rounds-table-container::-webkit-scrollbar,
+        .bets-table-container::-webkit-scrollbar {
+          width: 6px;
+          height: 6px;
+        }
+
+        .rounds-table-container::-webkit-scrollbar-track,
+        .bets-table-container::-webkit-scrollbar-track {
+          background: rgba(30, 41, 59, 0.5);
+          border-radius: 3px;
+        }
+
+        .rounds-table-container::-webkit-scrollbar-thumb,
+        .bets-table-container::-webkit-scrollbar-thumb {
+          background: rgba(100, 200, 255, 0.5);
+          border-radius: 3px;
+        }
+
+        .rounds-table-container::-webkit-scrollbar-thumb:hover,
+        .bets-table-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(100, 200, 255, 0.7);
+        }
+
+        .rounds-table thead,
+        .bets-table thead {
+          position: sticky;
+          top: 0;
+          background: rgba(15, 39, 68, 0.95);
+          z-index: 1;
         }
 
         .rounds-table,
@@ -777,6 +978,37 @@ export default function SpinHistoryPage() {
         .round-number {
           font-weight: 600;
           color: #64c8ff;
+        }
+
+        .duration-cell {
+          text-align: center;
+        }
+
+        .duration-badge {
+          display: inline-block;
+          padding: 0.25rem 0.5rem;
+          border-radius: 4px;
+          font-size: 0.75rem;
+          font-weight: 600;
+          text-transform: uppercase;
+        }
+
+        .duration-five {
+          background: rgba(34, 197, 94, 0.2);
+          color: #22c55e;
+          border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .duration-ten {
+          background: rgba(59, 130, 246, 0.2);
+          color: #3b82f6;
+          border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .duration-twenty {
+          background: rgba(168, 85, 247, 0.2);
+          color: #a855f7;
+          border: 1px solid rgba(168, 85, 247, 0.3);
         }
 
         .date-cell {

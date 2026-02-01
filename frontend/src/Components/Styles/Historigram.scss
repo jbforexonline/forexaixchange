@@ -8,10 +8,10 @@
   -webkit-backdrop-filter: blur(6px);
 
   &.chart-only {
-    padding: 8px;
+    padding: 10px;
     h3 {
-      margin: 0 0 6px;
-      font-size: 11px;
+      margin: 0 0 8px;
+      font-size: 12px;
     }
   }
 
@@ -22,11 +22,21 @@
   }
 
   h3 {
-    margin: 0 0 8px;
+    margin: 0 0 10px;
     font-size: 13px;
     font-weight: 600;
     color: #9ccfff;
     text-align: center;
+  }
+
+  // Ensure chart has room for angled labels
+  .recharts-wrapper {
+    .recharts-xAxis {
+      .recharts-cartesian-axis-tick-value {
+        font-size: 10px;
+        fill: #a5d5ff;
+      }
+    }
   }
 }
 
@@ -35,6 +45,72 @@
 .history-wrapper {
   margin-top: 14px;
   overflow-x: auto;
+  
+  .history-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 10px;
+    
+    h3 {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: #9ccfff;
+    }
+    
+    .time-filter {
+      .period-select {
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 500;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 6px;
+        color: rgba(156, 207, 255, 0.9);
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s;
+
+        &:hover, &:focus {
+          border-color: #3b82f6;
+        }
+
+        option {
+          background: #0f172a;
+          color: #f8fafc;
+        }
+      }
+    }
+  }
+  
+  .table-scroll-container {
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: auto;
+    
+    // Custom scrollbar
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 3px;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, 0.5);
+      border-radius: 3px;
+      
+      &:hover {
+        background: rgba(59, 130, 246, 0.7);
+      }
+    }
+  }
 }
 
 .history-table {

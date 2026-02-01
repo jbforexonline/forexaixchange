@@ -269,6 +269,21 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       fetchRound();
     });
 
+    // v3.0: Listen for market instance settlements (sub-rounds)
+    const unsubscribeMarketInstanceSettled = client.on('marketInstanceSettled', (data) => {
+      console.log('WS: Market instance settled:', data);
+      // Immediately recalculate state for the new sub-round
+      if (roundRef.current) {
+        const calculated = calculateState(roundRef.current, userDuration);
+        setRoundState(prev => ({
+          ...prev,
+          ...calculated,
+        }));
+      }
+      // Also fetch the latest round data
+      fetchRound();
+    });
+
     const unsubscribeTotalsUpdated = client.on('totalsUpdated', (data) => {
       if (data.roundId === roundRef.current?.id) {
         setRoundState(prev => ({
@@ -295,10 +310,11 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       unsubscribeRoundSettled();
       unsubscribeRoundStateChanged();
       unsubscribeRoundOpened();
+      unsubscribeMarketInstanceSettled();
       unsubscribeTotalsUpdated();
       unsubscribeBetPlaced();
     };
-  }, [fetchRound]);
+  }, [fetchRound, calculateState, userDuration]);
 
   // Consolidate periodic sync (every 10s) to ensure state stays valid if WebSocket misses an event
   useEffect(() => {

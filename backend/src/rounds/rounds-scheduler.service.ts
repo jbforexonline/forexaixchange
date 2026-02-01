@@ -2,6 +2,7 @@
 // ROUNDS SCHEDULER SERVICE - Automatic Round Lifecycle
 // =============================================================================
 // Path: backend/src/rounds/rounds-scheduler.service.ts
+// v3.0: Integrated with multi-duration support
 // =============================================================================
 
 import { Injectable, Logger } from '@nestjs/common';
@@ -10,6 +11,9 @@ import { RoundsService } from './rounds.service';
 import { RoundsSettlementService } from './rounds-settlement.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { SeedingService } from './seeding.service';
+// v3.0: Multi-duration support
+import { MarketInstanceService } from './market-instance.service';
+import { MarketInstanceSettlementService } from './market-instance-settlement.service';
 
 @Injectable()
 export class RoundsSchedulerService {
@@ -23,12 +27,19 @@ export class RoundsSchedulerService {
     private settlementService: RoundsSettlementService,
     private realtimeGateway: RealtimeGateway,
     private seedingService: SeedingService,
+    // v3.0: Multi-duration support
+    private marketInstanceService: MarketInstanceService,
+    private marketInstanceSettlementService: MarketInstanceSettlementService,
   ) {}
 
   /**
-   * Check round transitions every 10 seconds
+   * Check round transitions every 1 second
+   * v3.0: Also handles market instance freezing and settlement
+   * v3.2: Runs every second for instant settlement effects
+   * Effect appears immediately when new round starts (within 1s max)
+   * Consistent timing across 5m, 10m, and 20m rounds
    */
-  @Cron('*/10 * * * * *')
+  @Cron('* * * * * *')
   async checkRoundTransitions() {
     if (this.isProcessing) return; // Skip if already processing
 
@@ -57,6 +68,14 @@ export class RoundsSchedulerService {
 
       // 3. Ensure there's always an active round
       await this.ensureActiveRound();
+      
+      // v3.0: Multi-duration market instance handling
+      // 4. Freeze market instances that reached their freeze time
+      await this.freezeExpiredMarketInstances();
+      
+      // 5. Settle market instances that reached their settle time
+      await this.settleExpiredMarketInstances();
+      
     } catch (error) {
       // Detect Prisma errors that indicate a missing table and flip a guard to stop noisy logs
       try {
@@ -139,16 +158,9 @@ export class RoundsSchedulerService {
       for (const round of toSettle) {
         try {
           await this.settlementService.settleRound(round.id);
-          
-          // Broadcast round settlement
-          this.realtimeGateway.server.emit('roundSettled', {
-            roundId: round.id,
-            roundNumber: round.roundNumber,
-            state: 'SETTLED',
-            settledAt: new Date(),
-          });
-          
-          this.logger.log(`✅ Round ${round.roundNumber} settled and broadcasted`);
+          // Note: roundSettled event is emitted by settlementService with winners data
+          // DO NOT emit duplicate event here - it would override the one with winners!
+          this.logger.log(`✅ Round ${round.roundNumber} settled`);
         } catch (error) {
           this.logger.error(`Failed to settle round ${round.roundNumber}:`, error);
         }
@@ -245,5 +257,88 @@ export class RoundsSchedulerService {
   async manualTrigger() {
     this.logger.log('🔧 Manual transition trigger requested');
     await this.checkRoundTransitions();
+  }
+
+  // =============================================================================
+  // v3.0: MARKET INSTANCE LIFECYCLE MANAGEMENT
+  // =============================================================================
+
+  /**
+   * v3.0: Freeze market instances that have reached their freeze time
+   */
+  private async freezeExpiredMarketInstances() {
+    try {
+      const instancesToFreeze = await this.marketInstanceService.getMarketInstancesToFreeze();
+      
+      for (const instance of instancesToFreeze) {
+        try {
+          // Apply seeding before freezing
+          await this.seedingService.applyAllInstanceSeeds(instance.id);
+          this.logger.debug(`🌱 Applied seeding to market instance ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes}`);
+          
+          // Lock seeds at freeze time
+          await this.seedingService.lockInstanceSeedsAtFreeze(instance.id);
+          
+          // Freeze the instance
+          const frozen = await this.marketInstanceService.freezeMarketInstance(instance.id);
+          
+          this.logger.log(
+            `❄️ Market instance frozen: ${frozen.durationMinutes} ` +
+            `${frozen.windowStartMinutes}→${frozen.windowEndMinutes}`
+          );
+          
+          // Broadcast state change
+          this.realtimeGateway.server.emit('marketInstanceFrozen', {
+            instanceId: frozen.id,
+            masterRoundId: frozen.masterRoundId,
+            durationMinutes: frozen.durationMinutes,
+            windowStart: frozen.windowStartMinutes,
+            windowEnd: frozen.windowEndMinutes,
+            frozenAt: frozen.frozenAt,
+            settleAt: frozen.settleAt,
+          });
+        } catch (error) {
+          this.logger.error(
+            `Failed to freeze market instance ${instance.id}:`,
+            error,
+          );
+        }
+      }
+    } catch (error) {
+      this.handlePrismaError(error, 'Error freezing market instances:');
+    }
+  }
+
+  /**
+   * v3.0: Settle market instances that have reached their settle time
+   */
+  private async settleExpiredMarketInstances() {
+    try {
+      const instancesToSettle = await this.marketInstanceService.getMarketInstancesToSettle();
+      
+      if (instancesToSettle.length === 0) return;
+      
+      this.logger.log(
+        `⚙️ Settling ${instancesToSettle.length} market instance(s)...`
+      );
+      
+      for (const instance of instancesToSettle) {
+        try {
+          await this.marketInstanceSettlementService.settleMarketInstance(instance.id);
+          
+          this.logger.log(
+            `✅ Market instance settled: ${instance.durationMinutes} ` +
+            `${instance.windowStartMinutes}→${instance.windowEndMinutes}`
+          );
+        } catch (error) {
+          this.logger.error(
+            `Failed to settle market instance ${instance.id}:`,
+            error,
+          );
+        }
+      }
+    } catch (error) {
+      this.handlePrismaError(error, 'Error settling market instances:');
+    }
   }
 }

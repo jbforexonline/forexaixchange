@@ -1,20 +1,21 @@
 // =============================================================================
-// ROUNDS SETTLEMENT SERVICE - Core Settlement Algorithm v2
+// MARKET INSTANCE SETTLEMENT SERVICE - Settlement for Multi-Duration Markets
 // =============================================================================
-// Path: backend/src/rounds/rounds-settlement.service.ts
-// Implements: Minority rule + Indecision override from Spin V1 spec
-// v2: Uses ledger-based accounting with idempotency
+// Path: backend/src/rounds/market-instance-settlement.service.ts
+// Implements: Settlement per market instance using the SAME algorithm as rounds
+// CRITICAL: This service REUSES the existing minority-wins + indecision logic
 // =============================================================================
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { RoundState, BetMarket, Prisma, LedgerEntryType } from '@prisma/client';
+import { MarketInstanceStatus, BetMarket, Prisma, LedgerEntryType } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { LedgerService, SYSTEM_ACCOUNTS } from '../ledger/ledger.service';
+import { MarketInstanceService } from './market-instance.service';
 
 interface LayerTotals {
   a: Decimal;
@@ -35,33 +36,35 @@ interface SettlementResult {
 }
 
 @Injectable()
-export class RoundsSettlementService {
-  private readonly logger = new Logger(RoundsSettlementService.name);
-  private readonly FEE_BPS = 200; // 2% house fee
+export class MarketInstanceSettlementService {
+  private readonly logger = new Logger(MarketInstanceSettlementService.name);
+  private readonly FEE_BPS = 200; // 2% house fee - UNCHANGED from original
 
   constructor(
     private prisma: PrismaService,
     @Inject(REDIS_CLIENT) private redis: Redis,
     private gateway: RealtimeGateway,
-    private ledgerService: LedgerService, // v2: Ledger-based accounting
+    private ledgerService: LedgerService,
+    private marketInstanceService: MarketInstanceService,
   ) {}
 
   /**
-   * Main settlement entry point
-   * v2: Includes idempotency check via RoundSettlement model
+   * Settle a single market instance
+   * CRITICAL: Uses the SAME algorithm as RoundsSettlementService.settleRound
    */
-  async settleRound(roundId: string, settledByAdminId?: string) {
+  async settleMarketInstance(instanceId: string, settledByAdminId?: string) {
     // Acquire Redis lock to prevent concurrent settlement
-    const lockKey = `lock:settle:round:${roundId}`;
+    const lockKey = `lock:settle:instance:${instanceId}`;
     const lockValue = Date.now().toString();
     let lockAcquired = false;
+
     try {
       if (this.redis.status === 'ready') {
         const result = await this.redis.set(lockKey, lockValue, 'EX', 30, 'NX');
         lockAcquired = result === 'OK';
       } else {
-        this.logger.warn(`Redis not ready, skipping lock for round ${roundId}`);
-        lockAcquired = true; // Fallback: allow settlement if Redis is down
+        this.logger.warn(`Redis not ready, skipping lock for instance ${instanceId}`);
+        lockAcquired = true;
       }
     } catch (e) {
       this.logger.warn(`Failed to acquire lock: ${e.message}. Proceeding anyway.`);
@@ -69,7 +72,7 @@ export class RoundsSettlementService {
     }
 
     if (!lockAcquired) {
-      this.logger.warn(`Settlement already in progress for round ${roundId}`);
+      this.logger.warn(`Settlement already in progress for market instance ${instanceId}`);
       return null;
     }
 
@@ -77,58 +80,77 @@ export class RoundsSettlementService {
       return await this.prisma.$transaction(
         async (tx) => {
           // 0. IDEMPOTENCY CHECK: If settlement already exists, return early
-          const existingSettlement = await tx.roundSettlement.findUnique({
-            where: { roundId },
+          const existingSettlement = await tx.marketInstanceSettlement.findUnique({
+            where: { marketInstanceId: instanceId },
           });
 
           if (existingSettlement) {
-            this.logger.warn(`⚠️ Round ${roundId} already settled (version ${existingSettlement.settlementVersion}). Skipping re-settlement.`);
-            return tx.round.findUnique({ where: { id: roundId } });
+            this.logger.warn(`⚠️ Market instance ${instanceId} already settled. Skipping.`);
+            return tx.marketInstance.findUnique({ where: { id: instanceId } });
           }
 
-          // 1. Lock the round
-          // v3.1 FIX: Only include 20-minute duration bets for master round settlement!
-          // 5m and 10m bets are settled via their own MarketInstance settlements.
-          const round = await tx.round.findUnique({
-            where: { id: roundId },
+          // 1. Get the market instance with its bets
+          const instance = await tx.marketInstance.findUnique({
+            where: { id: instanceId },
             include: {
+              masterRound: true,
               bets: {
-                where: { 
-                  status: 'ACCEPTED',
-                  durationMinutes: 'TWENTY', // v3.1: CRITICAL - Only 20m bets
-                },
+                where: { status: 'ACCEPTED' },
               },
-              artifact: true,
+              snapshots: {
+                where: { snapshotType: 'FREEZE' },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+              },
             },
           });
 
-          if (!round) {
-            throw new Error('Round not found');
+          if (!instance) {
+            throw new Error('Market instance not found');
           }
 
-          if (round.state !== RoundState.FROZEN) {
-            throw new Error(`Round must be FROZEN, currently: ${round.state}`);
+          if (instance.status !== MarketInstanceStatus.FROZEN) {
+            throw new Error(`Market instance must be FROZEN, currently: ${instance.status}`);
           }
 
-          this.logger.log(`⚙️  Settling Round ${round.roundNumber}...`);
+          this.logger.log(
+            `⚙️ Settling market instance: ${instance.durationMinutes} ` +
+            `${instance.windowStartMinutes}→${instance.windowEndMinutes}...`
+          );
 
           // 2. Transition to SETTLING
-          await tx.round.update({
-            where: { id: roundId },
-            data: { state: RoundState.SETTLING },
+          await tx.marketInstance.update({
+            where: { id: instanceId },
+            data: { status: MarketInstanceStatus.SETTLING },
           });
 
-          // 3. Run settlement algorithm
-          const settlement = await this.computeSettlement(round, round.bets);
+          // 3. Get pool totals from freeze snapshot (or current if no snapshot)
+          const poolTotals = instance.snapshots[0] || {
+            outerBuy: instance.outerBuy,
+            outerSell: instance.outerSell,
+            middleBlue: instance.middleBlue,
+            middleRed: instance.middleRed,
+            innerHighVol: instance.innerHighVol,
+            innerLowVol: instance.innerLowVol,
+            globalIndecision: instance.globalIndecision,
+          };
 
-          // 4. Apply payouts to all bets
-          const payoutResult = await this.applyPayouts(tx, round, settlement, settledByAdminId);
+          // 4. Run settlement algorithm - EXACT SAME as RoundsSettlementService
+          const settlement = await this.computeSettlement(poolTotals, instance.bets);
 
-          // 5. Update round with results
-          const settledRound = await tx.round.update({
-            where: { id: roundId },
+          // 5. Apply payouts to all bets
+          const payoutResult = await this.applyPayouts(
+            tx,
+            instance,
+            settlement,
+            settledByAdminId,
+          );
+
+          // 6. Update market instance with results
+          const settledInstance = await tx.marketInstance.update({
+            where: { id: instanceId },
             data: {
-              state: RoundState.SETTLED,
+              status: MarketInstanceStatus.SETTLED,
               settledAt: new Date(),
               indecisionTriggered: settlement.indecisionTriggered,
               outerWinner: settlement.layerResults.outer.winner,
@@ -141,17 +163,16 @@ export class RoundsSettlementService {
             },
           });
 
-          // 5.1. Create RoundSettlement record for idempotency
-          await tx.roundSettlement.create({
+          // 7. Create MarketInstanceSettlement record for idempotency
+          await tx.marketInstanceSettlement.create({
             data: {
-              roundId,
-              roundNumber: round.roundNumber,
+              marketInstanceId: instanceId,
               settlementVersion: 1,
               totalPool: payoutResult.totalPool,
               totalPayouts: payoutResult.totalPayouts,
               houseFee: settlement.houseFee,
               houseProfit: payoutResult.houseProfit,
-              totalBets: round.bets.length,
+              totalBets: instance.bets.length,
               winningBets: payoutResult.winningBetsCount,
               losingBets: payoutResult.losingBetsCount,
               settledBy: settledByAdminId,
@@ -160,59 +181,29 @@ export class RoundsSettlementService {
             },
           });
 
-          // 6. Update fairness artifact
-          if (round.artifact) {
-            const artifactData = {
-              roundNumber: round.roundNumber,
-              totals: {
-                outerBuy: round.outerBuy.toString(),
-                outerSell: round.outerSell.toString(),
-                middleBlue: round.middleBlue.toString(),
-                middleRed: round.middleRed.toString(),
-                innerHighVol: round.innerHighVol.toString(),
-                innerLowVol: round.innerLowVol.toString(),
-                globalIndecision: round.globalIndecision.toString(),
-              },
-              settlement: {
-                indecisionTriggered: settlement.indecisionTriggered,
-                winners: settlement.layerResults,
-                houseFee: settlement.houseFee.toString(),
-                totalPaid: Array.from(settlement.payouts.values())
-                  .reduce((sum, p) => sum.add(p.payoutAmount), new Decimal(0))
-                  .toString(),
-              },
-              timestamp: new Date().toISOString(),
-              betCount: round.bets.length,
-            };
-
-            await tx.fairnessArtifact.update({
-              where: { id: round.artifact.id },
-              data: {
-                artifactData,
-                revealedAt: new Date(),
-              },
-            });
-          }
-
           this.logger.log(
-            `✅ Round ${round.roundNumber} SETTLED - ` +
-              `Indecision: ${settlement.indecisionTriggered}, ` +
-              `House Fee: $${settlement.houseFee.toFixed(2)}, ` +
-              `Winners: ${settlement.payouts.size}`,
+            `✅ Market instance settled: ${instance.durationMinutes} ` +
+            `${instance.windowStartMinutes}→${instance.windowEndMinutes} - ` +
+            `Indecision: ${settlement.indecisionTriggered}, ` +
+            `House Fee: $${settlement.houseFee.toFixed(2)}`
           );
 
-          // 7. Broadcast settlement via WebSocket
-          this.gateway.server.emit('roundSettled', {
-            roundId,
-            roundNumber: round.roundNumber,
+          // 8. Broadcast settlement via WebSocket
+          this.gateway.server.emit('marketInstanceSettled', {
+            instanceId,
+            masterRoundId: instance.masterRoundId,
+            roundNumber: instance.masterRound.roundNumber,
+            durationMinutes: instance.durationMinutes,
+            windowStart: instance.windowStartMinutes,
+            windowEnd: instance.windowEndMinutes,
             indecisionTriggered: settlement.indecisionTriggered,
             winners: settlement.layerResults,
           });
 
-          return settledRound;
+          return settledInstance;
         },
         {
-          timeout: 60000, // 60 second timeout for large rounds
+          timeout: 60000,
           maxWait: 10000,
         },
       );
@@ -232,9 +223,13 @@ export class RoundsSettlementService {
   }
 
   /**
-   * Core settlement algorithm from Spin V1 spec
+   * Core settlement algorithm - IDENTICAL to RoundsSettlementService
+   * DO NOT MODIFY without updating both services
    */
-  private async computeSettlement(round: any, bets: any[]): Promise<SettlementResult> {
+  private async computeSettlement(
+    poolTotals: any,
+    bets: any[],
+  ): Promise<SettlementResult> {
     const result: SettlementResult = {
       indecisionTriggered: false,
       layerResults: {
@@ -246,10 +241,18 @@ export class RoundsSettlementService {
       houseFee: new Decimal(0),
     };
 
+    // Convert to Decimal if needed
+    const outerBuy = new Decimal(poolTotals.outerBuy || 0);
+    const outerSell = new Decimal(poolTotals.outerSell || 0);
+    const middleBlue = new Decimal(poolTotals.middleBlue || 0);
+    const middleRed = new Decimal(poolTotals.middleRed || 0);
+    const innerHighVol = new Decimal(poolTotals.innerHighVol || 0);
+    const innerLowVol = new Decimal(poolTotals.innerLowVol || 0);
+
     // Check for ties (both sides > 0 and equal to the cent)
-    const outerTied = this.isTied(round.outerBuy, round.outerSell);
-    const middleTied = this.isTied(round.middleBlue, round.middleRed);
-    const innerTied = this.isTied(round.innerHighVol, round.innerLowVol);
+    const outerTied = this.isTied(outerBuy, outerSell);
+    const middleTied = this.isTied(middleBlue, middleRed);
+    const innerTied = this.isTied(innerHighVol, innerLowVol);
 
     result.layerResults.outer.tied = outerTied;
     result.layerResults.middle.tied = middleTied;
@@ -261,12 +264,12 @@ export class RoundsSettlementService {
       this.logger.log(`🎯 INDECISION TRIGGERED!`);
 
       // All layer bets lose, only INDECISION bets win
-      const losersPool = round.outerBuy
-        .add(round.outerSell)
-        .add(round.middleBlue)
-        .add(round.middleRed)
-        .add(round.innerHighVol)
-        .add(round.innerLowVol);
+      const losersPool = outerBuy
+        .add(outerSell)
+        .add(middleBlue)
+        .add(middleRed)
+        .add(innerHighVol)
+        .add(innerLowVol);
 
       // Calculate house fee from losers pool (2%)
       const houseFee = losersPool.mul(this.FEE_BPS).div(10000);
@@ -276,8 +279,8 @@ export class RoundsSettlementService {
       for (const bet of bets) {
         if (bet.market === BetMarket.GLOBAL && bet.selection === 'INDECISION') {
           // INDECISION bets win: Fixed 2x payout
-          const payoutAmount = bet.amountUsd.mul(2); // Fixed 2x multiplier
-          const profitAmount = bet.amountUsd; // Profit = stake (2x - 1x = 1x)
+          const payoutAmount = bet.amountUsd.mul(2);
+          const profitAmount = bet.amountUsd;
           result.payouts.set(bet.id, {
             isWinner: true,
             payoutAmount: payoutAmount,
@@ -298,39 +301,39 @@ export class RoundsSettlementService {
 
       // Determine winners
       result.layerResults.outer.winner = this.determineWinner(
-        round.outerBuy,
-        round.outerSell,
+        outerBuy,
+        outerSell,
         'BUY',
         'SELL',
       );
       result.layerResults.middle.winner = this.determineWinner(
-        round.middleBlue,
-        round.middleRed,
+        middleBlue,
+        middleRed,
         'BLUE',
         'RED',
       );
       result.layerResults.inner.winner = this.determineWinner(
-        round.innerHighVol,
-        round.innerLowVol,
+        innerHighVol,
+        innerLowVol,
         'HIGH_VOL',
         'LOW_VOL',
       );
 
       // Settle each layer independently
       const outerPayouts = this.settleLayer(
-        { a: round.outerBuy, b: round.outerSell, labelA: 'BUY', labelB: 'SELL' },
+        { a: outerBuy, b: outerSell, labelA: 'BUY', labelB: 'SELL' },
         result.layerResults.outer.winner!,
         bets.filter((b) => b.market === BetMarket.OUTER),
       );
 
       const middlePayouts = this.settleLayer(
-        { a: round.middleBlue, b: round.middleRed, labelA: 'BLUE', labelB: 'RED' },
+        { a: middleBlue, b: middleRed, labelA: 'BLUE', labelB: 'RED' },
         result.layerResults.middle.winner!,
         bets.filter((b) => b.market === BetMarket.MIDDLE),
       );
 
       const innerPayouts = this.settleLayer(
-        { a: round.innerHighVol, b: round.innerLowVol, labelA: 'HIGH_VOL', labelB: 'LOW_VOL' },
+        { a: innerHighVol, b: innerLowVol, labelA: 'HIGH_VOL', labelB: 'LOW_VOL' },
         result.layerResults.inner.winner!,
         bets.filter((b) => b.market === BetMarket.INNER),
       );
@@ -358,7 +361,7 @@ export class RoundsSettlementService {
   }
 
   /**
-   * Check if two amounts constitute a tie
+   * Check if two amounts constitute a tie - IDENTICAL to RoundsSettlementService
    * IMPORTANT: 0-0 is NOT a tie (seeding prevents this, but we handle it gracefully)
    * A tie only occurs when both sides have bets AND they're equal
    */
@@ -370,7 +373,7 @@ export class RoundsSettlementService {
   }
 
   /**
-   * Determine winner by minority rule
+   * Determine winner by minority rule - IDENTICAL to RoundsSettlementService
    */
   private determineWinner(
     a: Decimal,
@@ -378,13 +381,12 @@ export class RoundsSettlementService {
     labelA: string,
     labelB: string,
   ): string {
-    if (a.eq(0) && b.eq(0)) return labelA; // Default if no bets
-    return a.lt(b) ? labelA : labelB; // Minority wins
+    if (a.eq(0) && b.eq(0)) return labelA;
+    return a.lt(b) ? labelA : labelB;
   }
 
   /**
-   * Settle a single layer using minority rule
-   * Payout Rule: Winner receives exactly 2x their bet amount (fixed multiplier)
+   * Settle a single layer using minority rule - IDENTICAL to RoundsSettlementService
    */
   private settleLayer(
     totals: LayerTotals,
@@ -393,27 +395,23 @@ export class RoundsSettlementService {
   ): { payouts: Map<string, any>; houseFee: Decimal } {
     const payouts = new Map();
 
-    const winnersPool =
-      winner === totals.labelA ? totals.a : totals.b;
-    const losersPool =
-      winner === totals.labelA ? totals.b : totals.a;
+    const winnersPool = winner === totals.labelA ? totals.a : totals.b;
+    const losersPool = winner === totals.labelA ? totals.b : totals.a;
 
     // Calculate house fee from losers pool (2%)
     const houseFee = losersPool.mul(this.FEE_BPS).div(10000);
 
-    // Fixed 2x payout: Winner receives exactly 2x their bet amount
+    // Fixed 2x payout
     for (const bet of bets) {
       if (bet.selection === winner) {
-        // Winner: Fixed 2x payout
-        const payoutAmount = bet.amountUsd.mul(2); // Fixed 2x multiplier
-        const profitAmount = bet.amountUsd; // Profit = stake (2x - 1x = 1x)
+        const payoutAmount = bet.amountUsd.mul(2);
+        const profitAmount = bet.amountUsd;
         payouts.set(bet.id, {
           isWinner: true,
           payoutAmount: payoutAmount,
           profitAmount: profitAmount,
         });
       } else {
-        // Loser: Loses 100% of bet
         payouts.set(bet.id, {
           isWinner: false,
           payoutAmount: new Decimal(0),
@@ -427,11 +425,11 @@ export class RoundsSettlementService {
 
   /**
    * Apply payouts atomically to all bets
-   * v2: Returns settlement metrics for RoundSettlement record
+   * CRITICAL: Follows same logic as RoundsSettlementService
    */
   private async applyPayouts(
     tx: Prisma.TransactionClient,
-    round: any,
+    instance: any,
     settlement: SettlementResult,
     settledByAdminId?: string,
   ): Promise<{
@@ -443,29 +441,28 @@ export class RoundsSettlementService {
     clearingLedgerEntryId?: string;
     profitLedgerEntryId?: string;
   }> {
-    // 1. First, ensure PlatformAccount exists
+    // 1. Ensure PlatformAccount exists
     let platformAccount = await (tx as any).platformAccount.findUnique({
       where: { id: 'HOUSE' },
     });
 
     if (!platformAccount) {
-      // Create house account with initial reserve
       platformAccount = await (tx as any).platformAccount.create({
         data: {
           id: 'HOUSE',
           balance: new Decimal(0),
-          reserveBalance: new Decimal(10000), // $10,000 initial reserve
+          reserveBalance: new Decimal(10000),
         },
       });
       this.logger.log('🏦 House account created with $10,000 reserve');
     }
 
-    // 2. Calculate totals for this round
+    // 2. Calculate totals
     let totalCollectedFromLosers = new Decimal(0);
     let totalPaidToWinners = new Decimal(0);
 
     // 3. Process all bets
-    for (const bet of round.bets) {
+    for (const bet of instance.bets) {
       const payout = settlement.payouts.get(bet.id);
       if (!payout) continue;
 
@@ -484,7 +481,6 @@ export class RoundsSettlementService {
       // Update wallet
       if (payout.isWinner) {
         if ((bet as any).isDemo) {
-          // Demo Winner: return stake + profit to demoAvailable, remove from demoHeld
           await tx.wallet.update({
             where: { userId: bet.userId },
             data: {
@@ -494,13 +490,12 @@ export class RoundsSettlementService {
             } as any,
           });
         } else {
-          // Winner: return stake + profit to available, remove from held
           await tx.wallet.update({
             where: { userId: bet.userId },
             data: {
-              available: { increment: payout.payoutAmount }, // Stake + profit added back
-              held: { decrement: bet.amountUsd }, // Remove held stake
-              totalWon: { increment: payout.profitAmount }, // Track profit only
+              available: { increment: payout.payoutAmount },
+              held: { decrement: bet.amountUsd },
+              totalWon: { increment: payout.profitAmount },
             },
           });
         }
@@ -515,12 +510,12 @@ export class RoundsSettlementService {
             amount: payout.profitAmount,
             status: 'COMPLETED',
             isDemo: (bet as any).isDemo || false,
-            description: `Round ${round.roundNumber} win - ${bet.market} ${bet.selection} - Profit: $${payout.profitAmount.toFixed(2)}`,
+            description: `Market ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes} win - ${bet.market} ${bet.selection}`,
             processedAt: new Date(),
           } as any,
         });
 
-        // Emit real-time wallet update for winner
+        // Emit wallet update for winner
         const winnerWallet = await tx.wallet.findUnique({
           where: { userId: bet.userId },
         });
@@ -540,7 +535,6 @@ export class RoundsSettlementService {
         }
       } else {
         if ((bet as any).isDemo) {
-          // Demo Loser: remove demoHeld funds, increase demoTotalLost
           await tx.wallet.update({
             where: { userId: bet.userId },
             data: {
@@ -549,12 +543,11 @@ export class RoundsSettlementService {
             } as any,
           });
         } else {
-          // Loser: remove held funds, increase totalLost (funds go to house)
           await tx.wallet.update({
             where: { userId: bet.userId },
             data: {
-              held: { decrement: bet.amountUsd }, // Remove held stake (funds lost)
-              totalLost: { increment: bet.amountUsd }, // Track loss
+              held: { decrement: bet.amountUsd },
+              totalLost: { increment: bet.amountUsd },
             },
           });
         }
@@ -569,12 +562,12 @@ export class RoundsSettlementService {
             amount: bet.amountUsd,
             status: 'COMPLETED',
             isDemo: (bet as any).isDemo || false,
-            description: `Round ${round.roundNumber} loss - ${bet.market} ${bet.selection} - Lost: $${bet.amountUsd.toFixed(2)}`,
+            description: `Market ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes} loss - ${bet.market} ${bet.selection}`,
             processedAt: new Date(),
           } as any,
         });
 
-        // Emit real-time wallet update for loser
+        // Emit wallet update for loser
         const loserWallet = await tx.wallet.findUnique({
           where: { userId: bet.userId },
         });
@@ -594,7 +587,7 @@ export class RoundsSettlementService {
       }
     }
 
-    // 4. Update Platform Account with economics
+    // 4. Update Platform Account
     const netProfit = totalCollectedFromLosers.sub(totalPaidToWinners).sub(settlement.houseFee);
     const newBalance = platformAccount.balance.add(netProfit).add(settlement.houseFee);
 
@@ -605,21 +598,20 @@ export class RoundsSettlementService {
         totalFees: { increment: settlement.houseFee },
         totalPaidOut: { increment: totalPaidToWinners },
         totalCollected: { increment: totalCollectedFromLosers },
-        // If we paid more than we collected, track as subsidy
         totalSubsidy: totalPaidToWinners.gt(totalCollectedFromLosers)
           ? { increment: totalPaidToWinners.sub(totalCollectedFromLosers) }
           : undefined,
       },
     });
 
-    // 5. Create ledger entries for audit trail
+    // 5. Create ledger entries
     if (totalCollectedFromLosers.gt(0)) {
       await (tx as any).platformLedger.create({
         data: {
-          roundId: round.id,
+          roundId: instance.masterRoundId,
           type: 'LOSER_COLLECTION',
           amount: totalCollectedFromLosers,
-          description: `Round ${round.roundNumber} - Collected from losers`,
+          description: `Market ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes} - Collected`,
           balanceAfter: newBalance,
         },
       });
@@ -628,10 +620,10 @@ export class RoundsSettlementService {
     if (totalPaidToWinners.gt(0)) {
       await (tx as any).platformLedger.create({
         data: {
-          roundId: round.id,
+          roundId: instance.masterRoundId,
           type: 'WINNER_PAYOUT',
-          amount: totalPaidToWinners.neg(), // Negative for outflow
-          description: `Round ${round.roundNumber} - Paid to winners`,
+          amount: totalPaidToWinners.neg(),
+          description: `Market ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes} - Paid`,
           balanceAfter: newBalance,
         },
       });
@@ -640,42 +632,39 @@ export class RoundsSettlementService {
     if (settlement.houseFee.gt(0)) {
       await (tx as any).platformLedger.create({
         data: {
-          roundId: round.id,
+          roundId: instance.masterRoundId,
           type: 'FEE',
           amount: settlement.houseFee,
-          description: `Round ${round.roundNumber} - House fee (2%)`,
+          description: `Market ${instance.durationMinutes} ${instance.windowStartMinutes}→${instance.windowEndMinutes} - Fee (2%)`,
           balanceAfter: newBalance,
         },
       });
     }
 
-    // 6. Create ledger entries for house profit (v2)
+    // 6. Ledger entries for house profit
     let profitLedgerEntryId: string | undefined;
     let clearingLedgerEntryId: string | undefined;
-    
     const houseProfit = totalCollectedFromLosers.sub(totalPaidToWinners);
-    
+
     try {
-      // Record house profit via ledger if positive
       if (houseProfit.gt(0)) {
         const profitResult = await this.ledgerService.recordHouseProfit(
           houseProfit,
-          round.id,
-          round.roundNumber,
-          `round-profit-${round.id}`,
+          instance.masterRoundId,
+          instance.masterRound.roundNumber,
+          `instance-profit-${instance.id}`,
           tx,
         );
         profitLedgerEntryId = profitResult.ledgerEntryId;
       }
-      
-      // Record fees via ledger
+
       if (settlement.houseFee.gt(0)) {
         const feeResult = await this.ledgerService.recordFee(
           settlement.houseFee,
-          `Round ${round.roundNumber} house fee (2%)`,
-          'ROUND',
-          round.id,
-          `round-fee-${round.id}`,
+          `Market ${instance.durationMinutes} house fee (2%)`,
+          'MARKET_INSTANCE',
+          instance.id,
+          `instance-fee-${instance.id}`,
           tx,
         );
         clearingLedgerEntryId = feeResult.ledgerEntryId;
@@ -685,13 +674,13 @@ export class RoundsSettlementService {
     }
 
     // Calculate total pool
-    const totalPool = round.outerBuy
-      .add(round.outerSell)
-      .add(round.middleBlue)
-      .add(round.middleRed)
-      .add(round.innerHighVol)
-      .add(round.innerLowVol)
-      .add(round.globalIndecision);
+    const totalPool = new Decimal(instance.outerBuy || 0)
+      .add(instance.outerSell || 0)
+      .add(instance.middleBlue || 0)
+      .add(instance.middleRed || 0)
+      .add(instance.innerHighVol || 0)
+      .add(instance.innerLowVol || 0)
+      .add(instance.globalIndecision || 0);
 
     const winningBetsCount = Array.from(settlement.payouts.values()).filter(p => p.isWinner).length;
     const losingBetsCount = Array.from(settlement.payouts.values()).filter(p => !p.isWinner).length;
@@ -712,5 +701,23 @@ export class RoundsSettlementService {
       clearingLedgerEntryId,
       profitLedgerEntryId,
     };
+  }
+
+  /**
+   * Settle all market instances that are ready for settlement
+   */
+  async settleReadyInstances(): Promise<void> {
+    const instancesToSettle = await this.marketInstanceService.getMarketInstancesToSettle();
+
+    for (const instance of instancesToSettle) {
+      try {
+        await this.settleMarketInstance(instance.id);
+      } catch (error) {
+        this.logger.error(
+          `Failed to settle market instance ${instance.id}: ${error.message}`,
+          error.stack,
+        );
+      }
+    }
   }
 }

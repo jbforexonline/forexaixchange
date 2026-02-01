@@ -17,7 +17,12 @@ export type WebSocketEvent =
   | 'heartbeat'
   | 'connected'
   | 'disconnected'
-  | 'error';
+  | 'error'
+  // v3.0: Multi-duration market instance events
+  | 'marketInstanceSettled'
+  | 'marketInstanceFrozen'
+  | 'masterClockTick'
+  | 'aggregatedStatsUpdated';
 
 export type WebSocketEventHandler = (data: any) => void;
 
@@ -41,6 +46,11 @@ class WebSocketClient {
       'connected',
       'disconnected',
       'error',
+      // v3.0: Multi-duration market instance events
+      'marketInstanceSettled',
+      'marketInstanceFrozen',
+      'masterClockTick',
+      'aggregatedStatsUpdated',
     ];
     events.forEach(event => {
       this.listeners.set(event, new Set());
@@ -104,6 +114,12 @@ class WebSocketClient {
       this.socket.on('walletUpdated', (data) => this.emit('walletUpdated', data));
       this.socket.on('roundStateChanged', (data) => this.emit('roundStateChanged', data));
       this.socket.on('heartbeat', (data) => this.emit('heartbeat', data));
+      
+      // v3.0: Multi-duration market instance events
+      this.socket.on('marketInstanceSettled', (data) => this.emit('marketInstanceSettled', data));
+      this.socket.on('marketInstanceFrozen', (data) => this.emit('marketInstanceFrozen', data));
+      this.socket.on('masterClockTick', (data) => this.emit('masterClockTick', data));
+      this.socket.on('aggregatedStatsUpdated', (data) => this.emit('aggregatedStatsUpdated', data));
 
       // Error handling
       this.socket.on('connect_error', (error) => {

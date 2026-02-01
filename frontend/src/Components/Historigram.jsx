@@ -8,23 +8,45 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
-  ReferenceLine
+  ReferenceLine,
+  Cell
 } from "recharts";
 import React from "react";
 import "../Components/Styles/Historigram.scss";
-import { getRoundHistory, getCurrentRound } from "../lib/api/spin";
+import { getRoundHistory, getCurrentRound, getLiveMarketDistribution, getMarketInstanceHistory } from "../lib/api/spin";
 import { getWebSocketClient } from "../lib/websocket";
 import { useEffect, useState, useRef } from "react";
 
 const DEFAULT_KEYS = [
   "Buy",
   "Sell",
-  "Red",
   "Blue",
+  "Red",
   "High Volatile",
   "Low Volatile",
   "Indecision"
 ];
+
+// Color mapping for each selection (matching statistics page)
+const SELECTION_COLORS = {
+  BUY: '#22c55e',      // Green
+  SELL: '#ef4444',     // Red
+  BLUE: '#3b82f6',     // Blue
+  RED: '#f97316',      // Orange
+  HIGH_VOL: '#8b5cf6', // Purple
+  LOW_VOL: '#06b6d4',  // Cyan
+  INDECISION: '#fbbf24' // Yellow
+};
+
+const SELECTION_LABELS = {
+  BUY: 'Buy',
+  SELL: 'Sell',
+  BLUE: 'Blue',
+  RED: 'Red',
+  HIGH_VOL: 'High Vol',
+  LOW_VOL: 'Low Vol',
+  INDECISION: 'Indecision'
+};
 
 /* DEFAULT TABLE DATA (VISIBLE IMMEDIATELY) */
 const DEFAULT_HISTORY = [
@@ -94,6 +116,43 @@ const DEFAULT_HISTORY = [
   }
 ];
 
+// Time period options
+const TIME_PERIODS = [
+  { value: 'hourly', label: 'Hourly' },
+  { value: 'daily', label: 'Daily' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'annually', label: 'Annually' },
+  { value: 'all', label: 'All Time' },
+];
+
+// Custom tooltip for the bar chart
+const CustomChartTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div style={{
+        background: 'rgba(15, 39, 68, 0.95)',
+        border: '1px solid rgba(100, 200, 255, 0.3)',
+        borderRadius: '8px',
+        padding: '8px 12px',
+        color: '#fff',
+        fontSize: '12px'
+      }}>
+        <p style={{ margin: 0, fontWeight: 600 }}>{data.label}</p>
+        <p style={{ margin: '4px 0 0', color: data.fill }}>
+          {data.percentage?.toFixed(1) || 0}%
+        </p>
+        <p style={{ margin: '2px 0 0', color: 'rgba(165, 213, 255, 0.7)', fontSize: '11px' }}>
+          {data.count || 0} orders
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function Histogram({
   title,
   data = [],
@@ -103,183 +162,193 @@ export default function Histogram({
 }) {
   const [realHistory, setRealHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [timePeriod, setTimePeriod] = useState('all');
+  const [chartData, setChartData] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
+
+  // Fetch live market distribution for chart
+  const fetchChartData = async () => {
+    try {
+      const liveData = await getLiveMarketDistribution();
+      if (liveData?.distribution) {
+        const formattedData = liveData.distribution.map(item => ({
+          ...item,
+          label: SELECTION_LABELS[item.selection] || item.selection,
+          fill: SELECTION_COLORS[item.selection] || '#3b82f6'
+        }));
+        setChartData(formattedData);
+      } else {
+        // Fallback to default display
+        setChartData(DEFAULT_KEYS.map(key => ({
+          selection: key.toUpperCase().replace(' ', '_'),
+          label: key,
+          percentage: 0,
+          count: 0,
+          fill: SELECTION_COLORS[key.toUpperCase().replace(' ', '_')] || '#3b82f6'
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to fetch chart data:', error);
+      // Set empty data on error
+      setChartData(DEFAULT_KEYS.map(key => ({
+        selection: key.toUpperCase().replace(' ', '_'),
+        label: key,
+        percentage: 0,
+        count: 0,
+        fill: SELECTION_COLORS[key.toUpperCase().replace(' ', '_')] || '#3b82f6'
+      })));
+    } finally {
+      setChartLoading(false);
+    }
+  };
+
+  // Fetch chart data on mount and set up refresh
+  useEffect(() => {
+    fetchChartData();
+    
+    // Refresh every 10 seconds
+    const interval = setInterval(fetchChartData, 10000);
+    
+    // Listen for WebSocket updates
+    const ws = getWebSocketClient();
+    const handleUpdate = () => fetchChartData();
+    
+    ws.on('betPlaced', handleUpdate);
+    ws.on('totalsUpdated', handleUpdate);
+    ws.on('roundSettled', handleUpdate);
+    ws.on('roundOpened', handleUpdate);
+    
+    return () => {
+      clearInterval(interval);
+      ws.off('betPlaced', handleUpdate);
+      ws.off('totalsUpdated', handleUpdate);
+      ws.off('roundSettled', handleUpdate);
+      ws.off('roundOpened', handleUpdate);
+    };
+  }, []);
+
+  // Calculate limit based on time period
+  const getLimit = () => {
+    switch(timePeriod) {
+      case 'hourly': return 20;
+      case 'daily': return 50;
+      case 'weekly': return 100;
+      default: return 100;
+    }
+  };
 
   useEffect(() => {
     const fetchHistory = async () => {
       try {
         setIsLoading(true);
         
-        // Fetch current round and round history
-        const [currentResponse, historyResponse] = await Promise.all([
-          getCurrentRound().catch(() => ({ round: null })),
-          getRoundHistory(1, 15).catch(() => ({ data: [] }))
-        ]);
+        const limit = getLimit();
         
-        // Handle current round
-        const currentRound = currentResponse?.round;
+        // Use getRoundHistory for ACTUAL round results from database
+        // This is the authoritative source and consistent with all other tables
+        const response = await getRoundHistory(1, limit).catch(() => ({ data: [] }));
         
-        // Handle history response structure
-        let historyRounds = [];
-        const history = historyResponse;
-        if (history.data && Array.isArray(history.data)) {
-          historyRounds = history.data;
-        } else if (Array.isArray(history)) {
-          historyRounds = history;
-        } else if (history.data && history.data.data && Array.isArray(history.data.data)) {
-          historyRounds = history.data.data;
+        // Handle different response structures
+        let rounds = response?.data?.data || response?.data || [];
+        if (!Array.isArray(rounds)) {
+          rounds = [];
         }
         
-        console.log('Current round:', currentRound);
-        console.log('History rounds:', historyRounds);
+        console.log('Round history (authoritative):', rounds);
         
-        let allRounds = [];
+        // Filter by time period if specified
+        if (timePeriod !== 'all' && rounds.length > 0) {
+          const now = new Date();
+          let startDate;
+          switch(timePeriod) {
+            case 'hourly': startDate = new Date(now.getTime() - 60 * 60 * 1000); break;
+            case 'daily': startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); break;
+            case 'weekly': startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000); break;
+            case 'monthly': startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); break;
+            case 'quarterly': startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000); break;
+            case 'annually': startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); break;
+            default: startDate = new Date(0);
+          }
+          rounds = rounds.filter(r => new Date(r.settledAt || r.openedAt) >= startDate);
+        }
         
-        // Add current round at the top if it exists
-        if (currentRound) {
-          allRounds.push({
-            ...currentRound,
-            isCurrent: true
+        // If we have no data, use default display
+        if (rounds.length === 0) {
+          setRealHistory(DEFAULT_HISTORY.slice(0, 5));
+          setIsLoading(false);
+          return;
+        }
+        
+        // Helper to format round result
+        const formatRoundResult = (round) => {
+          if (!round) return 'N/A';
+          if (round.indecisionTriggered) return 'INDECISION';
+          
+          const parts = [];
+          if (round.outerWinner) parts.push(round.outerWinner);
+          if (round.middleWinner) parts.push(round.middleWinner);
+          if (round.innerWinner) parts.push(round.innerWinner);
+          
+          return parts.length > 0 ? parts.join(', ') : 'N/A';
+        };
+        
+        // Build display rows from ACTUAL round data
+        const formatted = [];
+        
+        // Add "Current" placeholder row
+        formatted.push({
+          date: "Current",
+          previous: formatRoundResult(rounds[0]),
+          previousType: getBadgeType(formatRoundResult(rounds[0])),
+          forexAI: "AI analysing market",
+          suggestion: "Waiting results",
+          resultType: "info"
+        });
+        
+        // Add historical rows from ACTUAL settled rounds
+        for (let i = 0; i < rounds.length - 1; i++) {
+          const current = rounds[i];
+          const previous = rounds[i + 1];
+          
+          // Get AI suggestion based on previous result
+          const prevResult = formatRoundResult(previous);
+          let aiSuggestion = "AI analysing market";
+          if (prevResult) {
+            const prevUpper = prevResult.toUpperCase();
+            if (prevUpper.includes('HIGH')) aiSuggestion = "Low Volatile";
+            else if (prevUpper.includes('LOW')) aiSuggestion = "High Volatile";
+            else if (prevUpper.includes('INDECISION')) aiSuggestion = "High Volatile";
+          }
+          
+          formatted.push({
+            date: new Date(current.settledAt || current.openedAt).toLocaleString([], {
+              month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
+            }),
+            previous: formatRoundResult(previous),
+            previousType: getBadgeType(formatRoundResult(previous)),
+            forexAI: aiSuggestion,
+            suggestion: formatRoundResult(current),
+            resultType: current.indecisionTriggered ? "warning" : "success"
           });
         }
-        
-        // Add history rounds (settled rounds)
-        allRounds = allRounds.concat(historyRounds.filter(r => r.state === 'SETTLED'));
-        
-        // Show up to 8 rounds for better user experience, minimum 5
-        let displayRounds = allRounds.slice(0, 8);
-        
-        // If we have less than 5 rounds, pad with default data
-        if (displayRounds.length < 5) {
-          const defaultData = DEFAULT_HISTORY.slice(displayRounds.length);
-          displayRounds = displayRounds.concat(defaultData.slice(0, 5 - displayRounds.length));
-        }
-        
-        // Transform to component format
-        const formatted = displayRounds.map((round, index) => {
-          // Check if this is default data (no API data)
-          if (typeof round === 'object' && round.date && typeof round.date === 'string' && !round.roundNumber) {
-            // This is default display data, return as-is
-            return {
-              date: round.date,
-              previous: round.previous,
-              previousType: round.previousType,
-              forexAI: round.forexAI,
-              suggestion: round.suggestion,
-              resultType: round.resultType
-            };
-          }
-
-          const isCurrent = round.isCurrent || (index === 0 && round.state !== 'SETTLED');
-          let recentResult = "Waiting results";
-          let recentResultType = "info";
-          
-          // Get the actual result of THIS round (for Recent Result column)
-          if (round.state === 'SETTLED') {
-            const winners = [];
-            if (round.outerWinner) winners.push(round.outerWinner);
-            if (round.middleWinner) winners.push(round.middleWinner);
-            if (round.innerWinner) winners.push(round.innerWinner);
-            if (round.indecisionTriggered) winners.push("INDECISION");
-            
-            recentResult = winners.length > 0 ? winners.join(", ") : "Settled";
-            recentResultType = "success";
-          } else if (isCurrent) {
-            recentResult = "Waiting results";
-            recentResultType = "info";
-          } else {
-            // Non-current rounds that are not settled should show their actual state
-            recentResult = round.state === 'FROZEN' ? "Finalizing" : "Waiting results";
-            recentResultType = "info";
-          }
-
-          // AI suggestion logic
-          let suggestion = "Waiting";
-          if (isCurrent) {
-            suggestion = "AI analysing market";
-          } else if (round.state === 'SETTLED') {
-            if (round.indecisionTriggered) {
-              suggestion = "Indecision";
-            } else if (round.innerWinner) {
-              suggestion = round.innerWinner === 'HIGH_VOL' ? "High Volatile" : "Low Volatile";
-            } else {
-              suggestion = "High Volatile";
-            }
-          }
-
-          return {
-            date: isCurrent ? "Current" : new Date(round.openedAt || round.settledAt).toLocaleString([], {
-              month: '2-digit', day: '2-digit', hour: '2-digit', minute:'2-digit'
-            }),
-            previous: "", // Will be filled in next step
-            previousType: "primary",
-            forexAI: suggestion,
-            suggestion: recentResult, // This goes to "Recent Result" column
-            resultType: recentResultType
-          };
-        });
-        
-        // Second pass: Fill in Previous Result from the row below
-        formatted.forEach((row, index) => {
-          if (index < formatted.length - 1) {
-            // Get Recent Result from row below (index + 1)
-            const belowRow = formatted[index + 1];
-            row.previous = belowRow.suggestion; // suggestion contains the Recent Result
-            
-            // Set color based on the content
-            if (row.previous.includes('RED')) {
-              row.previousType = "danger";
-            } else if (row.previous.includes('BLUE')) {
-              row.previousType = "primary";
-            } else if (row.previous.includes('INDECISION')) {
-              row.previousType = "warning";
-            } else if (row.previous.includes('SELL')) {
-              row.previousType = "danger";
-            } else {
-              row.previousType = "success";
-            }
-          } else {
-            // Last row - try to get actual previous result, don't use placeholder
-            // If there are more rounds available, use the next one's result
-            if (allRounds.length > formatted.length) {
-              const nextRound = allRounds[formatted.length];
-              if (nextRound && nextRound.state === 'SETTLED') {
-                const winners = [];
-                if (nextRound.outerWinner) winners.push(nextRound.outerWinner);
-                if (nextRound.middleWinner) winners.push(nextRound.middleWinner);
-                if (nextRound.innerWinner) winners.push(nextRound.innerWinner);
-                if (nextRound.indecisionTriggered) winners.push("INDECISION");
-                
-                row.previous = winners.length > 0 ? winners.join(", ") : "Previous Round";
-                
-                // Set color based on the content
-                if (row.previous.includes('RED')) {
-                  row.previousType = "danger";
-                } else if (row.previous.includes('BLUE')) {
-                  row.previousType = "primary";
-                } else if (row.previous.includes('INDECISION')) {
-                  row.previousType = "warning";
-                } else if (row.previous.includes('SELL')) {
-                  row.previousType = "danger";
-                } else {
-                  row.previousType = "success";
-                }
-              } else {
-                row.previous = "Previous Round";
-                row.previousType = "info";
-              }
-            } else {
-              row.previous = "Previous Round";
-              row.previousType = "info";
-            }
-          }
-        });
         
         setRealHistory(formatted);
         setIsLoading(false);
       } catch (err) {
         console.error("Failed to fetch history:", err);
+        setRealHistory(DEFAULT_HISTORY.slice(0, 5));
         setIsLoading(false);
       }
+    };
+    
+    // Helper function for badge type
+    const getBadgeType = (result) => {
+      if (!result || result === 'N/A') return 'info';
+      const upper = result.toUpperCase();
+      if (upper.includes('INDECISION')) return 'warning';
+      if (upper.includes('BUY') || upper.includes('BLUE') || upper.includes('LOW')) return 'primary';
+      if (upper.includes('SELL') || upper.includes('RED') || upper.includes('HIGH')) return 'danger';
+      return 'info';
     };
 
     fetchHistory();
@@ -290,33 +359,45 @@ export default function Histogram({
       socket.connect();
     }
 
-    const unsubscribeSettled = socket.on('roundSettled', (data) => {
-      console.log('Round settled, refreshing history:', data.roundNumber);
+    const unsubscribeSettled = socket.on('roundSettled', () => {
+      console.log('Round settled, refreshing history');
       fetchHistory();
     });
 
-    const unsubscribeOpened = socket.on('roundOpened', (data) => {
-      console.log('New round opened, refreshing history:', data.roundNumber);
+    const unsubscribeOpened = socket.on('roundOpened', () => {
+      console.log('New round opened, refreshing history');
+      fetchHistory();
+    });
+    
+    const unsubscribeInstanceSettled = socket.on('marketInstanceSettled', () => {
+      // Refresh on any settlement since we show master round data
+      console.log('Market instance settled, refreshing history');
       fetchHistory();
     });
 
     return () => {
       unsubscribeSettled();
       unsubscribeOpened();
+      unsubscribeInstanceSettled();
     };
-  }, []);
+  }, [timePeriod]);
 
   // Use real history if available, else show loading or fallback to default
   const displayHistory = realHistory.length > 0 ? realHistory : (isLoading ? [] : DEFAULT_HISTORY);
 
-  const normalizedData = DEFAULT_KEYS.map((key) => {
+  // Use real chart data or fallback to static display
+  const displayChartData = chartData.length > 0 ? chartData : DEFAULT_KEYS.map((key) => {
     const found = data.find(
       (d) => d.name?.toLowerCase() === key.toLowerCase()
     );
 
+    const selection = key.toUpperCase().replace(' ', '_');
     return {
-      name: key,
-      value: found ? Math.max(found.value, 2) : 2
+      label: key,
+      selection: selection,
+      percentage: found ? Math.max(found.value, 2) : 0,
+      count: 0,
+      fill: SELECTION_COLORS[selection] || '#3b82f6'
     };
   });
 
@@ -326,37 +407,46 @@ export default function Histogram({
         <>
           <h3>{title}</h3>
           {/* ================= CHART ================= */}
-          <ResponsiveContainer width="100%" height={showChartOnly ? 120 : 180}>
+          <ResponsiveContainer width="100%" height={showChartOnly ? 140 : 200}>
             <BarChart
-              data={normalizedData}
-              barSize={showChartOnly ? 12 : 18}
-              margin={{ top: 10, right: 10, left: -10, bottom: showChartOnly ? 10 : 20 }}
+              data={displayChartData}
+              barSize={showChartOnly ? 14 : 20}
+              margin={{ top: 10, right: 10, left: -10, bottom: showChartOnly ? 40 : 50 }}
             >
               <CartesianGrid
                 stroke="rgba(59,130,246,0.15)"
                 strokeDasharray="3 3"
                 vertical={false}
               />
-              <XAxis dataKey="name" stroke="#9ccfff" tick={{ fontSize: showChartOnly ? 8 : 10 }} />
-              <YAxis stroke="#9ccfff" tick={{ fontSize: showChartOnly ? 8 : 10 }} width={showChartOnly ? 25 : 30} />
+              <XAxis 
+                dataKey="label" 
+                stroke="#9ccfff" 
+                tick={{ fontSize: showChartOnly ? 9 : 11, fill: '#a5d5ff' }}
+                angle={-45}
+                textAnchor="end"
+                height={showChartOnly ? 50 : 60}
+                interval={0}
+              />
+              <YAxis 
+                stroke="#9ccfff" 
+                tick={{ fontSize: showChartOnly ? 9 : 11, fill: '#a5d5ff' }} 
+                width={showChartOnly ? 30 : 35}
+                domain={[0, 'auto']}
+                tickFormatter={(value) => `${value}%`}
+              />
               <ReferenceLine y={0} stroke="rgba(59,130,246,0.4)" />
 
-              <Tooltip
-                cursor={{ fill: "rgba(59,130,246,0.18)" }}
-                contentStyle={{
-                  background: "#02131f",
-                  border: "1px solid rgba(59,130,246,0.35)",
-                  borderRadius: "8px",
-                  color: "#e7f7ff"
-                }}
-              />
+              <Tooltip content={<CustomChartTooltip />} />
 
               <Bar
-                dataKey="value"
-                fill="#3b82f6"
-                radius={[6, 6, 0, 0]}
+                dataKey="percentage"
+                radius={[4, 4, 0, 0]}
                 animationDuration={900}
-              />
+              >
+                {displayChartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </>
@@ -365,57 +455,75 @@ export default function Histogram({
       {/* ================= HISTORY TABLE ================= */}
       {!showChartOnly && (
         <div className="history-wrapper">
-          {showHistoryOnly && <h3>{title}</h3>}
-          <table className="history-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Previous Result</th>
-                <th>AI Suggestion</th>
-                <th>Recent Result</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {isLoading ? (
+          <div className="history-header-row">
+            {showHistoryOnly && <h3>{title}</h3>}
+            
+            {/* Time filter */}
+            <div className="time-filter">
+              <select 
+                value={timePeriod} 
+                onChange={(e) => setTimePeriod(e.target.value)}
+                className="period-select"
+              >
+                {TIME_PERIODS.map(p => (
+                  <option key={p.value} value={p.value}>{p.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          
+          <div className="table-scroll-container">
+            <table className="history-table">
+              <thead>
                 <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)' }}>
-                    Loading live data...
-                  </td>
+                  <th>Date</th>
+                  <th>Previous Result</th>
+                  <th>AI Suggestion</th>
+                  <th>Recent Result</th>
                 </tr>
-              ) : displayHistory.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)' }}>
-                    No trading history available
-                  </td>
-                </tr>
-              ) : (
-                displayHistory.map((row, index) => (
-                  <tr key={index} className={row.date === "Current" ? "current-round" : ""}>
-                    <td className="date">{row.date}</td>
+              </thead>
 
-                    <td>
-                      <span className={`badge ${row.previousType}`}>
-                        {row.previous}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span className="badge info">
-                        {row.forexAI}
-                      </span>
-                    </td>
-
-                    <td>
-                      <span className={`badge ${row.resultType}`}>
-                        {row.suggestion}
-                      </span>
+              <tbody>
+                {isLoading ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)' }}>
+                      Loading live data...
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : displayHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan="4" style={{ textAlign: 'center', padding: '20px', color: 'rgba(255,255,255,0.6)' }}>
+                      No trading history available
+                    </td>
+                  </tr>
+                ) : (
+                  displayHistory.map((row, index) => (
+                    <tr key={index} className={row.date === "Current" ? "current-round" : ""}>
+                      <td className="date">{row.date}</td>
+
+                      <td>
+                        <span className={`badge ${row.previousType}`}>
+                          {row.previous}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className="badge info">
+                          {row.forexAI}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span className={`badge ${row.resultType}`}>
+                          {row.suggestion}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -134,6 +134,55 @@ export async function getRoundHistory(page = 1, limit = 20) {
 }
 
 /**
+ * v3.0: Market instance history entry
+ */
+export interface MarketInstanceHistory {
+  id: string;
+  masterRoundId: string;
+  roundNumber: number;
+  durationMinutes: 'FIVE' | 'TEN' | 'TWENTY';
+  windowStart: number;
+  windowEnd: number;
+  status: string;
+  settledAt: string;
+  openedAt: string;
+  outerWinner: string | null;
+  middleWinner: string | null;
+  innerWinner: string | null;
+  indecisionTriggered: boolean;
+  resultText: string;
+  totalVolume: number;
+}
+
+/**
+ * v3.0: Get market instance history by duration with filtering
+ */
+export async function getMarketInstanceHistory(
+  duration?: number,
+  page = 1,
+  limit = 20,
+  period?: string,
+): Promise<{ data: MarketInstanceHistory[]; meta: any }> {
+  const params = new URLSearchParams();
+  if (duration) params.append('duration', duration.toString());
+  params.append('page', page.toString());
+  params.append('limit', limit.toString());
+  if (period) params.append('period', period);
+  
+  const response = await fetch(`${API_URL}/rounds/market-instances/history?${params}`, {
+    method: 'GET',
+    headers: getHeaders(),
+  });
+  const result = await handleResponse<any>(response);
+  
+  // Unwrap envelope if present
+  const data = result?.data?.data || result?.data || [];
+  const meta = result?.data?.meta || result?.meta || {};
+  
+  return { data: Array.isArray(data) ? data : [], meta };
+}
+
+/**
  * Recent settled round for display
  */
 export interface RecentRound {
@@ -226,7 +275,12 @@ export interface Bet {
   isWinner?: boolean | null;
   payoutAmount?: number | null;
   profitAmount?: number | null;
+  isDemo?: boolean;
+  userRoundDuration?: number; // v2.1/v3.0: Duration in minutes (5, 10, or 20)
+  winAmountUsd?: number; // Alias for payout display
+  roundNumber?: number; // For previous bets display
   createdAt: string;
+  settledAt?: string | null;
   round?: {
     roundNumber: number;
     state: string;
@@ -290,7 +344,34 @@ export async function getBetHistory(page = 1, limit = 20) {
     headers,
     credentials: 'include', // Include cookies if any
   });
-  return handleResponse(response);
+  const result = await handleResponse<any>(response);
+  console.log('getBetHistory: Raw response:', result);
+  
+  // The backend returns: { data: [...bets...], meta: {...}, message, statusCode, timestamp }
+  // Or it could be wrapped in another envelope: { data: { data: [...], meta: {...} } }
+  // We need to properly extract the bets array
+  
+  let bets: any[] = [];
+  let meta: any = null;
+  
+  // Check for double-wrapped envelope (ResponseInterceptor wrapping)
+  if (result?.data?.data && Array.isArray(result.data.data)) {
+    bets = result.data.data;
+    meta = result.data.meta;
+  }
+  // Check for single envelope with data array
+  else if (result?.data && Array.isArray(result.data)) {
+    bets = result.data;
+    meta = result.meta;
+  }
+  // Check if result is the data directly (no envelope)
+  else if (Array.isArray(result)) {
+    bets = result;
+  }
+  
+  console.log('getBetHistory: Extracted bets:', bets.length, 'items');
+  
+  return { data: bets, meta };
 }
 
 /**

@@ -2,6 +2,7 @@
 // ROUNDS MODULE - Core Round Lifecycle Management
 // =============================================================================
 // Path: backend/src/rounds/rounds.module.ts
+// v3.0: Added multi-duration support services
 // =============================================================================
 
 import { Module, forwardRef } from '@nestjs/common';
@@ -24,10 +25,17 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { MockRoundsService } from './mock-rounds.service';
 import { LegalModule } from '../legal/legal.module';
 
+// v3.0: Multi-duration support services
+import { MarketInstanceService } from './market-instance.service';
+import { MasterClockService } from './master-clock.service';
+import { MarketInstanceSettlementService } from './market-instance-settlement.service';
+import { MarketAggregationService } from './market-aggregation.service';
+
 @Module({
   imports: [ScheduleModule.forRoot(), RedisModule, LegalModule],
   controllers: [RoundsController, BetsController, AutoSpinController, SuggestionsController],
   providers: [
+    // Core round services
     RoundsService,
     RoundsSettlementService,
     RoundsFairnessService,
@@ -39,7 +47,24 @@ import { LegalModule } from '../legal/legal.module';
     PrismaService,
     RealtimeGateway,
     MockRoundsService,
+    
+    // v3.0: Multi-duration support services
+    MarketInstanceService,
+    MasterClockService,
+    MarketInstanceSettlementService,
+    MarketAggregationService,
   ],
-  exports: [RoundsService, BetsService, AutoSpinService, SuggestionsService, SeedingService],
+  exports: [
+    RoundsService, 
+    BetsService, 
+    AutoSpinService, 
+    SuggestionsService, 
+    SeedingService,
+    // v3.0: Export multi-duration services
+    MarketInstanceService,
+    MasterClockService,
+    MarketInstanceSettlementService,
+    MarketAggregationService,
+  ],
 })
 export class RoundsModule {}

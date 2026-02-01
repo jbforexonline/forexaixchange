@@ -410,6 +410,130 @@
         cursor: not-allowed;
       }
     }
+    
+    // v3.0: Result emoji display
+    .ticket-result-emoji {
+      font-size: 16px;
+      margin-right: 6px;
+    }
+    
+    // v3.0: Duration badge for previous tickets
+    .ticket-duration-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      background: rgba(168, 85, 247, 0.2);
+      color: #a855f7;
+      margin-left: 6px;
+    }
+    
+    // v3.0: Loss amount display
+    .ticket-loss {
+      font-size: 11px;
+      font-weight: 600;
+      color: #ef4444;
+      opacity: 0.8;
+    }
+    
+    // v3.0: Settling ticket label
+    .ticket-settling-label {
+      font-size: 9px;
+      color: rgba(148, 163, 184, 0.7);
+      font-style: italic;
+      animation: pulse 1s infinite;
+    }
+    
+    // v3.0: Settling animation styles
+    &.settling {
+      position: relative;
+      overflow: hidden;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        animation: shimmer 1.5s infinite;
+      }
+      
+      &.won-animation {
+        border-color: rgba(34, 197, 94, 0.6);
+        background: rgba(34, 197, 94, 0.15);
+        animation: winPulse 0.5s ease-out;
+        
+        .ticket-main, .ticket-meta {
+          position: relative;
+          z-index: 1;
+        }
+      }
+      
+      &.lost-animation {
+        border-color: rgba(239, 68, 68, 0.6);
+        background: rgba(239, 68, 68, 0.15);
+        animation: losePulse 0.5s ease-out;
+      }
+      
+      &.animating {
+        animation: settleSlideOut 2.5s ease-in-out forwards;
+      }
+    }
+    
+    // v3.0: Payout amount animation
+    .payout-animation {
+      animation: payoutBounce 0.6s ease-out;
+    }
+    
+    // v3.0: Highlighted ticket (about to settle)
+    &.highlighted {
+      border-color: rgba(251, 191, 36, 0.6);
+      background: rgba(251, 191, 36, 0.1);
+      animation: highlightPulse 1s infinite;
+    }
+  }
+  
+  // v3.0: Keyframe animations for ticket settlement
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  
+  @keyframes winPulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+    50% { transform: scale(1.02); box-shadow: 0 0 20px 5px rgba(34, 197, 94, 0.3); }
+    100% { transform: scale(1); box-shadow: 0 0 10px 2px rgba(34, 197, 94, 0.2); }
+  }
+  
+  @keyframes losePulse {
+    0% { transform: scale(1); }
+    25% { transform: scale(0.98); }
+    50% { transform: scale(1); }
+    75% { transform: scale(0.99); }
+    100% { transform: scale(1); }
+  }
+  
+  @keyframes payoutBounce {
+    0% { transform: scale(0.8); opacity: 0; }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  
+  @keyframes highlightPulse {
+    0%, 100% { border-color: rgba(251, 191, 36, 0.4); }
+    50% { border-color: rgba(251, 191, 36, 0.8); }
+  }
+  
+  @keyframes settleSlideOut {
+    0% { opacity: 1; transform: translateX(0); }
+    70% { opacity: 1; transform: translateX(0); }
+    100% { opacity: 0; transform: translateX(20px); height: 0; padding: 0; margin: 0; overflow: hidden; }
+  }
+  
+  @keyframes pulse {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; }
   }
   
   .empty-state {

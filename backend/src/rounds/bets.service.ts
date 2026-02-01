@@ -2,6 +2,7 @@
 // BETS SERVICE - Bet Placement and Management
 // =============================================================================
 // Path: backend/src/rounds/bets.service.ts
+// v3.0: Multi-duration support with separate pools per duration
 // =============================================================================
 
 import {
@@ -12,12 +13,13 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../database/prisma.service';
-import { BetMarket, RoundState } from '@prisma/client';
+import { BetMarket, RoundState, DurationMinutes, MarketInstanceStatus } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { Inject } from '@nestjs/common';
 import type Redis from 'ioredis';
 import { REDIS_CLIENT } from '../cache/redis.module';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { MarketInstanceService, minutesToDuration } from './market-instance.service';
 
 // Internal interface for bet placement (includes roundId added by controller)
 export interface PlaceBetDto {
@@ -27,7 +29,8 @@ export interface PlaceBetDto {
   amountUsd: number;
   idempotencyKey?: string;
   isDemo?: boolean;
-  userRoundDuration?: number; // v2.1: User's preferred duration (5, 10, or 20 minutes)
+  userRoundDuration?: number; // v2.1: DEPRECATED - use durationMinutes instead
+  durationMinutes?: number;   // v3.0: User's selected duration (5, 10, or 20 minutes)
 }
 
 @Injectable()
@@ -38,10 +41,12 @@ export class BetsService {
     private prisma: PrismaService,
     @Inject(REDIS_CLIENT) private redis: Redis,
     private gateway: RealtimeGateway,
+    private marketInstanceService: MarketInstanceService,
   ) {}
 
   /**
    * Place a bet on the current round
+   * v3.0: Routes bets to the correct market instance based on duration
    */
   async placeBet(userId: string, dto: PlaceBetDto) {
     this.logger.debug(`📝 placeBet called: userId=${userId}, dto=${JSON.stringify(dto)}`);
@@ -56,6 +61,13 @@ export class BetsService {
     if (!this.isValidSelection(dto.market, dto.selection)) {
       throw new BadRequestException(`Invalid selection for market ${dto.market}`);
     }
+
+    // v3.0: Parse and validate duration (only 5, 10, 20 allowed - no 15)
+    const durationMins = dto.durationMinutes || dto.userRoundDuration || 20;
+    if (![5, 10, 20].includes(durationMins)) {
+      throw new BadRequestException('Invalid duration. Only 5, 10, or 20 minutes are supported.');
+    }
+    const durationEnum = minutesToDuration(durationMins);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
@@ -98,28 +110,47 @@ export class BetsService {
       // All users can place bets (both demo and live)
       // Premium status only affects timing cutoffs and bet limits
 
-      // 4. Check timing constraints (premium vs regular)
-      // Cutoffs are measured from SETTLEMENT time, not from freezeAt
-      // - Premium users: can bet until 5 seconds before settlement
-      // - Regular users: can bet until 60 seconds before settlement
-      const now = new Date();
-      const cutoffTime = isPremium
-        ? new Date(round.settleAt.getTime() - round.premiumCutoff * 1000)
-        : new Date(round.settleAt.getTime() - round.regularCutoff * 1000);
+      // 4. v3.0: Find the correct market instance for this duration
+      const marketInstance = await this.marketInstanceService.getInstanceForBet(
+        dto.roundId,
+        durationEnum,
+        round.settleAt,
+      );
 
-      if (now >= cutoffTime) {
+      if (!marketInstance) {
         throw new BadRequestException(
-          `Market closed - orders no longer accepted`,
+          `No active market available for ${durationMins}-minute duration`,
         );
       }
 
-      // 5. Check wallet balance
+      // 5. Validate market instance is still active (not frozen)
+      if (marketInstance.status !== MarketInstanceStatus.ACTIVE) {
+        throw new BadRequestException(
+          `Market for ${durationMins}-minute duration is closed for orders`,
+        );
+      }
+
+      // 6. Check timing constraints for the specific market instance
+      // Cutoffs are measured from the market instance's settlement time
+      const now = new Date();
+      const instanceSettleAt = new Date(marketInstance.settleAt);
+      const premiumCutoffTime = new Date(instanceSettleAt.getTime() - round.premiumCutoff * 1000);
+      const regularCutoffTime = new Date(instanceSettleAt.getTime() - round.regularCutoff * 1000);
+      const cutoffTime = isPremium ? premiumCutoffTime : regularCutoffTime;
+
+      if (now >= cutoffTime) {
+        throw new BadRequestException(
+          `Market closed - orders no longer accepted for ${durationMins}-minute duration`,
+        );
+      }
+
+      // 7. Check wallet balance
       const availableBalance = dto.isDemo ? (user.wallet as any).demoAvailable : user.wallet.available;
       if (availableBalance.lt(amount)) {
         throw new BadRequestException(`Insufficient ${dto.isDemo ? 'demo ' : ''}funds`);
       }
 
-      // 6. Apply bet limits (could be configurable)
+      // 8. Apply bet limits (could be configurable)
       const minBet = new Decimal(1); // $1 minimum
       const maxBet = isPremium ? new Decimal(200) : new Decimal(1000); // Premium: $200 per order, Regular: $1000 per order
 
@@ -129,11 +160,12 @@ export class BetsService {
         );
       }
 
-      // 7. Create bet using Prisma relation connect syntax
+      // 9. v3.0: Create bet with market instance link
       const bet = await tx.bet.create({
         data: {
           round: { connect: { id: dto.roundId } },
           user: { connect: { id: userId } },
+          marketInstance: { connect: { id: marketInstance.id } },
           market: dto.market,
           selection: dto.selection,
           amountUsd: amount,
@@ -141,11 +173,12 @@ export class BetsService {
           isPremiumUser: isPremium ?? false,
           idempotencyKey: dto.idempotencyKey,
           isDemo: dto.isDemo || false,
-          userRoundDuration: dto.userRoundDuration || 20, // v2.1: User's preferred duration
+          userRoundDuration: durationMins, // Legacy field
+          durationMinutes: durationEnum,   // v3.0: New field
         } as any,
       });
 
-      // 8. Hold funds in wallet
+      // 10. Hold funds in wallet
       if (dto.isDemo) {
         await tx.wallet.update({
           where: { userId },
@@ -164,10 +197,20 @@ export class BetsService {
         });
       }
 
-      // 9. Update Redis totals for real-time UI
-      await this.updateRedisTotals(dto.roundId, dto.market, dto.selection, amount);
+      // 11. v3.0: Update market instance totals (for settlement)
+      await this.marketInstanceService.updateInstanceTotals(
+        marketInstance.id,
+        dto.market,
+        dto.selection,
+        amount,
+      );
 
-      // 10. Create transaction record
+      // 12. Update Redis totals for real-time UI (aggregated across durations)
+      await this.updateRedisTotals(dto.roundId, dto.market, dto.selection, amount);
+      // Also update per-instance Redis totals
+      await this.updateRedisInstanceTotals(marketInstance.id, dto.market, dto.selection, amount);
+
+      // 13. Create transaction record
       await tx.transaction.create({
         data: {
           userId,
@@ -175,25 +218,28 @@ export class BetsService {
           amount,
           status: 'PENDING',
           isDemo: dto.isDemo || false,
-          description: `Bet placed - Round ${round.roundNumber} ${dto.market} ${dto.selection}`,
+          description: `Bet placed - Round ${round.roundNumber} ${dto.market} ${dto.selection} (${durationMins}min)`,
         } as any,
       });
 
       this.logger.log(
-        `💰 Bet placed: ${user.username} - ${dto.market} ${dto.selection} $${amount.toString()} (Round ${round.roundNumber})`,
+        `💰 Bet placed: ${user.username} - ${dto.market} ${dto.selection} $${amount.toString()} ` +
+        `(Round ${round.roundNumber}, ${durationMins}min)`,
       );
 
-      // 11. Emit WebSocket event for live updates
+      // 14. Emit WebSocket event for live updates
       this.gateway.server.emit('betPlaced', {
         roundId: dto.roundId,
         roundNumber: round.roundNumber,
+        marketInstanceId: marketInstance.id,
+        durationMinutes: durationMins,
         market: dto.market,
         selection: dto.selection,
         amount: amount.toNumber(),
         username: user.username,
       });
 
-      // Emit updated totals
+      // Emit updated totals (aggregated)
       const totals = await this.getRedisTotals(dto.roundId);
       this.gateway.server.emit('totalsUpdated', {
         roundId: dto.roundId,
@@ -211,6 +257,7 @@ export class BetsService {
         total: updatedWallet.available.add(updatedWallet.held).toNumber(),
         reason: 'bet_placed',
         betAmount: amount.toNumber(),
+        durationMinutes: durationMins,
         isDemo: dto.isDemo,
       });
 
@@ -361,7 +408,8 @@ export class BetsService {
         userId,
         roundId,
         isSystemSeed: false, // v2.1: Exclude system seed bets
-        status: { not: 'CANCELLED' }, // Exclude cancelled bets from active view
+        // v3.0: Only show bets that are still accepted (not yet settled)
+        status: 'ACCEPTED',
       },
       select: {
         id: true,
@@ -508,9 +556,13 @@ export class BetsService {
         dateFrom = undefined;
     }
 
-    const whereClause = dateFrom ? { createdAt: { gte: dateFrom } } : {};
+    // IMPORTANT: Exclude system seeds - only count real user bets
+    const whereClause = {
+      ...(dateFrom ? { createdAt: { gte: dateFrom } } : {}),
+      isSystemSeed: false,  // Exclude seeding orders
+    };
 
-    // Get count of bets grouped by selection
+    // Get count of bets grouped by selection (user bets only)
     const distribution = await this.prisma.bet.groupBy({
       by: ['selection'],
       where: whereClause,
@@ -548,10 +600,13 @@ export class BetsService {
       };
     });
 
-    // Also get participant count (unique users)
+    // Also get participant count (unique users, excluding SYSTEM_SEED)
     const uniqueUsers = await this.prisma.bet.groupBy({
       by: ['userId'],
-      where: whereClause,
+      where: {
+        ...whereClause,
+        userId: { not: 'SYSTEM_SEED' },  // Exclude system user
+      },
       _count: true,
     });
 
@@ -588,13 +643,17 @@ export class BetsService {
       };
     }
 
-    // Get totals from Redis
+    // Get totals from Redis (note: Redis may include seeds, so we query DB for accurate counts)
     const totals = await this.getRedisTotals(currentRound.id);
     
-    // Get bet counts for current round from database
+    // Get bet counts for current round - EXCLUDE SYSTEM SEEDS
+    // This shows only real user bets across all durations (5m, 10m, 20m)
     const betCounts = await this.prisma.bet.groupBy({
       by: ['selection'],
-      where: { roundId: currentRound.id },
+      where: { 
+        roundId: currentRound.id,
+        isSystemSeed: false,  // Exclude seeding orders
+      },
       _count: {
         selection: true,
       },
@@ -602,10 +661,14 @@ export class BetsService {
 
     const totalBets = betCounts.reduce((sum, item) => sum + item._count.selection, 0);
 
-    // Get unique participants
+    // Get unique participants (exclude SYSTEM_SEED user)
     const participants = await this.prisma.bet.groupBy({
       by: ['userId'],
-      where: { roundId: currentRound.id },
+      where: { 
+        roundId: currentRound.id,
+        isSystemSeed: false,
+        userId: { not: 'SYSTEM_SEED' },
+      },
       _count: true,
     });
 
@@ -681,7 +744,7 @@ export class BetsService {
   }
 
   /**
-   * Update Redis totals when bet is placed
+   * Update Redis totals when bet is placed (aggregated across durations)
    */
   private async updateRedisTotals(
     roundId: string,
@@ -698,6 +761,60 @@ export class BetsService {
       await this.redis.expire(key, 86400);
     } catch (e) {
       this.logger.warn(`Redis down, skipping totals update: ${e.message}`);
+    }
+  }
+
+  /**
+   * v3.0: Update per-instance Redis totals when bet is placed
+   * These are used for display purposes only - settlement uses DB snapshot
+   */
+  private async updateRedisInstanceTotals(
+    marketInstanceId: string,
+    market: BetMarket,
+    selection: string,
+    amount: Decimal,
+  ) {
+    try {
+      if (this.redis.status !== 'ready') return;
+      const key = `instance:${marketInstanceId}:${market.toLowerCase()}:${selection}`;
+      await this.redis.incrbyfloat(key, amount.toNumber());
+
+      // Set expiration (2 hours - instances are shorter-lived)
+      await this.redis.expire(key, 7200);
+    } catch (e) {
+      this.logger.warn(`Redis down, skipping instance totals update: ${e.message}`);
+    }
+  }
+
+  /**
+   * v3.0: Get Redis totals for a specific market instance
+   */
+  async getRedisInstanceTotals(marketInstanceId: string) {
+    try {
+      if (this.redis.status !== 'ready') return {};
+      const keys = [
+        'outer:BUY',
+        'outer:SELL',
+        'middle:BLUE',
+        'middle:RED',
+        'inner:HIGH_VOL',
+        'inner:LOW_VOL',
+        'global:INDECISION',
+      ];
+
+      const totals: any = {};
+
+      for (const key of keys) {
+        const value = await this.redis.get(`instance:${marketInstanceId}:${key}`);
+        const [market, selection] = key.split(':');
+        if (!totals[market]) totals[market] = {};
+        totals[market][selection] = parseFloat(value || '0');
+      }
+
+      return totals;
+    } catch (e) {
+      this.logger.warn(`Redis down, skipping instance totals fetch: ${e.message}`);
+      return {};
     }
   }
 

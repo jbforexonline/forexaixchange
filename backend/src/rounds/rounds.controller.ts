@@ -177,6 +177,23 @@ export class RoundsController {
     return this.roundsService.getRoundHistory(page, limit);
   }
 
+  // v3.0: Market instance history by duration
+  @Get('market-instances/history')
+  @ApiOperation({ summary: 'Get market instance history by duration with filtering' })
+  @ApiQuery({ name: 'duration', required: false, type: Number, description: 'Duration in minutes (5, 10, or 20)' })
+  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
+  @ApiQuery({ name: 'period', required: false, type: String, description: 'Time period: hourly, daily, weekly, monthly, quarterly, annually' })
+  @ApiResponse({ status: 200, description: 'Market instance history retrieved successfully' })
+  async getMarketInstanceHistory(
+    @Query('duration', new ParseIntPipe({ optional: true })) duration?: number,
+    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit = 20,
+    @Query('period') period?: string,
+  ) {
+    return this.roundsService.getMarketInstanceHistory(duration, page, limit, period);
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get round statistics' })
   @ApiResponse({

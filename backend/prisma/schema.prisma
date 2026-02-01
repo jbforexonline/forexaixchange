@@ -48,25 +48,25 @@ model User {
   wallet                    Wallet?
   legalAcceptances          UserLegalAcceptance[]
   legalDocumentsCreated     LegalDocument[]       @relation("LegalDocumentCreatedBy")
-  
+
   // Finance system v2 relations
-  ledgerAccounts            LedgerAccount[]
-  deposits                  Deposit[]
-  depositsApproved          Deposit[]             @relation("DepositApprover")
-  depositsRejected          Deposit[]             @relation("DepositRejecter")
-  withdrawals               Withdrawal[]
-  withdrawalsReviewed       Withdrawal[]          @relation("WithdrawalReviewer")
-  withdrawalsApproved       Withdrawal[]          @relation("WithdrawalApprover")
-  withdrawalsRejected       Withdrawal[]          @relation("WithdrawalRejecter")
-  withdrawalsPaid           Withdrawal[]          @relation("WithdrawalPayer")
-  bankSnapshots             BankSnapshot[]
-  adminActions              AdminAction[]         @relation("AdminActions")
-  adminActionsTarget        AdminAction[]         @relation("AdminActionsTarget")
-  roundSettlements          RoundSettlement[]
-  payoutTransactions        PayoutTransaction[]
-  alertsAcknowledged        AlertLog[]
-  feeConfigsUpdated         FeeConfiguration[]
-  withdrawalLimitsUpdated   WithdrawalLimit[]
+  ledgerAccounts          LedgerAccount[]
+  deposits                Deposit[]
+  depositsApproved        Deposit[]           @relation("DepositApprover")
+  depositsRejected        Deposit[]           @relation("DepositRejecter")
+  withdrawals             Withdrawal[]
+  withdrawalsReviewed     Withdrawal[]        @relation("WithdrawalReviewer")
+  withdrawalsApproved     Withdrawal[]        @relation("WithdrawalApprover")
+  withdrawalsRejected     Withdrawal[]        @relation("WithdrawalRejecter")
+  withdrawalsPaid         Withdrawal[]        @relation("WithdrawalPayer")
+  bankSnapshots           BankSnapshot[]
+  adminActions            AdminAction[]       @relation("AdminActions")
+  adminActionsTarget      AdminAction[]       @relation("AdminActionsTarget")
+  roundSettlements        RoundSettlement[]
+  payoutTransactions      PayoutTransaction[]
+  alertsAcknowledged      AlertLog[]
+  feeConfigsUpdated       FeeConfiguration[]
+  withdrawalLimitsUpdated WithdrawalLimit[]
 }
 
 enum LegalDocumentType {
@@ -75,17 +75,17 @@ enum LegalDocumentType {
 }
 
 model LegalDocument {
-  id                  String            @id @default(cuid())
-  type                LegalDocumentType
-  version             String
-  content             String            @db.Text
-  effectiveAt         DateTime
-  isActive            Boolean           @default(false)
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
-  createdByAdminId    String?
-  createdByAdmin      User?             @relation("LegalDocumentCreatedBy", fields: [createdByAdminId], references: [id])
-  acceptances         UserLegalAcceptance[]
+  id               String                @id @default(cuid())
+  type             LegalDocumentType
+  version          String
+  content          String                @db.Text
+  effectiveAt      DateTime
+  isActive         Boolean               @default(false)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  createdByAdminId String?
+  createdByAdmin   User?                 @relation("LegalDocumentCreatedBy", fields: [createdByAdminId], references: [id])
+  acceptances      UserLegalAcceptance[]
 
   @@unique([type, version])
   @@index([type, isActive])
@@ -93,14 +93,14 @@ model LegalDocument {
 }
 
 model UserLegalAcceptance {
-  id               String         @id @default(cuid())
-  userId           String
-  legalDocumentId  String
-  acceptedAt       DateTime       @default(now())
-  ipAddress        String?
-  userAgent        String?        @db.Text
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  legalDocument    LegalDocument  @relation(fields: [legalDocumentId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  userId          String
+  legalDocumentId String
+  acceptedAt      DateTime      @default(now())
+  ipAddress       String?
+  userAgent       String?       @db.Text
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  legalDocument   LegalDocument @relation(fields: [legalDocumentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, legalDocumentId])
   @@index([userId])
@@ -182,7 +182,6 @@ model AffiliateEarning {
   @@index([date])
 }
 
-
 model PremiumPlan {
   id            String                @id @default(cuid())
   name          String
@@ -260,6 +259,7 @@ model Round {
   freezeOffset         Int               @default(60)
   premiumCutoff        Int               @default(5)
   regularCutoff        Int               @default(60)
+  // Aggregated pool totals (for backward compatibility and 20min default)
   outerBuy             Decimal           @default(0) @db.Decimal(18, 2)
   outerSell            Decimal           @default(0) @db.Decimal(18, 2)
   middleBlue           Decimal           @default(0) @db.Decimal(18, 2)
@@ -281,11 +281,14 @@ model Round {
   seedEnabled          Boolean           @default(true)
   seedSnapshotJson     Json?
   userPoolSnapshotJson Json?
+  // v3.0: Multi-duration support - this Round serves as master 20-minute cycle
+  // Market instances are created for each duration (5/10/20 min) per checkpoint window
   createdAt            DateTime          @default(now())
   updatedAt            DateTime          @updatedAt
-  bets                Bet[]
-  artifact            FairnessArtifact?
-  settlement          RoundSettlement?  // v2.2: Settlement record for idempotency
+  bets                 Bet[]
+  artifact             FairnessArtifact?
+  settlement           RoundSettlement? // v2.2: Settlement record for idempotency
+  marketInstances      MarketInstance[] // v3.0: Market instances for multi-duration
 
   @@index([state, freezeAt])
   @@index([state, settleAt])
@@ -293,37 +296,43 @@ model Round {
 }
 
 model Bet {
-  id                String    @id @default(cuid())
+  id                String          @id @default(cuid())
   roundId           String
   userId            String
   market            BetMarket
   selection         String
-  amountUsd         Decimal   @db.Decimal(18, 2)
-  status            BetStatus @default(ACCEPTED)
+  amountUsd         Decimal         @db.Decimal(18, 2)
+  status            BetStatus       @default(ACCEPTED)
   isWinner          Boolean?
-  payoutAmount      Decimal?  @db.Decimal(18, 2)
-  profitAmount      Decimal?  @db.Decimal(18, 2)
-  payoutRatio       Decimal?  @db.Decimal(10, 6)
-  isPremiumUser     Boolean   @default(false)
-  isDemo            Boolean   @default(false)
-  idempotencyKey    String?   @unique
+  payoutAmount      Decimal?        @db.Decimal(18, 2)
+  profitAmount      Decimal?        @db.Decimal(18, 2)
+  payoutRatio       Decimal?        @db.Decimal(10, 6)
+  isPremiumUser     Boolean         @default(false)
+  isDemo            Boolean         @default(false)
+  idempotencyKey    String?         @unique
   holdLedgerId      String?
   payoutLedgerId    String?
   // v2.1: Seeding fields
-  isSystemSeed      Boolean   @default(false)
+  isSystemSeed      Boolean         @default(false)
   seedType          String?
-  // v2.1: User duration preference
+  // v2.1: User duration preference (DEPRECATED - use durationMinutes instead)
   userRoundDuration Int?
-  createdAt         DateTime  @default(now())
+  // v3.0: Multi-duration support
+  durationMinutes   DurationMinutes @default(TWENTY)
+  marketInstanceId  String? // Links to specific market instance for this duration
+  createdAt         DateTime        @default(now())
   settledAt         DateTime?
-  round             Round     @relation(fields: [roundId], references: [id], onDelete: Cascade)
-  user              User      @relation(fields: [userId], references: [id])
+  round             Round           @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  user              User            @relation(fields: [userId], references: [id])
+  marketInstance    MarketInstance? @relation("MarketInstanceBets", fields: [marketInstanceId], references: [id])
 
   @@index([roundId, userId])
   @@index([userId, createdAt])
   @@index([roundId, market, selection])
   @@index([status])
   @@index([roundId, isSystemSeed])
+  @@index([marketInstanceId])
+  @@index([durationMinutes, status])
 }
 
 model FairnessArtifact {
@@ -483,27 +492,27 @@ enum TransferStatus {
 // PLATFORM/HOUSE ACCOUNT - Tracks platform revenue and reserves
 // =============================================================================
 model PlatformAccount {
-  id                String   @id @default("HOUSE") // Single record with fixed ID
-  balance           Decimal  @default(0) @db.Decimal(18, 2) // Current house balance
-  totalFees         Decimal  @default(0) @db.Decimal(18, 2) // Total fees collected
-  totalPaidOut      Decimal  @default(0) @db.Decimal(18, 2) // Total paid to winners
-  totalCollected    Decimal  @default(0) @db.Decimal(18, 2) // Total collected from losers
-  totalSubsidy      Decimal  @default(0) @db.Decimal(18, 2) // Amount house paid when pool insufficient
-  reserveBalance    Decimal  @default(10000) @db.Decimal(18, 2) // Reserve fund for payouts
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id             String   @id @default("HOUSE") // Single record with fixed ID
+  balance        Decimal  @default(0) @db.Decimal(18, 2) // Current house balance
+  totalFees      Decimal  @default(0) @db.Decimal(18, 2) // Total fees collected
+  totalPaidOut   Decimal  @default(0) @db.Decimal(18, 2) // Total paid to winners
+  totalCollected Decimal  @default(0) @db.Decimal(18, 2) // Total collected from losers
+  totalSubsidy   Decimal  @default(0) @db.Decimal(18, 2) // Amount house paid when pool insufficient
+  reserveBalance Decimal  @default(10000) @db.Decimal(18, 2) // Reserve fund for payouts
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 // Platform ledger for audit trail
 model PlatformLedger {
   id           String   @id @default(cuid())
   roundId      String?
-  type         String   // 'FEE', 'LOSER_COLLECTION', 'WINNER_PAYOUT', 'SUBSIDY'
+  type         String // 'FEE', 'LOSER_COLLECTION', 'WINNER_PAYOUT', 'SUBSIDY'
   amount       Decimal  @db.Decimal(18, 2)
   description  String?
   balanceAfter Decimal  @db.Decimal(18, 2)
   createdAt    DateTime @default(now())
-  
+
   @@index([roundId])
   @@index([type])
 }
@@ -524,7 +533,7 @@ model SeedLedger {
   id          String   @id @default(cuid())
   roundId     String?
   market      String?
-  type        String   // 'SEED_PLACED', 'SEED_REMOVED', 'SEED_WIN', 'SEED_LOSS'
+  type        String // 'SEED_PLACED', 'SEED_REMOVED', 'SEED_WIN', 'SEED_LOSS'
   amount      Decimal  @db.Decimal(18, 2)
   selection   String?
   description String?
@@ -577,6 +586,165 @@ enum AutoSpinStatus {
 }
 
 // =============================================================================
+// MULTI-DURATION ROUNDS SYSTEM - Premium Feature
+// =============================================================================
+
+// Duration options for premium multi-duration rounds (5, 10, 20 minutes)
+// Note: 15-minute option is explicitly NOT supported
+enum DurationMinutes {
+  FIVE // 5 minutes - settles at 15,10,5,0 checkpoints
+  TEN // 10 minutes - settles at 10,0 checkpoints
+  TWENTY // 20 minutes - settles at 0 checkpoint only (default)
+}
+
+// Market instance status (each duration has its own instances per checkpoint window)
+enum MarketInstanceStatus {
+  ACTIVE // Accepting bets
+  FROZEN // No new bets, awaiting settlement
+  SETTLING // Settlement in progress
+  SETTLED // Completed
+}
+
+// =============================================================================
+// MARKET INSTANCE - Separate pools per duration per checkpoint window
+// =============================================================================
+// Each duration has its own market instance(s) per 20-minute master cycle:
+// - 5min: 4 instances (20→15, 15→10, 10→5, 5→0)
+// - 10min: 2 instances (20→10, 10→0)
+// - 20min: 1 instance (20→0)
+model MarketInstance {
+  id String @id @default(cuid())
+
+  // Link to master 20-minute round cycle
+  masterRoundId String
+  masterRound   Round  @relation(fields: [masterRoundId], references: [id], onDelete: Cascade)
+
+  // Duration configuration
+  durationMinutes DurationMinutes @default(TWENTY)
+
+  // Checkpoint window (in minutes remaining on master clock)
+  // e.g., 5min: windowStart=20, windowEnd=15 for first quarter
+  windowStartMinutes Int // Start of window (e.g., 20, 15, 10, 5)
+  windowEndMinutes   Int // End of window (e.g., 15, 10, 5, 0)
+
+  // Lifecycle timestamps
+  status    MarketInstanceStatus @default(ACTIVE)
+  openedAt  DateTime             @default(now())
+  freezeAt  DateTime // When to freeze (60s before settle)
+  settleAt  DateTime // When to settle
+  frozenAt  DateTime? // Actual freeze time
+  settledAt DateTime? // Actual settlement time
+
+  // Pool totals (per market instance - NOT shared across durations)
+  outerBuy         Decimal @default(0) @db.Decimal(18, 2)
+  outerSell        Decimal @default(0) @db.Decimal(18, 2)
+  middleBlue       Decimal @default(0) @db.Decimal(18, 2)
+  middleRed        Decimal @default(0) @db.Decimal(18, 2)
+  innerHighVol     Decimal @default(0) @db.Decimal(18, 2)
+  innerLowVol      Decimal @default(0) @db.Decimal(18, 2)
+  globalIndecision Decimal @default(0) @db.Decimal(18, 2)
+  totalVolume      Decimal @default(0) @db.Decimal(18, 2)
+
+  // Settlement results (per market instance)
+  indecisionTriggered Boolean @default(false)
+  outerWinner         String?
+  middleWinner        String?
+  innerWinner         String?
+  outerTied           Boolean @default(false)
+  middleTied          Boolean @default(false)
+  innerTied           Boolean @default(false)
+  totalHouseFee       Decimal @default(0) @db.Decimal(18, 2)
+
+  // Seeding (applied per market instance only)
+  seedEnabled      Boolean @default(true)
+  seedSnapshotJson Json?
+
+  // Frozen pool snapshot (captured at freeze time for settlement)
+  frozenPoolsJson Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  bets       Bet[]                     @relation("MarketInstanceBets")
+  snapshots  MarketSnapshot[]
+  settlement MarketInstanceSettlement?
+
+  @@unique([masterRoundId, durationMinutes, windowStartMinutes])
+  @@index([masterRoundId])
+  @@index([status, freezeAt])
+  @@index([status, settleAt])
+  @@index([durationMinutes, status])
+}
+
+// =============================================================================
+// MARKET SNAPSHOT - Pool snapshots at freeze time for settlement
+// =============================================================================
+model MarketSnapshot {
+  id               String         @id @default(cuid())
+  marketInstanceId String
+  marketInstance   MarketInstance @relation(fields: [marketInstanceId], references: [id], onDelete: Cascade)
+
+  // Snapshot type
+  snapshotType String @default("FREEZE") // FREEZE, PRE_SETTLEMENT
+
+  // Pool totals at snapshot time
+  outerBuy         Decimal @db.Decimal(18, 2)
+  outerSell        Decimal @db.Decimal(18, 2)
+  middleBlue       Decimal @db.Decimal(18, 2)
+  middleRed        Decimal @db.Decimal(18, 2)
+  innerHighVol     Decimal @db.Decimal(18, 2)
+  innerLowVol      Decimal @db.Decimal(18, 2)
+  globalIndecision Decimal @db.Decimal(18, 2)
+  totalVolume      Decimal @db.Decimal(18, 2)
+
+  // User counts at snapshot time
+  totalBetsCount   Int
+  uniqueUsersCount Int
+
+  // Full snapshot data (JSON for flexibility)
+  snapshotData Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([marketInstanceId])
+  @@index([snapshotType])
+}
+
+// =============================================================================
+// MARKET INSTANCE SETTLEMENT - Idempotency for market instance settlement
+// =============================================================================
+model MarketInstanceSettlement {
+  id               String         @id @default(cuid())
+  marketInstanceId String         @unique
+  marketInstance   MarketInstance @relation(fields: [marketInstanceId], references: [id], onDelete: Cascade)
+
+  // Settlement version for idempotency
+  settlementVersion Int @default(1)
+
+  // Snapshot at settlement time
+  totalPool    Decimal @db.Decimal(18, 2)
+  totalPayouts Decimal @db.Decimal(18, 2)
+  houseFee     Decimal @db.Decimal(18, 2)
+  houseProfit  Decimal @db.Decimal(18, 2)
+
+  // Counts
+  totalBets   Int
+  winningBets Int
+  losingBets  Int
+
+  // Ledger references
+  clearingLedgerEntryId String? @unique
+  profitLedgerEntryId   String? @unique
+
+  // Audit
+  settledBy String?
+  settledAt DateTime @default(now())
+
+  @@index([settledAt])
+}
+
+// =============================================================================
 // FINANCE SYSTEM v2 - Ledger-Based Accounting
 // =============================================================================
 
@@ -601,13 +769,13 @@ enum WithdrawalStatus {
 
 // Ledger account types
 enum LedgerAccountType {
-  USER_AVAILABLE        // User's available balance (spendable)
-  USER_HELD             // User's held balance (locked for bets/withdrawals)
-  HOUSE_PROFIT          // Accumulates round profits
-  RESERVE_FUND          // Must be >= 120% of total user balances
-  OPERATING_CAPITAL     // Operating expenses
-  CLEARING              // Settlement clearing account
-  FEE_COLLECTION        // Collected fees
+  USER_AVAILABLE // User's available balance (spendable)
+  USER_HELD // User's held balance (locked for bets/withdrawals)
+  HOUSE_PROFIT // Accumulates round profits
+  RESERVE_FUND // Must be >= 120% of total user balances
+  OPERATING_CAPITAL // Operating expenses
+  CLEARING // Settlement clearing account
+  FEE_COLLECTION // Collected fees
 }
 
 // Ledger entry types for audit
@@ -653,21 +821,21 @@ enum AdminActionType {
 // LEDGER ACCOUNT - Source of truth for all balances
 // =============================================================================
 model LedgerAccount {
-  id          String            @id @default(cuid())
-  type        LedgerAccountType
-  ownerId     String?           // User ID for user accounts, null for system accounts
-  name        String            // Display name (e.g., "User Available - john@example.com")
-  currency    String            @default("USD")
-  balance     Decimal           @default(0) @db.Decimal(18, 2) // Cached balance for performance
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  
+  id        String            @id @default(cuid())
+  type      LedgerAccountType
+  ownerId   String? // User ID for user accounts, null for system accounts
+  name      String // Display name (e.g., "User Available - john@example.com")
+  currency  String            @default("USD")
+  balance   Decimal           @default(0) @db.Decimal(18, 2) // Cached balance for performance
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
   // Relations
-  owner       User?             @relation(fields: [ownerId], references: [id], onDelete: SetNull)
-  debits      LedgerEntry[]     @relation("DebitAccount")
-  credits     LedgerEntry[]     @relation("CreditAccount")
-  
+  owner   User?         @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  debits  LedgerEntry[] @relation("DebitAccount")
+  credits LedgerEntry[] @relation("CreditAccount")
+
   @@unique([type, ownerId])
   @@index([ownerId])
   @@index([type])
@@ -682,23 +850,23 @@ model LedgerEntry {
   debitAccountId  String
   creditAccountId String
   amount          Decimal         @db.Decimal(18, 2)
-  
+
   // Reference to related entity
-  referenceType   String?         // 'DEPOSIT', 'WITHDRAWAL', 'BET', 'ROUND', etc.
-  referenceId     String?         // ID of the related entity
-  
+  referenceType String? // 'DEPOSIT', 'WITHDRAWAL', 'BET', 'ROUND', etc.
+  referenceId   String? // ID of the related entity
+
   // Audit fields
-  description     String
-  metadata        Json?           // Additional context (round number, bet details, etc.)
-  createdBy       String?         // Admin or system user who initiated
-  idempotencyKey  String?         @unique
-  
-  createdAt       DateTime        @default(now())
-  
+  description    String
+  metadata       Json? // Additional context (round number, bet details, etc.)
+  createdBy      String? // Admin or system user who initiated
+  idempotencyKey String? @unique
+
+  createdAt DateTime @default(now())
+
   // Relations - double entry: debit one account, credit another
-  debitAccount    LedgerAccount   @relation("DebitAccount", fields: [debitAccountId], references: [id])
-  creditAccount   LedgerAccount   @relation("CreditAccount", fields: [creditAccountId], references: [id])
-  
+  debitAccount  LedgerAccount @relation("DebitAccount", fields: [debitAccountId], references: [id])
+  creditAccount LedgerAccount @relation("CreditAccount", fields: [creditAccountId], references: [id])
+
   @@index([debitAccountId])
   @@index([creditAccountId])
   @@index([referenceType, referenceId])
@@ -710,20 +878,20 @@ model LedgerEntry {
 // DEPOSIT - Admin-controlled deposit workflow
 // =============================================================================
 model Deposit {
-  id              String        @id @default(cuid())
-  userId          String
-  amount          Decimal       @db.Decimal(18, 2)
-  fee             Decimal       @default(0) @db.Decimal(18, 2)
-  netAmount       Decimal       @db.Decimal(18, 2) // amount - fee
-  
+  id        String  @id @default(cuid())
+  userId    String
+  amount    Decimal @db.Decimal(18, 2)
+  fee       Decimal @default(0) @db.Decimal(18, 2)
+  netAmount Decimal @db.Decimal(18, 2) // amount - fee
+
   // Payment details
-  method          String        // 'MOMO', 'BANK', 'CRYPTO', etc.
-  referenceId     String?       // External payment reference
-  paymentProof    String?       // URL or file path to proof
-  
+  method       String // 'MOMO', 'BANK', 'CRYPTO', etc.
+  referenceId  String? // External payment reference
+  paymentProof String? // URL or file path to proof
+
   // Status tracking
-  status          DepositStatus @default(PENDING)
-  
+  status DepositStatus @default(PENDING)
+
   // Admin action tracking
   approvedBy      String?
   approvedAt      DateTime?
@@ -731,21 +899,21 @@ model Deposit {
   rejectedBy      String?
   rejectedAt      DateTime?
   rejectionReason String?
-  
+
   // Ledger reference
-  ledgerEntryId   String?       @unique
-  
+  ledgerEntryId String? @unique
+
   // Idempotency
-  idempotencyKey  String?       @unique
-  
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  
+  idempotencyKey String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  user            User          @relation(fields: [userId], references: [id])
-  approver        User?         @relation("DepositApprover", fields: [approvedBy], references: [id])
-  rejecter        User?         @relation("DepositRejecter", fields: [rejectedBy], references: [id])
-  
+  user     User  @relation(fields: [userId], references: [id])
+  approver User? @relation("DepositApprover", fields: [approvedBy], references: [id])
+  rejecter User? @relation("DepositRejecter", fields: [rejectedBy], references: [id])
+
   @@index([userId])
   @@index([status])
   @@index([createdAt])
@@ -756,56 +924,56 @@ model Deposit {
 // WITHDRAWAL - User-initiated with OTP + Admin approval
 // =============================================================================
 model Withdrawal {
-  id                String           @id @default(cuid())
-  userId            String
-  amount            Decimal          @db.Decimal(18, 2)
-  fee               Decimal          @default(0) @db.Decimal(18, 2)
-  netAmount         Decimal          @db.Decimal(18, 2) // amount - fee (user receives this)
-  
+  id        String  @id @default(cuid())
+  userId    String
+  amount    Decimal @db.Decimal(18, 2)
+  fee       Decimal @default(0) @db.Decimal(18, 2)
+  netAmount Decimal @db.Decimal(18, 2) // amount - fee (user receives this)
+
   // Payout details
-  payoutMethod      String           // 'MOMO', 'BANK', 'CRYPTO', etc.
-  payoutDestination String           // Phone number, bank account, wallet address
-  payoutReference   String?          // External payout reference (after paid)
-  
+  payoutMethod      String // 'MOMO', 'BANK', 'CRYPTO', etc.
+  payoutDestination String // Phone number, bank account, wallet address
+  payoutReference   String? // External payout reference (after paid)
+
   // Status tracking
-  status            WithdrawalStatus @default(DRAFT)
-  
+  status WithdrawalStatus @default(DRAFT)
+
   // OTP confirmation
-  otpCode           String?
-  otpExpiresAt      DateTime?
-  otpVerifiedAt     DateTime?
-  
+  otpCode       String?
+  otpExpiresAt  DateTime?
+  otpVerifiedAt DateTime?
+
   // Admin action tracking
-  confirmedAt       DateTime?        // When user confirmed with OTP
-  reviewedBy        String?
-  reviewedAt        DateTime?
-  approvedBy        String?
-  approvedAt        DateTime?
-  rejectedBy        String?
-  rejectedAt        DateTime?
-  rejectionReason   String?
-  paidBy            String?
-  paidAt            DateTime?
-  refundedAt        DateTime?
-  
+  confirmedAt     DateTime? // When user confirmed with OTP
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  rejectedBy      String?
+  rejectedAt      DateTime?
+  rejectionReason String?
+  paidBy          String?
+  paidAt          DateTime?
+  refundedAt      DateTime?
+
   // Ledger references
-  holdLedgerEntryId     String?      @unique // Entry for holding funds
-  releaseLedgerEntryId  String?      @unique // Entry for releasing (reject) or debiting (paid)
-  
+  holdLedgerEntryId    String? @unique // Entry for holding funds
+  releaseLedgerEntryId String? @unique // Entry for releasing (reject) or debiting (paid)
+
   // Idempotency
-  idempotencyKey    String?          @unique
-  
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-  
+  idempotencyKey String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  user              User              @relation(fields: [userId], references: [id])
-  reviewer          User?             @relation("WithdrawalReviewer", fields: [reviewedBy], references: [id])
-  approver          User?             @relation("WithdrawalApprover", fields: [approvedBy], references: [id])
-  rejecter          User?             @relation("WithdrawalRejecter", fields: [rejectedBy], references: [id])
-  payer             User?             @relation("WithdrawalPayer", fields: [paidBy], references: [id])
+  user               User                @relation(fields: [userId], references: [id])
+  reviewer           User?               @relation("WithdrawalReviewer", fields: [reviewedBy], references: [id])
+  approver           User?               @relation("WithdrawalApprover", fields: [approvedBy], references: [id])
+  rejecter           User?               @relation("WithdrawalRejecter", fields: [rejectedBy], references: [id])
+  payer              User?               @relation("WithdrawalPayer", fields: [paidBy], references: [id])
   payoutTransactions PayoutTransaction[]
-  
+
   @@index([userId])
   @@index([status])
   @@index([createdAt])
@@ -816,33 +984,33 @@ model Withdrawal {
 // BANK SNAPSHOT - For reserve ratio calculation
 // =============================================================================
 model BankSnapshot {
-  id                    String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Bank balance (admin-updated or from integration)
-  bankBalance           Decimal  @db.Decimal(18, 2)
-  bankAccountRef        String?  // Reference to external bank account
-  
+  bankBalance    Decimal @db.Decimal(18, 2)
+  bankAccountRef String? // Reference to external bank account
+
   // Calculated values at snapshot time
-  totalUserLiabilities  Decimal  @db.Decimal(18, 2) // Sum of all user balances
-  reserveRatio          Decimal  @db.Decimal(10, 4) // bankBalance / totalUserLiabilities
-  
+  totalUserLiabilities Decimal @db.Decimal(18, 2) // Sum of all user balances
+  reserveRatio         Decimal @db.Decimal(10, 4) // bankBalance / totalUserLiabilities
+
   // Thresholds at time of snapshot
-  minRatioThreshold     Decimal  @db.Decimal(10, 4) // e.g., 1.1
-  warningRatioThreshold Decimal  @db.Decimal(10, 4) // e.g., 1.2
-  
+  minRatioThreshold     Decimal @db.Decimal(10, 4) // e.g., 1.1
+  warningRatioThreshold Decimal @db.Decimal(10, 4) // e.g., 1.2
+
   // Status
-  isWithdrawalsLocked   Boolean  @default(false)
+  isWithdrawalsLocked      Boolean @default(false)
   isLargeWithdrawalsPaused Boolean @default(false)
-  
+
   // Audit
-  createdBy             String?
-  notes                 String?
-  
-  createdAt             DateTime @default(now())
-  
+  createdBy String?
+  notes     String?
+
+  createdAt DateTime @default(now())
+
   // Relations
-  creator               User?    @relation(fields: [createdBy], references: [id])
-  
+  creator User? @relation(fields: [createdBy], references: [id])
+
   @@index([createdAt])
 }
 
@@ -850,31 +1018,31 @@ model BankSnapshot {
 // ADMIN ACTION - Immutable audit trail
 // =============================================================================
 model AdminAction {
-  id            String          @id @default(cuid())
-  adminId       String
-  actionType    AdminActionType
-  
+  id         String          @id @default(cuid())
+  adminId    String
+  actionType AdminActionType
+
   // Target of the action
-  targetUserId  String?
-  targetType    String?         // 'DEPOSIT', 'WITHDRAWAL', 'USER', 'CONFIG', etc.
-  targetId      String?         // ID of the target entity
-  
+  targetUserId String?
+  targetType   String? // 'DEPOSIT', 'WITHDRAWAL', 'USER', 'CONFIG', etc.
+  targetId     String? // ID of the target entity
+
   // Action details
-  amount        Decimal?        @db.Decimal(18, 2)
-  reasonCode    String?
-  reason        String?
-  metadata      Json?           // Additional context
-  
+  amount     Decimal? @db.Decimal(18, 2)
+  reasonCode String?
+  reason     String?
+  metadata   Json? // Additional context
+
   // Request context for security
-  ipAddress     String?
-  userAgent     String?
-  
-  createdAt     DateTime        @default(now())
-  
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
   // Relations
-  admin         User            @relation("AdminActions", fields: [adminId], references: [id])
-  targetUser    User?           @relation("AdminActionsTarget", fields: [targetUserId], references: [id])
-  
+  admin      User  @relation("AdminActions", fields: [adminId], references: [id])
+  targetUser User? @relation("AdminActionsTarget", fields: [targetUserId], references: [id])
+
   @@index([adminId])
   @@index([targetUserId])
   @@index([actionType])
@@ -886,36 +1054,36 @@ model AdminAction {
 // ROUND SETTLEMENT - Idempotency for settlement
 // =============================================================================
 model RoundSettlement {
-  id                  String   @id @default(cuid())
-  roundId             String   @unique
-  roundNumber         Int
-  
+  id          String @id @default(cuid())
+  roundId     String @unique
+  roundNumber Int
+
   // Settlement version for idempotency
-  settlementVersion   Int      @default(1)
-  
+  settlementVersion Int @default(1)
+
   // Snapshot at settlement time
-  totalPool           Decimal  @db.Decimal(18, 2)
-  totalPayouts        Decimal  @db.Decimal(18, 2)
-  houseFee            Decimal  @db.Decimal(18, 2)
-  houseProfit         Decimal  @db.Decimal(18, 2) // totalPool - totalPayouts - houseFee
-  
+  totalPool    Decimal @db.Decimal(18, 2)
+  totalPayouts Decimal @db.Decimal(18, 2)
+  houseFee     Decimal @db.Decimal(18, 2)
+  houseProfit  Decimal @db.Decimal(18, 2) // totalPool - totalPayouts - houseFee
+
   // Counts
-  totalBets           Int
-  winningBets         Int
-  losingBets          Int
-  
+  totalBets   Int
+  winningBets Int
+  losingBets  Int
+
   // Ledger references
   clearingLedgerEntryId String? @unique
   profitLedgerEntryId   String? @unique
-  
+
   // Audit
-  settledBy           String?  // Admin who triggered (if manual)
-  settledAt           DateTime @default(now())
-  
+  settledBy String? // Admin who triggered (if manual)
+  settledAt DateTime @default(now())
+
   // Relations
-  round               Round    @relation(fields: [roundId], references: [id])
-  settler             User?    @relation(fields: [settledBy], references: [id])
-  
+  round   Round @relation(fields: [roundId], references: [id])
+  settler User? @relation(fields: [settledBy], references: [id])
+
   @@index([roundNumber])
   @@index([settledAt])
 }
@@ -924,31 +1092,31 @@ model RoundSettlement {
 // PAYOUT TRANSACTION - Track external payouts
 // =============================================================================
 model PayoutTransaction {
-  id                String   @id @default(cuid())
-  withdrawalId      String
-  
+  id           String @id @default(cuid())
+  withdrawalId String
+
   // External payment details
-  externalRef       String?  // Reference from payment provider
+  externalRef       String? // Reference from payment provider
   payoutMethod      String
   payoutDestination String
-  amount            Decimal  @db.Decimal(18, 2)
-  
+  amount            Decimal @db.Decimal(18, 2)
+
   // Status
-  status            String   @default("PENDING") // PENDING, SUCCESS, FAILED
-  failureReason     String?
-  
+  status        String  @default("PENDING") // PENDING, SUCCESS, FAILED
+  failureReason String?
+
   // Response from payment provider
-  providerResponse  Json?
-  
+  providerResponse Json?
+
   // Audit
-  initiatedBy       String
-  initiatedAt       DateTime @default(now())
-  completedAt       DateTime?
-  
+  initiatedBy String
+  initiatedAt DateTime  @default(now())
+  completedAt DateTime?
+
   // Relations
-  withdrawal        Withdrawal @relation(fields: [withdrawalId], references: [id])
-  initiator         User       @relation(fields: [initiatedBy], references: [id])
-  
+  withdrawal Withdrawal @relation(fields: [withdrawalId], references: [id])
+  initiator  User       @relation(fields: [initiatedBy], references: [id])
+
   @@index([withdrawalId])
   @@index([status])
   @@index([initiatedAt])
@@ -958,25 +1126,25 @@ model PayoutTransaction {
 // ALERT LOG - System alerts for reserve ratio, etc.
 // =============================================================================
 model AlertLog {
-  id              String        @id @default(cuid())
-  alertType       String        // 'RESERVE_RATIO_LOW', 'RESERVE_RATIO_CRITICAL', 'LARGE_WITHDRAWAL', etc.
-  severity        AlertSeverity
-  
+  id        String        @id @default(cuid())
+  alertType String // 'RESERVE_RATIO_LOW', 'RESERVE_RATIO_CRITICAL', 'LARGE_WITHDRAWAL', etc.
+  severity  AlertSeverity
+
   // Alert details
-  title           String
-  message         String
-  metadata        Json?
-  
+  title    String
+  message  String
+  metadata Json?
+
   // Status
-  isAcknowledged  Boolean       @default(false)
-  acknowledgedBy  String?
-  acknowledgedAt  DateTime?
-  
-  createdAt       DateTime      @default(now())
-  
+  isAcknowledged Boolean   @default(false)
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+
+  createdAt DateTime @default(now())
+
   // Relations
-  acknowledger    User?         @relation(fields: [acknowledgedBy], references: [id])
-  
+  acknowledger User? @relation(fields: [acknowledgedBy], references: [id])
+
   @@index([alertType])
   @@index([severity])
   @@index([isAcknowledged])
@@ -987,28 +1155,28 @@ model AlertLog {
 // FEE CONFIGURATION - Dynamic fee settings
 // =============================================================================
 model FeeConfiguration {
-  id              String   @id @default(cuid())
-  feeType         String   @unique // 'WITHDRAWAL', 'DEPOSIT', etc.
-  
+  id      String @id @default(cuid())
+  feeType String @unique // 'WITHDRAWAL', 'DEPOSIT', etc.
+
   // Tiered fee structure (JSON array of {minAmount, maxAmount, feeAmount, feePercent})
-  tiers           Json
-  
+  tiers Json
+
   // Caps
-  minFee          Decimal  @db.Decimal(18, 2)
-  maxFee          Decimal? @db.Decimal(18, 2)
-  
+  minFee Decimal  @db.Decimal(18, 2)
+  maxFee Decimal? @db.Decimal(18, 2)
+
   // Premium user discount
-  premiumDiscount Decimal  @default(100) @db.Decimal(5, 2) // 100 = free for premium
-  
-  isActive        Boolean  @default(true)
-  
-  updatedBy       String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
+  premiumDiscount Decimal @default(100) @db.Decimal(5, 2) // 100 = free for premium
+
+  isActive Boolean @default(true)
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  updater         User?    @relation(fields: [updatedBy], references: [id])
-  
+  updater User? @relation(fields: [updatedBy], references: [id])
+
   @@index([feeType])
 }
 
@@ -1016,21 +1184,21 @@ model FeeConfiguration {
 // WITHDRAWAL LIMIT - User-specific and tier-based limits
 // =============================================================================
 model WithdrawalLimit {
-  id                  String   @id @default(cuid())
-  limitType           String   @unique // 'FREE_DAILY', 'PREMIUM_DAILY', 'FREE_SINGLE', 'PREMIUM_SINGLE'
-  
-  dailyLimit          Decimal  @db.Decimal(18, 2)
+  id        String @id @default(cuid())
+  limitType String @unique // 'FREE_DAILY', 'PREMIUM_DAILY', 'FREE_SINGLE', 'PREMIUM_SINGLE'
+
+  dailyLimit           Decimal @db.Decimal(18, 2)
   singleTransactionMax Decimal @db.Decimal(18, 2)
-  
+
   // Large withdrawal threshold (requires extra review)
   largeWithdrawalThreshold Decimal @db.Decimal(18, 2)
-  
-  isActive            Boolean  @default(true)
-  
-  updatedBy           String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
+
+  isActive Boolean @default(true)
+
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  updater             User?    @relation(fields: [updatedBy], references: [id])
+  updater User? @relation(fields: [updatedBy], references: [id])
 }
