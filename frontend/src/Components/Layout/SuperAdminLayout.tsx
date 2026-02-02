@@ -12,6 +12,7 @@ import {
   FileText,
   Clock,
   ChevronDown,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -108,6 +109,12 @@ export default function SuperAdminLayout({
       label: "Logs",
       href: "/admin/logs",
       category: "logs",
+    },
+    {
+      icon: MessageCircle,
+      label: "Chat Moderation",
+      href: "/admin/chat",
+      category: "chat",
     },
     {
       icon: CreditCard,

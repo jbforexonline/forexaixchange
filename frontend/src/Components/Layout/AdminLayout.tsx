@@ -11,6 +11,7 @@ import {
   FileText,
   Building2,
   DollarSign,
+  MessageCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -109,6 +110,12 @@ export default function AdminLayout({
       label: "Legal (Terms & Privacy)",
       href: "/admin/legal",
       category: "legal",
+    },
+    {
+      icon: MessageCircle,
+      label: "Chat Moderation",
+      href: "/admin/chat",
+      category: "chat",
     },
   ];
 

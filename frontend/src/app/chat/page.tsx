@@ -1,10 +1,14 @@
-import React from "react";
+import UserDashboardLayout from '@/Components/Layout/UserDashboardLayout';
+import ChatRoom from '@/Components/Dashboard/UserDashboard/ChatRoom';
+import ProtectedRoute from '@/Components/Auth/ProtectedRoute';
+import '@/Components/Layout/DashboardLayout.scss';
 
 export default function ChatPage() {
   return (
-    <div style={{ padding: 32 }}>
-      <h1>Chat</h1>
-      <p>This page will show chat and messaging features.</p>
-    </div>
+    <ProtectedRoute>
+      <UserDashboardLayout>
+        <ChatRoom />
+      </UserDashboardLayout>
+    </ProtectedRoute>
   );
 }

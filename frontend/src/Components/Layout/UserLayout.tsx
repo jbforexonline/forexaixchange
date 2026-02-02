@@ -11,6 +11,7 @@ import {
   ArrowDownCircle,
   History,
   BarChart3,
+  MessageCircle,
   LogOut,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
@@ -83,6 +84,7 @@ export default function UserLayout({
           : undefined,
     },
     { icon: BookOpen, label: "Affiliate", href: "/Affiliate" },
+    { icon: MessageCircle, label: "Members' Room", href: "/chat" },
   ];
 
   const toggleMenu = (category: string) => {

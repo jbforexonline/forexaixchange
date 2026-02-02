@@ -26,6 +26,7 @@ import {
   BarChart3,
   AppWindow,
   BookOpen,
+  MessageCircle,
   ArrowUpCircle,
   ArrowDownCircle,
   FileText,
@@ -1700,6 +1701,15 @@ export default function SpinPage() {
           >
             <BookOpen size={18} />
             <span>Affiliate</span>
+          </button>
+          
+          <button 
+            className="nav-btn"
+            onClick={() => router.push('/chat')}
+            title="Members' Room"
+          >
+            <MessageCircle size={18} />
+            <span>Members' Room</span>
           </button>
         </nav>
         
