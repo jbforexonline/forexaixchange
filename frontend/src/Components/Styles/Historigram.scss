@@ -8,10 +8,14 @@
   -webkit-backdrop-filter: blur(6px);
 
   &.chart-only {
-    padding: 10px;
+    padding: 10px 10px 10px 16px;
+    min-width: 0;
     h3 {
       margin: 0 0 8px;
       font-size: 12px;
+    }
+    .recharts-wrapper {
+      overflow: visible;
     }
   }
 

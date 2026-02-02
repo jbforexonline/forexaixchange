@@ -408,7 +408,7 @@ export default function Histogram({
             <BarChart
               data={displayChartData}
               barSize={showChartOnly ? 14 : 20}
-              margin={{ top: 10, right: 10, left: -10, bottom: showChartOnly ? 40 : 50 }}
+              margin={{ top: 10, right: 10, left: 8, bottom: showChartOnly ? 40 : 50 }}
             >
               <CartesianGrid
                 stroke="rgba(59,130,246,0.15)"
@@ -427,7 +427,7 @@ export default function Histogram({
               <YAxis 
                 stroke="#9ccfff" 
                 tick={{ fontSize: showChartOnly ? 9 : 11, fill: '#a5d5ff' }} 
-                width={showChartOnly ? 30 : 35}
+                width={showChartOnly ? 40 : 44}
                 domain={[0, 100]}
                 tickFormatter={(value) => `${value}%`}
               />
