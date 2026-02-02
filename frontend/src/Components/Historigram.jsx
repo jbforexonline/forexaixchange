@@ -428,7 +428,7 @@ export default function Histogram({
                 stroke="#9ccfff" 
                 tick={{ fontSize: showChartOnly ? 9 : 11, fill: '#a5d5ff' }} 
                 width={showChartOnly ? 30 : 35}
-                domain={[0, 'auto']}
+                domain={[0, 100]}
                 tickFormatter={(value) => `${value}%`}
               />
               <ReferenceLine y={0} stroke="rgba(59,130,246,0.4)" />
