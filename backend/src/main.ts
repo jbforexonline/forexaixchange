@@ -21,18 +21,28 @@ async function bootstrap() {
   // Global response interceptor
   app.useGlobalInterceptors(new TransformInterceptor());
 
-  // CORS configuration
-  const frontendUrl = process.env.FRONTEND_URL;
-  const allowedOrigins = frontendUrl
-    ? [frontendUrl, 'http://localhost:3000', 'http://localhost:3001']
-    : ['http://localhost:3000', 'http://localhost:3001'];
+    // CORS configuration (supports multiple URLs in FRONTEND_URL, comma-separated)
+    const frontendEnv = process.env.FRONTEND_URL || '';
+    const allowedOrigins = [
+      ...frontendEnv.split(',').map(s => s.trim()).filter(Boolean),
+      'http://localhost:3000',
+      'http://localhost:3001',
+    ];
   
-  app.enableCors({
-    origin: allowedOrigins,
-    methods: ['GET','HEAD','POST','PUT','PATCH','DELETE','OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-    credentials: true,
-  });
+    app.enableCors({
+      origin: (origin, callback) => {
+        // Allow requests with no origin (Postman, server-to-server)
+        if (!origin) return callback(null, true);
+  
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+      },
+      methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      credentials: true, // OK to keep true
+      // IMPORTANT: remove allowedHeaders so it auto-allows what the browser requests
+      // (hardcoding can break preflight if a new header appears)
+    });
+  
 
   // Swagger configuration
   const config = new DocumentBuilder()
