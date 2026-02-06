@@ -16,6 +16,7 @@ export default function Landing() {
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
   const carouselIntervalRef = useRef(null);
   const [isMaintenanceMode, setIsMaintenanceMode] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
   
   // Use the same round hook as the logged-in version for synchronization
   const { round, state: roundState, countdown, loading, error } = useRound();
@@ -338,7 +339,18 @@ export default function Landing() {
             <p>Forexaiexchange</p>
           </Link>
 
-          <nav className="nav">
+          <button
+            type="button"
+            className={`nav-toggle ${isNavOpen ? "open" : ""}`}
+            aria-label={isNavOpen ? "Close menu" : "Open menu"}
+            onClick={() => setIsNavOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+
+          <nav className={`nav ${isNavOpen ? "nav-open" : ""}`}>
             <Link href="/login">
               <button className="btn signin">Buy and Sell</button>
             </Link>

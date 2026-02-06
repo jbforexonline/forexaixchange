@@ -249,7 +249,7 @@ export default function Histogram({
         const response = await getRoundHistory(1, limit).catch(() => ({ data: [] }));
         
         // getRoundHistory returns { data: roundsArray, meta }
-        const rounds = Array.isArray(response?.data) ? response.data : [];
+        let rounds = Array.isArray(response?.data) ? response.data : [];
         
         console.log('Round history (authoritative):', rounds);
         

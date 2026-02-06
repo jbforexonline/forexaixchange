@@ -2,10 +2,11 @@
 FOREXAI EXCHANGE - PROJECT COMPLETION REPORT
 ================================================================================
 Generated: Analysis against System Requirements Document
+Last Updated: February 2, 2025
 
 This report analyzes the current codebase implementation against the specified
 requirements document and provides completion percentages for both backend and
-frontend components.
+frontend components. Includes recent improvements and new features implemented.
 
 ================================================================================
 1. OVERVIEW
@@ -22,10 +23,61 @@ Requirements include:
 - Community features
 
 ================================================================================
+1.5 RECENT IMPROVEMENTS & NEW FEATURES (Since Last Report)
+================================================================================
+
+1. LEGAL & AGE GATE SYSTEM - FULLY IMPLEMENTED
+   - Age confirmation (18+) required at signup; stored server-side
+   - Signup: Two required checkboxes ("I am 18+" and "I agree to Terms & Privacy")
+   - Terms & Privacy: Versioned, auditable; one active doc per type
+   - LegalComplianceGuard on protected routes; 403 with LEGAL_REACCEPT_REQUIRED /
+     AGE_CONFIRM_REQUIRED when re-acceptance needed
+   - Re-accept modal for new terms or missing age confirmation
+   - Admin Legal UI: create versions, activate, preview
+   - Public pages: /terms, /privacy
+   - API: GET /legal/terms/active, GET /legal/privacy/active; POST accept endpoints
+
+2. FINANCE SYSTEM v2 - LEDGER-BASED ACCOUNTING - FULLY IMPLEMENTED
+   - Double-entry ledger (LedgerAccount, LedgerEntry)
+   - Deposit workflow: PENDING -> APPROVED -> CREDITED (or REJECTED)
+   - Withdrawal workflow: DRAFT -> CONFIRMED (OTP) -> PENDING_REVIEW -> APPROVED -> PAID
+   - OTP confirmation required for withdrawal (sent to email/phone)
+   - Admin approval for deposits and withdrawals
+   - Reserve ratio monitoring: Bank Balance / Total User Liabilities
+   - Thresholds: HEALTHY (>=1.2), WARNING (<1.2), CRITICAL (<1.1)
+   - House accounts: HOUSE_PROFIT, OPERATING_CAPITAL, CLEARING, FEE_COLLECTION
+   - FeeConfiguration (tiered withdrawal fees), WithdrawalLimit
+   - AdminAction audit trail, BankSnapshot history
+   - Finance Admin role with dedicated permissions
+   - Alert system: RESERVE_RATIO_CRITICAL, LARGE_WITHDRAWAL, etc.
+
+3. MULTI-DURATION ROUNDS - FULLY IMPLEMENTED
+   - Separate pools per duration (5, 10, 20 minutes); never mixed
+   - MarketInstance model: 5min (4 instances), 10min (2 instances), 20min (1) per cycle
+   - One global master clock (20-minute cycle)
+   - Bet routing to correct market instance via durationMinutes, marketInstanceId
+   - MarketInstanceSettlement, MarketSnapshot for idempotency
+   - Premium users can select 5/10/20 min rounds
+   - WebSocket: masterClockTick, aggregatedStatsUpdated, selectDuration
+
+4. NEW ADMIN ROLES & LAYOUT
+   - FINANCE_ADMIN: Approve deposits/withdrawals, reserve management
+   - SYSTEM_ADMIN: Configure thresholds/fees
+   - AUDIT_ADMIN: Read-only access
+   - Role-based layout system (SuperAdminLayout, AdminLayout, ModeratorLayout, UserLayout)
+
+5. SEED & INITIALIZATION UPDATES
+   - All seeded users: AGE_SEED (isAge18Confirmed, ageConfirmedAt, etc.)
+   - Legal documents (Terms v1.0, Privacy v1.0) with user acceptances
+   - Finance v2: ledger accounts, fee configs, withdrawal limits, bank snapshot
+   - Finance Admin user (finance@forexaixchange.com)
+   - System config: spin_countdown_premium_5min, 10min, 20min
+
+================================================================================
 2. BACKEND IMPLEMENTATION STATUS
 ================================================================================
 
-2.1 SPIN SYSTEM (COMPLETION: 95%)
+2.1 SPIN SYSTEM (COMPLETION: 98%)
 ---------------------------------
 ✅ Round-based betting system - FULLY IMPLEMENTED
    - Round model with OPEN, FROZEN, SETTLING, SETTLED states
@@ -52,11 +104,15 @@ Requirements include:
    - Payout calculations with house fee (2% default)
    - Fairness artifacts for transparency
    
-⚠️  Countdown timer display - PARTIAL
-   - Backend provides timestamps, frontend calculates display
-   - Works correctly but could be more robust
+✅ Multi-duration support - FULLY IMPLEMENTED (v3.0)
+   - Premium users can choose 5/10/20 min rounds
+   - Market instances with separate pools per duration
+   - Master clock and checkpoint-based settlement
 
-2.2 PREMIUM SUBSCRIPTION SYSTEM (COMPLETION: 90%)
+⚠️  Countdown timer display - MINOR
+   - Backend provides timestamps; works correctly
+
+2.2 PREMIUM SUBSCRIPTION SYSTEM (COMPLETION: 95%)
 -------------------------------------------------
 ✅ Premium plans - FULLY IMPLEMENTED
    - PremiumPlan model with duration, price, features
@@ -66,7 +122,7 @@ Requirements include:
 ✅ Premium features - FULLY IMPLEMENTED
    - Verification badge support
    - Internal transfers (premium only)
-   - Flexible spin timing (5/10/15/20 min rounds for premium)
+   - Flexible spin timing (5/10/20 min rounds for premium)
    - Auto-press orders (up to 50 future spins)
    - High order limits ($200 per order for premium)
    - Unlimited withdrawals (vs $2000/day for regular)
@@ -76,9 +132,9 @@ Requirements include:
    - Expiry date validation
    - Premium user flags in bets/spins
    
-⚠️  Round duration selection - PARTIAL
-   - Backend supports user preferences (UserPreferences model)
-   - Not fully wired to round creation flow yet
+✅ Round duration selection - FULLY IMPLEMENTED
+   - Multi-duration rounds (5/10/20 min) wired via MarketInstance
+   - Premium users select duration; bets route to correct instance
 
 2.3 AFFILIATE SYSTEM (COMPLETION: 85%)
 --------------------------------------
@@ -105,34 +161,35 @@ Requirements include:
 ⚠️  Leaderboard - PARTIAL
    - Affiliate leaderboard endpoint exists but may need testing
 
-2.4 WALLET & TRANSACTIONS (COMPLETION: 95%)
+2.4 WALLET & TRANSACTIONS (COMPLETION: 98%)
 -------------------------------------------
 ✅ Wallet system - FULLY IMPLEMENTED
    - Wallet model with available, held balances
    - Demo wallet support (separate demo balance)
    - Total deposited, withdrawn, won, lost tracking
+   - Finance v2: Ledger-based accounting (LedgerAccount, LedgerEntry)
    
-✅ Deposits - FULLY IMPLEMENTED
-   - Deposit transaction creation
-   - Balance updates
-   - Transaction history
+✅ Deposits - FULLY IMPLEMENTED (Finance v2)
+   - Deposit model: PENDING -> APPROVED -> CREDITED (or REJECTED)
+   - Admin approval required; ledger credit on approval
    - Idempotency key support
-   - MoMo and crypto method support (method field)
+   - MoMo, Bank, Crypto method support
    
-✅ Withdrawals - FULLY IMPLEMENTED
-   - Withdrawal request creation
-   - Tiered withdrawal fees (schema supports it)
-   - Daily limit enforcement ($2000/day for regular users)
-   - Unlimited withdrawals for premium users
-   - Pending status workflow
+✅ Withdrawals - FULLY IMPLEMENTED (Finance v2)
+   - Withdrawal model: DRAFT -> CONFIRMED (OTP) -> PENDING_REVIEW -> APPROVED -> PAID
+   - OTP sent to user email/phone; confirmation required before admin review
+   - Tiered withdrawal fees (FeeConfiguration)
+   - Daily limits: FREE_DAILY, PREMIUM_DAILY
+   - Reserve ratio can lock/pause withdrawals
    
 ✅ Transaction history - FULLY IMPLEMENTED
    - Transaction model with all types (DEPOSIT, WITHDRAWAL, SPIN_WIN, etc.)
    - Status tracking (PENDING, COMPLETED, FAILED, CANCELLED)
    - Transaction filtering and pagination
    
-⚠️  Withdrawal approval workflow - PARTIAL
-   - Admin can approve/reject but UI may need enhancement
+✅ Withdrawal approval workflow - FULLY IMPLEMENTED
+   - Admin approve/reject; mark as PAID after external payout
+   - admin-finance module with deposit.service, withdrawal.service, reserve.service
 
 2.5 INTERNAL TRANSFERS (COMPLETION: 90%)
 ---------------------------------------
@@ -151,8 +208,7 @@ Requirements include:
    - Funds held until approval
    - Balance updates on approval
    
-⚠️  Confirmation checkbox requirement - PARTIAL
-   - Backend supports it but frontend UI may need explicit checkbox
+⚠️  Finance v2: TRANSFERS_ENABLED=false in production (no P2P)
 
 2.6 AUTO-SPIN ORDERS (COMPLETION: 95%)
 -------------------------------------
@@ -228,7 +284,18 @@ Requirements include:
 ⚠️  Sentiment bars display - PARTIAL
    - Backend can aggregate but frontend display may need work
 
-2.10 ADMIN DASHBOARD (COMPLETION: 75%)
+2.9.5 LEGAL & COMPLIANCE (COMPLETION: 95%)
+------------------------------------------
+✅ Legal & Age Gate - FULLY IMPLEMENTED
+   - LegalDocument, UserLegalAcceptance models
+   - Versioned Terms & Privacy; one active per type
+   - Age 18+ confirmation at signup (isAge18Confirmed, ageConfirmedAt)
+   - LegalComplianceGuard blocks protected routes when re-acceptance needed
+   - 403 codes: LEGAL_REACCEPT_REQUIRED, AGE_CONFIRM_REQUIRED
+   - Admin Legal API: create versions, activate, preview
+   - Public API: GET terms/active, privacy/active; POST accept endpoints
+
+2.10 ADMIN DASHBOARD (COMPLETION: 85%)
 -------------------------------------
 ✅ User management - IMPLEMENTED
    - User search and filtering
@@ -236,11 +303,12 @@ Requirements include:
    - Block/ban functionality
    - Badge assignment support
    
-✅ Financial management - IMPLEMENTED
-   - Deposit/withdrawal monitoring
-   - Transaction approval workflow
-   - Internal transfer approval
-   - Withdrawal limit control
+✅ Financial management - FULLY IMPLEMENTED (Finance v2)
+   - Admin Finance module: deposits, withdrawals, reserve ratio
+   - Deposit approval/rejection; withdrawal approve/reject/pay
+   - Reserve ratio dashboard; bank snapshot; alert management
+   - House accounts view; fee configuration; withdrawal limits
+   - Internal transfer approval (when enabled)
    
 ✅ Analytics - IMPLEMENTED
    - Dashboard stats (total users, spins, deposits, withdrawals)
@@ -252,15 +320,18 @@ Requirements include:
    - Leaderboard access
    - Earnings tracking
    
+✅ Legal management - FULLY IMPLEMENTED
+   - Admin Legal page: Terms & Privacy versions, create, activate, preview
+   - Nav: Admin → Legal (Terms & Privacy)
+   
 ⚠️  Content management - PARTIAL
    - News/updates publishing not clearly implemented
    
-⚠️  System settings - PARTIAL
-   - SystemConfig model exists
-   - Maintenance mode, demo mode settings may need UI
-   - Fake counters (baseline users/spins) not clearly implemented
+✅ System settings - IMPLEMENTED
+   - SystemConfig model; maintenance_mode, demo_mode, fake_user_count, etc.
+   - Spin countdown configs for 5/10/20 min
 
-2.11 AUTHENTICATION & SECURITY (COMPLETION: 70%)
+2.11 AUTHENTICATION & SECURITY (COMPLETION: 75%)
 -----------------------------------------------
 ✅ User registration - IMPLEMENTED
    - Email or phone registration
@@ -273,9 +344,13 @@ Requirements include:
    - Email/phone/username login support
    - Token validation
    
-⚠️  2FA (Two-Factor Authentication) - NOT IMPLEMENTED
+✅ OTP service - IMPLEMENTED
+   - OTP for withdrawal confirmation (email/phone)
+   - OTP for forgot password flow
+   
+⚠️  2FA (Two-Factor Authentication for login) - NOT IMPLEMENTED
    - Requirements specify 2FA for login
-   - Current implementation uses only password + JWT
+   - Current implementation uses password + JWT (OTP used for withdrawals only)
    
 ✅ KYC support - PARTIAL
    - KYC status field in User model (PENDING, APPROVED, REJECTED)
@@ -308,7 +383,7 @@ Requirements include:
 3. FRONTEND IMPLEMENTATION STATUS
 ================================================================================
 
-3.1 SPIN CENTER UI (COMPLETION: 90%)
+3.1 SPIN CENTER UI (COMPLETION: 95%)
 -----------------------------------
 ✅ Spin wheel display - FULLY IMPLEMENTED
    - SpinWheel component with visual representation
@@ -333,8 +408,9 @@ Requirements include:
    - Round results display
    - User bet display
    
-⚠️  Premium round duration selection UI - PARTIAL
-   - Premium users can potentially choose duration but UI may need enhancement
+✅ Premium round duration selection - IMPLEMENTED
+   - Multi-duration support (5/10/20 min) for premium users
+   - WebSocket integration for duration timers
 
 3.2 WALLET & TRANSACTIONS UI (COMPLETION: 95%)
 ---------------------------------------------
@@ -400,7 +476,7 @@ Requirements include:
    - Affiliate leaderboard display
    - Ranking system
 
-3.5 ADMIN DASHBOARD UI (COMPLETION: 70%)
+3.5 ADMIN DASHBOARD UI (COMPLETION: 80%)
 ---------------------------------------
 ✅ Admin layout - IMPLEMENTED
    - SuperAdminLayout and AdminLayout components
@@ -420,11 +496,15 @@ Requirements include:
    - Downloadable reports (may need verification)
    - Time-based filtering
    
+✅ Legal management UI - FULLY IMPLEMENTED
+   - Admin Legal page at /admin/legal
+   - Terms & Privacy tabs; create versions; activate; preview
+   
 ⚠️  Content management UI - NOT IMPLEMENTED
    - News/updates publishing interface not found
    
-⚠️  System settings UI - PARTIAL
-   - Settings may exist but comprehensive UI may need work
+✅ System settings UI - IMPLEMENTED
+   - Admin settings; maintenance mode, demo mode
 
 3.6 COMMUNITY UI (COMPLETION: 60%)
 ---------------------------------
@@ -456,7 +536,21 @@ Requirements include:
 ⚠️  Achievements display - NOT IMPLEMENTED
    - Achievement system not implemented
 
-3.8 AUTHENTICATION UI (COMPLETION: 80%)
+3.7.5 LEGAL & COMPLIANCE UI (COMPLETION: 95%)
+---------------------------------------------
+✅ Age gate & terms at signup - FULLY IMPLEMENTED
+   - Register: required checkboxes "I am 18+" and "I agree to Terms & Privacy"
+   - AgeGate, LegalReAcceptModal components
+   - 403 handling for LEGAL_REACCEPT_REQUIRED, AGE_CONFIRM_REQUIRED
+   
+✅ Terms & Privacy pages - IMPLEMENTED
+   - /terms, /privacy public pages
+   
+✅ Re-accept modal - IMPLEMENTED
+   - Shows when new terms or age confirmation needed
+   - Links to terms/privacy; confirm and continue
+
+3.8 AUTHENTICATION UI (COMPLETION: 85%)
 --------------------------------------
 ✅ Login page - IMPLEMENTED
    - Login form with email/phone/username
@@ -473,18 +567,22 @@ Requirements include:
 ⚠️  2FA UI - NOT IMPLEMENTED
    - Two-factor authentication UI not found
    
+✅ Withdrawal OTP UI - IMPLEMENTED
+   - OTP confirmation step for withdrawals (finance v2 flow)
+   
 ⚠️  KYC verification UI - PARTIAL
    - KYC status may be displayed but verification form may need work
 
 ================================================================================
 4. DATABASE REQUIREMENTS
 ================================================================================
-COMPLETION: 95%
+COMPLETION: 98%
 ----------------
 ✅ Users Table - FULLY IMPLEMENTED
    - All required fields (ID, balances, premium status, badge, affiliate link)
-   - Role management (SUPER_ADMIN, ADMIN, USER)
+   - Role management: SUPER_ADMIN, ADMIN, FINANCE_ADMIN, SYSTEM_ADMIN, AUDIT_ADMIN, USER
    - KYC status tracking
+   - Legal: isAge18Confirmed, ageConfirmedAt, ageConfirmedIp, ageConfirmedUserAgent
    
 ✅ Transactions Table - FULLY IMPLEMENTED
    - Deposits, withdrawals, fees, status tracking
@@ -516,18 +614,36 @@ COMPLETION: 95%
    - Totals aggregation
    - State management
    
+✅ Legal Tables - FULLY IMPLEMENTED
+   - LegalDocument (versioned Terms & Privacy)
+   - UserLegalAcceptance (audit of acceptances)
+   
+✅ Multi-Duration Tables - FULLY IMPLEMENTED
+   - MarketInstance (per-duration, per-checkpoint pools)
+   - MarketSnapshot, MarketInstanceSettlement
+   - Bet.durationMinutes, Bet.marketInstanceId
+   
+✅ Finance v2 Tables - FULLY IMPLEMENTED
+   - LedgerAccount, LedgerEntry (double-entry)
+   - Deposit, Withdrawal (OTP, status workflow)
+   - BankSnapshot, AdminAction, AlertLog
+   - FeeConfiguration, WithdrawalLimit
+   - RoundSettlement, PayoutTransaction
+   
 ⚠️  Missing: Achievement system tables (if required)
 
 ================================================================================
 5. NON-FUNCTIONAL REQUIREMENTS
 ================================================================================
-COMPLETION: 60%
+COMPLETION: 70%
 ----------------
-✅ Security - PARTIAL
+✅ Security - IMPROVED
    - Password hashing implemented
    - JWT authentication
    - Role-based access control
-   - ❌ 2FA not implemented
+   - Legal compliance guard (age, terms)
+   - OTP for withdrawals and forgot password
+   - ❌ 2FA for login not implemented
    
 ✅ Scalability - ARCHITECTURE READY
    - Database indexing in place
@@ -539,87 +655,97 @@ COMPLETION: 60%
    - Multi-language support not found
    - GMT server time may be used but not explicitly configured
    
-⚠️  Trust/Compliance - PARTIAL
-   - Terms & Conditions, Risk Disclaimer, Responsible play reminders
-   - These may need to be added to UI if not already present
+✅ Trust/Compliance - IMPROVED
+   - Terms & Conditions and Privacy Policy: versioned, required at signup
+   - Age 18+ confirmation required at signup
+   - Re-acceptance when terms updated
+   - Risk Disclaimer and Responsible play reminders may need enhancement
 
 ================================================================================
 6. OVERALL COMPLETION SUMMARY
 ================================================================================
 
-BACKEND COMPLETION: 85%
+BACKEND COMPLETION: 90%
 ------------------------
-- Core functionality: 90%+
-- Admin features: 75%
+- Core functionality: 95%+ (including multi-duration rounds)
+- Admin features: 85% (Legal, Finance v2)
 - Community features: 70%
-- Security features: 70%
+- Security/Compliance: 80% (Legal, OTP)
 
-FRONTEND COMPLETION: 80%
+FRONTEND COMPLETION: 85%
 -------------------------
-- User-facing features: 85%
-- Admin features: 70%
+- User-facing features: 90%
+- Admin features: 80% (Legal, Finance)
 - Community features: 60%
-- Authentication: 80%
+- Authentication & Legal: 85%
 
-DATABASE: 95%
+DATABASE: 98%
 -------------
-- All major tables implemented
+- All major tables implemented (Legal, Finance v2, Multi-Duration)
 - Relationships properly defined
 - Indexing in place
 
-NON-FUNCTIONAL: 60%
+NON-FUNCTIONAL: 70%
 -------------------
-- Security partially implemented (missing 2FA)
+- Security improved (OTP, Legal compliance)
 - Scalability architecture ready
-- Localization and compliance features need work
+- Terms & Privacy compliance implemented
+- 2FA for login still pending
 
 ================================================================================
 7. KEY GAPS & MISSING FEATURES
 ================================================================================
 
+ADDRESSED SINCE LAST REPORT:
+- ✅ Terms & Conditions and Privacy Policy (versioned, required at signup)
+- ✅ Age 18+ confirmation at signup
+- ✅ Re-acceptance flow when terms updated
+- ✅ Admin Legal management UI
+- ✅ Finance v2: Ledger, OTP for withdrawals, reserve ratio
+- ✅ Multi-duration rounds (5/10/20 min) for premium
+- ✅ Admin Finance UI for deposits/withdrawals
+- ✅ System config for maintenance, demo, spin durations
+
 HIGH PRIORITY:
-1. Two-Factor Authentication (2FA) - Backend and Frontend
+1. Two-Factor Authentication (2FA for login) - Backend and Frontend
 2. AI-powered insights and predictions (mentioned in requirements)
 3. Achievement system (daily/weekly goals, hidden unlocks)
 4. Content management for news/updates publishing
-5. Comprehensive system settings UI (maintenance mode, demo mode, etc.)
 
 MEDIUM PRIORITY:
-6. Enhanced sentiment bars visualization
-7. Live member chartroom UI enhancements
-8. KYC verification form and workflow
-9. Localization/multi-language support
-10. Terms & Conditions and Risk Disclaimer pages
+5. Enhanced sentiment bars visualization
+6. Live member chartroom UI enhancements
+7. KYC verification form and workflow
+8. Localization/multi-language support
+9. Risk Disclaimer and Responsible play reminders (enhance if needed)
 
 LOW PRIORITY:
-11. Fake counters for baseline users/spins (if needed)
-12. Comprehensive reporting and export features
-13. Real-time notifications system
+10. Fake counters for baseline users/spins (if needed)
+11. Comprehensive reporting and export features
+12. Real-time notifications system
 
 ================================================================================
 8. RECOMMENDATIONS
 ================================================================================
 
-1. PRIORITIZE 2FA IMPLEMENTATION
+1. PRIORITIZE 2FA FOR LOGIN
    - Critical for security requirements
    - Use TOTP (Time-based One-Time Password) standard
    - Implement on both backend and frontend
 
 2. COMPLETE ADMIN FEATURES
-   - Finish user management CRUD UI
    - Add content management for news/updates
-   - Enhance system settings interface
+   - User management CRUD UI refinements
 
 3. ENHANCE COMMUNITY FEATURES
    - Improve chatroom UI
    - Add sentiment visualization
    - Implement AI insights if required
 
-4. ADD COMPLIANCE FEATURES
-   - Terms & Conditions page
-   - Risk Disclaimer
+4. REMAINING COMPLIANCE
+   - Risk Disclaimer page (Terms & Privacy done)
    - Responsible gambling reminders
-   -Accept the terms and conditions before signup
+   - Ensure terms acceptance before signup (implemented)
 
 5. TEST & POLISH
    - Load testing for 10,000+ users

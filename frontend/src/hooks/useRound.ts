@@ -111,6 +111,8 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
 
   const roundRef = useRef<Round | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchRef = useRef<number>(0);
+  const fetchThrottleMs = 5000; // Minimum 5 seconds between fetches
   
   // Sync userDuration when initialDuration prop changes
   useEffect(() => {
@@ -155,9 +157,19 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
     };
   }, []);
 
-  // Fetch current round
+  // Fetch current round with throttling to prevent 429 errors
   const fetchRound = useCallback(async () => {
+    const now = Date.now();
+    const timeSinceLastFetch = now - lastFetchRef.current;
+    
+    // Throttle: Don't fetch if we've fetched recently
+    if (timeSinceLastFetch < fetchThrottleMs) {
+      console.log(`useRound: Throttled fetch (${timeSinceLastFetch}ms since last fetch)`);
+      return;
+    }
+    
     try {
+      lastFetchRef.current = now;
       console.log('useRound: Fetching current round...');
       const data = await getCurrentRound();
       console.log('useRound: Got response:', data);
@@ -203,6 +215,14 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to fetch round';
       console.error('useRound: Failed to fetch round:', error);
+      
+      // If we get a 429 error, increase throttle time
+      if (message.includes('429') || message.includes('Too Many Requests')) {
+        console.warn('useRound: Rate limited, increasing throttle time');
+        // Reset last fetch to allow longer wait before next attempt
+        lastFetchRef.current = Date.now() - (fetchThrottleMs * 2);
+      }
+      
       setRoundState(prev => ({
         ...prev,
         error: message,
@@ -235,14 +255,8 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
     };
   }, [calculateState, userDuration]);
 
-  // Poll for round updates every 3 seconds (fast polling for dev)
-  useEffect(() => {
-    const pollInterval = setInterval(() => {
-      fetchRound();
-    }, 3000);
-
-    return () => clearInterval(pollInterval);
-  }, [fetchRound]);
+  // Removed aggressive 3-second polling - causes 429 errors
+  // WebSocket events handle real-time updates, with periodic sync as fallback
 
   // Setup WebSocket listeners
   useEffect(() => {
@@ -253,26 +267,37 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       client.connect();
     }
 
-    // Listen for round updates
+    // Listen for round updates (throttled to prevent 429 errors)
     const unsubscribeRoundSettled = client.on('roundSettled', () => {
       console.log('WS: Round settled');
-      fetchRound();
+      // Throttle: Only fetch if enough time has passed
+      const now = Date.now();
+      if (now - lastFetchRef.current >= fetchThrottleMs) {
+        fetchRound();
+      }
     });
 
     const unsubscribeRoundStateChanged = client.on('roundStateChanged', () => {
       console.log('WS: Round state changed');
-      fetchRound();
+      const now = Date.now();
+      if (now - lastFetchRef.current >= fetchThrottleMs) {
+        fetchRound();
+      }
     });
 
     const unsubscribeRoundOpened = client.on('roundOpened', () => {
       console.log('WS: New round opened');
-      fetchRound();
+      // Always fetch on new round, but still respect throttle
+      const now = Date.now();
+      if (now - lastFetchRef.current >= fetchThrottleMs) {
+        fetchRound();
+      }
     });
 
     // v3.0: Listen for market instance settlements (sub-rounds)
     const unsubscribeMarketInstanceSettled = client.on('marketInstanceSettled', (data) => {
       console.log('WS: Market instance settled:', data);
-      // Immediately recalculate state for the new sub-round
+      // Immediately recalculate state for the new sub-round (no API call needed)
       if (roundRef.current) {
         const calculated = calculateState(roundRef.current, userDuration);
         setRoundState(prev => ({
@@ -280,8 +305,11 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
           ...calculated,
         }));
       }
-      // Also fetch the latest round data
-      fetchRound();
+      // Fetch latest round data only if throttled
+      const now = Date.now();
+      if (now - lastFetchRef.current >= fetchThrottleMs) {
+        fetchRound();
+      }
     });
 
     const unsubscribeTotalsUpdated = client.on('totalsUpdated', (data) => {
@@ -316,9 +344,10 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
     };
   }, [fetchRound, calculateState, userDuration]);
 
-  // Consolidate periodic sync (every 10s) to ensure state stays valid if WebSocket misses an event
+  // Periodic sync (every 20s) as fallback to ensure state stays valid if WebSocket misses an event
+  // Increased from 10s to reduce server load and prevent 429 errors
   useEffect(() => {
-    const pollInterval = setInterval(fetchRound, 10000);
+    const pollInterval = setInterval(fetchRound, 20000); // 20 seconds instead of 10
     return () => clearInterval(pollInterval);
   }, [fetchRound]);
 

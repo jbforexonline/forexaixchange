@@ -47,3 +47,30 @@
     transform: translateX(-50%);
   }
 }
+
+/* Make ticker bar more compact on tablets */
+@media (max-width: 1024px) {
+  .tradingview-wrapper {
+    border-bottom-width: 1px;
+  }
+
+  .tradingview-item {
+    padding: 6px 0;
+  }
+}
+
+/* Make ticker bar smaller and lighter on mobile */
+@media (max-width: 768px) {
+  .tradingview-wrapper {
+    border-bottom-width: 0.5px;
+  }
+
+  .tradingview-item {
+    padding: 3px 0;
+  }
+
+  .tradingview-caption {
+    font-size: 10px;
+    bottom: 2px;
+  }
+}

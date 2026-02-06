@@ -18,6 +18,127 @@
   z-index: 1000;
 }
 
+// Markets Ticker - Background layer at top
+.spin-ticker-background {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1; // Very low z-index so it's behind all other components
+  pointer-events: none; // Allow clicks to pass through to components behind
+
+  .tradingview-wrapper {
+    pointer-events: auto; // But allow interaction with ticker itself
+  }
+}
+
+// Mobile Hamburger Menus - On top of ticker with solid backgrounds
+.mobile-hamburger {
+  display: none; // Hidden on desktop
+  position: fixed;
+  top: 6px;
+  z-index: 200; // Above ticker, below modals
+  width: 48px;
+  height: 48px;
+  background: #0a1423; // Solid dark background - dominates over ticker
+  border: 2px solid rgba(100, 200, 255, 0.5);
+  border-radius: 10px;
+  cursor: pointer;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  padding: 10px;
+  box-shadow: 
+    0 4px 16px rgba(0, 0, 0, 0.7),
+    0 0 20px rgba(100, 200, 255, 0.2);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+
+  &:hover {
+    background: #0f1a2a;
+    border-color: rgba(100, 200, 255, 0.7);
+    box-shadow: 
+      0 6px 20px rgba(0, 0, 0, 0.8),
+      0 0 25px rgba(100, 200, 255, 0.3);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  span {
+    display: block;
+    width: 26px;
+    height: 3px;
+    background: #a5d5ff;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+
+  &.mobile-hamburger-left {
+    left: 6px;
+  }
+
+  &.mobile-hamburger-right {
+    right: 6px;
+  }
+
+  // Show on mobile/tablet
+  @media (max-width: 1024px) {
+    display: flex;
+  }
+}
+
+// Mobile menu overlay - Dark background when menu is open
+.mobile-menu-overlay {
+  display: none;
+
+  @media (max-width: 1024px) {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 170; // Below menus (180) but above ticker (1)
+    backdrop-filter: blur(4px);
+  }
+}
+
+// Mobile menu close button
+.mobile-menu-close {
+  display: none; // Hidden on desktop
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+
+  @media (min-width: 1025px) {
+    display: none !important;
+  }
+}
+
 // In-screen confirmation modal for placing orders
 .spin-confirm-overlay {
   position: fixed;
@@ -1127,7 +1248,6 @@
   position: relative;
   padding: 20px;
   padding-bottom: 80px; // Reduced space for smaller betting bar
-  // REMOVED padding-right - wheel should NOT shift with sidebar
   overflow: hidden;
   // NO transition - wheel stays fixed
 }
@@ -1140,26 +1260,45 @@
   justify-content: center;
   position: relative;
 
+  // On smaller screens where overlap occurs, shift wheel slightly right (2-3cm) to avoid history table
+  @media (max-width: 1440px) {
+    justify-content: center;
+    transform: translateX(60px); // ~2cm shift right
+  }
+
+  @media (max-width: 1280px) {
+    transform: translateX(70px); // ~2.5cm shift right
+  }
+
+  @media (max-width: 1100px) {
+    transform: translateX(80px); // ~3cm shift right
+  }
+
+  // On larger screens, keep fully centered
+  @media (min-width: 1441px) {
+    transform: translateX(0);
+  }
+
   .wheel-container {
     // Maintain large size across all screens - use viewport units with better scaling
     // Use clamp to ensure it stays relatively large but doesn't overflow
-    width: clamp(450px, min(85vh, 85vw), 650px);
-    height: clamp(450px, min(85vh, 85vw), 650px);
+    width: clamp(430px, min(80vh, 70vw), 620px);
+    height: clamp(430px, min(80vh, 70vw), 620px);
     position: relative;
 
-    @media (max-width: 1400px) {
-      width: clamp(480px, min(80vh, 80vw), 600px);
-      height: clamp(480px, min(80vh, 80vw), 600px);
+    @media (max-width: 1440px) {
+      width: clamp(400px, min(78vh, 60vw), 560px);
+      height: clamp(400px, min(78vh, 60vw), 560px);
     }
 
-    @media (max-width: 1200px) {
-      width: clamp(460px, min(75vh, 75vw), 550px);
-      height: clamp(460px, min(75vh, 75vw), 550px);
+    @media (max-width: 1280px) {
+      width: clamp(360px, min(72vh, 55vw), 520px);
+      height: clamp(360px, min(72vh, 55vw), 520px);
     }
 
-    @media (max-width: 1024px) {
-      width: clamp(440px, min(70vh, 70vw), 500px);
-      height: clamp(440px, min(70vh, 70vw), 500px);
+    @media (max-width: 1100px) {
+      width: clamp(340px, min(68vh, 52vw), 480px);
+      height: clamp(340px, min(68vh, 52vw), 480px);
     }
 
     @media (max-width: 768px) {
@@ -1321,7 +1460,7 @@
 .betting-bar {
   position: fixed;
   bottom: 0;
-  left: 0; // Full width from left corner
+  left: 0;
   right: 0;
   height: auto;
   min-height: 70px;
@@ -1332,7 +1471,7 @@
   justify-content: center;
   padding: 10px 20px;
   gap: 16px;
-  z-index: 95; // Below right sidebar (150) but above bottom-left panel (80)
+  z-index: 95; // Below right sidebar (150) and bottom-left panel (80) stays visible
   backdrop-filter: blur(20px);
 
   @media (max-width: 1200px) {
@@ -1655,19 +1794,19 @@
 
 @media (max-height: 700px) {
   .spin-gaming-main {
-    padding-bottom: 120px;
+    padding-bottom: 110px;
   }
 
   .wheel-area .wheel-container {
-    width: clamp(380px, min(55vh, 80vw), 450px);
-    height: clamp(380px, min(55vh, 80vw), 450px);
+    width: clamp(340px, min(52vh, 70vw), 430px);
+    height: clamp(340px, min(52vh, 70vw), 430px);
   }
 }
 
 @media (max-height: 600px) {
   .wheel-area .wheel-container {
-    width: clamp(340px, min(50vh, 85vw), 400px);
-    height: clamp(340px, min(50vh, 85vw), 400px);
+    width: clamp(320px, min(46vh, 70vw), 380px);
+    height: clamp(320px, min(46vh, 70vw), 380px);
   }
 }
 
@@ -1681,7 +1820,7 @@
 
 .bottom-left-panel {
   position: fixed;
-  bottom: 80px; // Above betting bar (70px + 10px gap)
+  bottom: 82px; // Slightly above betting bar
   left: 10px;
   z-index: 80;
   display: flex;
@@ -1689,10 +1828,14 @@
   align-items: stretch;
   gap: 8px;
   width: auto; // Fit content width
-  max-width: calc(50vw - 100px); // Expand to use space near spin wheel
+  max-width: min(520px, 40vw); // Limit width so it doesn’t reach wheel
 
-  @media (max-width: 1200px) {
-    max-width: calc(50vw - 80px);
+  @media (max-width: 1440px) {
+    max-width: min(480px, 42vw);
+  }
+
+  @media (max-width: 1280px) {
+    max-width: min(440px, 44vw);
   }
 
   @media (max-width: 768px) {
@@ -1824,8 +1967,16 @@
 
 // Results Panel (table container)
 .results-panel {
-  width: 100%; // Full width of parent
-  min-width: 400px; // Minimum width for readability
+  width: 100%;
+  min-width: 320px;
+
+  @media (max-width: 1440px) {
+    min-width: 300px;
+  }
+
+  @media (max-width: 1280px) {
+    min-width: 280px;
+  }
   
   .recent-spins-table {
     width: 100%;
@@ -2634,4 +2785,299 @@
   padding: 2px 8px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+// ===========================================
+// MOBILE & TABLET RESPONSIVE STYLES
+// ===========================================
+
+@media (max-width: 1024px) {
+  // Left Sidebar - Mobile Menu (Navigation + History Table)
+  .bottom-left-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 300px;
+    max-width: 85vw;
+    background: linear-gradient(180deg, rgba(10, 20, 35, 0.98) 0%, rgba(5, 15, 30, 1) 100%);
+    border-right: 2px solid rgba(100, 200, 255, 0.3);
+    z-index: 180; // Above ticker, below modals
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    padding-top: 60px; // Space for close button
+    display: flex;
+    flex-direction: column;
+
+    &.mobile-open {
+      transform: translateX(0);
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .vertical-nav {
+      padding: 12px 8px;
+      flex-shrink: 0;
+      border-bottom: 1px solid rgba(100, 200, 255, 0.1);
+    }
+
+    .results-panel {
+      padding: 12px;
+      min-width: auto;
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+  }
+
+  // Right Sidebar - Mobile Menu
+  .right-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    background: linear-gradient(180deg, rgba(10, 20, 35, 0.98) 0%, rgba(5, 15, 30, 1) 100%);
+    border-left: 2px solid rgba(100, 200, 255, 0.3);
+    z-index: 180;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+    padding-top: 60px;
+
+    &.mobile-open {
+      transform: translateX(0);
+      box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .sidebar-toggle {
+      display: none; // Hide desktop toggle on mobile
+    }
+  }
+
+  // Spin Wheel - Position below ticker
+  .spin-gaming-main {
+    padding-top: 60px; // Space for ticker + hamburger menus
+    padding-bottom: 120px; // More space for betting panel
+  }
+
+  .wheel-area {
+    transform: translateX(0); // Reset desktop shift on mobile
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+// Tablet and Phone - Same layout structure, scaled sizes
+@media (max-width: 768px) {
+  // Betting Panel - Same structure as tablet, just scaled down
+  .betting-bar {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 8px;
+    min-height: auto;
+    height: auto;
+
+    // First Row: Amount controls and quick amounts
+    .amount-section {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+
+      .amount-adjust {
+        width: 32px;
+        height: 32px;
+        font-size: 18px;
+      }
+
+      .amount-display {
+        min-width: 90px;
+        padding: 6px 8px;
+
+        .amount-input {
+          font-size: 15px;
+          width: 55px;
+        }
+
+        .amount-label {
+          font-size: 8px;
+        }
+      }
+
+      .quick-amounts {
+        display: flex;
+        gap: 3px;
+        margin-left: 0;
+        flex-wrap: wrap;
+        justify-content: center;
+
+        .quick-btn {
+          padding: 5px 8px;
+          font-size: 10px;
+        }
+      }
+    }
+
+    // Second Row: Market buttons - Same layout as tablet
+    .markets-section {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: center;
+      order: 2;
+
+      .market-btn {
+        flex: 1;
+        min-width: calc(33.333% - 4px);
+        max-width: calc(33.333% - 4px);
+        padding: 7px 5px;
+        gap: 3px;
+
+        .market-label {
+          font-size: 8px;
+          line-height: 1.2;
+        }
+
+        .market-icon {
+          font-size: 13px;
+        }
+
+        .market-total {
+          font-size: 7px;
+        }
+      }
+    }
+
+    // Action Section - Third Row - Same layout as tablet
+    .action-section {
+      width: 100%;
+      display: flex;
+      flex-direction: row;
+      gap: 6px;
+      order: 3;
+      justify-content: center;
+
+      .tickets-btn {
+        flex: 1;
+        max-width: 130px;
+        padding: 9px 10px;
+        font-size: 10px;
+      }
+
+      .place-bet-btn {
+        flex: 2;
+        padding: 10px 14px;
+        font-size: 11px;
+
+        .btn-text {
+          font-size: 10px;
+        }
+
+        .btn-amount {
+          font-size: 10px;
+        }
+
+        .btn-icon {
+          font-size: 14px;
+        }
+      }
+    }
+  }
+
+  // Spin wheel - Scaled down but same proportions as tablet
+  .wheel-area .wheel-container {
+    width: clamp(280px, min(80vw, 70vh), 380px) !important;
+    height: clamp(280px, min(80vw, 70vh), 380px) !important;
+  }
+
+  .spin-gaming-main {
+    padding-top: 55px;
+    padding-bottom: 130px; // Space for betting panel
+  }
+}
+
+// Small phones - Same layout, just smaller scale
+@media (max-width: 480px) {
+  // Betting Panel - Same structure, smaller scale
+  .betting-bar {
+    padding: 8px 6px;
+    gap: 8px;
+
+    .amount-section {
+      gap: 5px;
+
+      .amount-adjust {
+        width: 30px;
+        height: 30px;
+        font-size: 16px;
+      }
+
+      .amount-display {
+        min-width: 80px;
+        padding: 5px 6px;
+
+        .amount-input {
+          font-size: 14px;
+          width: 50px;
+        }
+      }
+
+      .quick-amounts .quick-btn {
+        padding: 4px 6px;
+        font-size: 9px;
+      }
+    }
+
+    .markets-section .market-btn {
+      min-width: calc(33.333% - 4px);
+      max-width: calc(33.333% - 4px);
+      padding: 6px 4px;
+
+      .market-label {
+        font-size: 7px;
+      }
+
+      .market-icon {
+        font-size: 12px;
+      }
+    }
+
+    .action-section {
+      gap: 5px;
+
+      .tickets-btn {
+        max-width: 120px;
+        padding: 8px 8px;
+        font-size: 9px;
+      }
+
+      .place-bet-btn {
+        padding: 9px 12px;
+        font-size: 10px;
+
+        .btn-text {
+          font-size: 9px;
+        }
+      }
+    }
+  }
+
+  // Spin wheel - Smaller but same proportions
+  .wheel-area .wheel-container {
+    width: clamp(260px, min(85vw, 65vh), 340px) !important;
+    height: clamp(260px, min(85vw, 65vh), 340px) !important;
+  }
+
+  .spin-gaming-main {
+    padding-top: 50px;
+    padding-bottom: 120px;
+  }
 }

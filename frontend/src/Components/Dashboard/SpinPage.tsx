@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import "../Styles/SpinPage.scss";
 import SpinWheel from "../Spin/SpinWheel";
 import TradingHistoryTable from "../Spin/TradingHistoryTable";
+import TradingViewWidget from "../TradingViewWidget";
 import { useRound } from "@/hooks/useRound";
 import { useWallet } from "@/hooks/useWallet";
 import { getCurrentRoundBets, placeBet, isPremiumUser, getBetHistory, cancelBet, getRecentRounds } from "@/lib/api/spin";
@@ -135,6 +136,8 @@ export default function SpinPage() {
   const [betError, setBetError] = useState<string | null>(null);
   const [betSuccess, setBetSuccess] = useState<string | null>(null);
   const [sidebarExpanded, setSidebarExpanded] = useState(true);
+  const [leftMenuOpen, setLeftMenuOpen] = useState(false); // Mobile left menu
+  const [rightMenuOpen, setRightMenuOpen] = useState(false); // Mobile right menu
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingBetAmount, setPendingBetAmount] = useState<number | null>(null);
   const [showTicketsModal, setShowTicketsModal] = useState(false);
@@ -991,6 +994,49 @@ export default function SpinPage() {
 
   return (
     <div className={`spin-gaming-container ${sidebarExpanded ? 'sidebar-expanded' : 'sidebar-collapsed'}`}>
+      {/* Markets Ticker - Background layer at top */}
+      <div className="spin-ticker-background">
+        <TradingViewWidget />
+      </div>
+
+      {/* Mobile Hamburger Menus - On top of ticker */}
+      <button
+        className="mobile-hamburger mobile-hamburger-left"
+        onClick={() => {
+          setLeftMenuOpen(!leftMenuOpen);
+          setRightMenuOpen(false); // Close right menu when opening left
+        }}
+        aria-label="Toggle left menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <button
+        className="mobile-hamburger mobile-hamburger-right"
+        onClick={() => {
+          setRightMenuOpen(!rightMenuOpen);
+          setLeftMenuOpen(false); // Close left menu when opening right
+        }}
+        aria-label="Toggle right menu"
+      >
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      {/* Mobile Menu Overlay - Close menus when clicking outside */}
+      {(leftMenuOpen || rightMenuOpen) && (
+        <div
+          className="mobile-menu-overlay"
+          onClick={() => {
+            setLeftMenuOpen(false);
+            setRightMenuOpen(false);
+          }}
+        />
+      )}
+
       {showConfirmModal && pendingBetAmount != null && (
         <div className="spin-confirm-overlay">
           <div className="spin-confirm-modal">
@@ -1627,7 +1673,15 @@ export default function SpinPage() {
       </div>
 
       {/* Bottom Left Panel - Navigation + Results */}
-      <div className="bottom-left-panel">
+      <div className={`bottom-left-panel ${leftMenuOpen ? 'mobile-open' : ''}`}>
+        {/* Mobile Close Button */}
+        <button
+          className="mobile-menu-close"
+          onClick={() => setLeftMenuOpen(false)}
+          aria-label="Close left menu"
+        >
+          ✕
+        </button>
         {/* Vertical Navigation Bar */}
         <nav className="vertical-nav">
           <button 
@@ -1725,8 +1779,17 @@ export default function SpinPage() {
       </div>
 
       {/* Right Sidebar - Fixed Panel */}
-      <aside className={`right-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'}`}>
-        {/* Toggle Button */}
+      <aside className={`right-sidebar ${sidebarExpanded ? 'expanded' : 'collapsed'} ${rightMenuOpen ? 'mobile-open' : ''}`}>
+        {/* Mobile Close Button */}
+        <button
+          className="mobile-menu-close"
+          onClick={() => setRightMenuOpen(false)}
+          aria-label="Close right menu"
+        >
+          ✕
+        </button>
+
+        {/* Desktop Toggle Button */}
         <button 
           className="sidebar-toggle"
           onClick={() => setSidebarExpanded(!sidebarExpanded)}

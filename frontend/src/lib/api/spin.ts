@@ -78,37 +78,74 @@ export interface RoundTotals {
   global: { INDECISION: number };
 }
 
+// Global throttle for getCurrentRound to prevent 429 errors
+let lastCurrentRoundFetch = 0;
+const CURRENT_ROUND_THROTTLE_MS = 5000; // Minimum 5 seconds between requests
+let pendingCurrentRoundPromise: Promise<{ round: Round | null; message?: string }> | null = null;
+
 /**
- * Get current active round
+ * Get current active round (with global throttling to prevent 429 errors)
  */
 export async function getCurrentRound(): Promise<{ round: Round | null; message?: string }> {
-  const response = await fetch(`${API_URL}/rounds/current`, {
-    method: 'GET',
-    headers: getHeaders(),
-  });
-  const result = await handleResponse<any>(response);
+  const now = Date.now();
+  const timeSinceLastFetch = now - lastCurrentRoundFetch;
   
-  // Debug: log what we're receiving
-  console.log('getCurrentRound raw response:', result);
-  
-  // Backend wraps response in envelope: { data: { round: {...} }, message, statusCode, timestamp }
-  // Unwrap the envelope first
-  const payload = result?.data ?? result;
-  
-  console.log('getCurrentRound payload (unwrapped):', payload);
-  
-  // Handle different response formats
-  if (payload?.round) {
-    console.log('getCurrentRound: Found round in payload.round');
-    return { round: payload.round, message: payload.message || result?.message };
-  } else if (payload?.id && payload?.state) {
-    // Backend returned round directly without wrapper
-    console.log('getCurrentRound: Found round directly in payload');
-    return { round: payload as Round };
-  } else {
-    console.warn('No active round found or unexpected format:', payload);
-    return { round: null, message: payload?.message || result?.message || 'No active round' };
+  // If there's a pending request, return it instead of making a new one
+  if (pendingCurrentRoundPromise) {
+    console.log('getCurrentRound: Reusing pending request');
+    return pendingCurrentRoundPromise;
   }
+  
+  // Throttle: Don't fetch if we've fetched recently
+  if (timeSinceLastFetch < CURRENT_ROUND_THROTTLE_MS) {
+    console.log(`getCurrentRound: Throttled (${timeSinceLastFetch}ms since last fetch, need ${CURRENT_ROUND_THROTTLE_MS}ms)`);
+    // Return cached result or wait
+    return Promise.resolve({ round: null, message: 'Throttled' });
+  }
+  
+  // Create new request
+  lastCurrentRoundFetch = now;
+  pendingCurrentRoundPromise = (async () => {
+    try {
+      const response = await fetch(`${API_URL}/rounds/current`, {
+        method: 'GET',
+        headers: getHeaders(),
+      });
+      const result = await handleResponse<any>(response);
+      
+      // Debug: log what we're receiving
+      console.log('getCurrentRound raw response:', result);
+      
+      // Backend wraps response in envelope: { data: { round: {...} }, message, statusCode, timestamp }
+      // Unwrap the envelope first
+      const payload = result?.data ?? result;
+      
+      console.log('getCurrentRound payload (unwrapped):', payload);
+      
+      // Handle different response formats
+      if (payload?.round) {
+        console.log('getCurrentRound: Found round in payload.round');
+        return { round: payload.round, message: payload.message || result?.message };
+      } else if (payload?.id && payload?.state) {
+        // Backend returned round directly without wrapper
+        console.log('getCurrentRound: Found round directly in payload');
+        return { round: payload as Round };
+      } else {
+        console.warn('No active round found or unexpected format:', payload);
+        return { round: null, message: payload?.message || result?.message || 'No active round' };
+      }
+    } catch (error) {
+      console.error('getCurrentRound: Error fetching round:', error);
+      throw error;
+    } finally {
+      // Clear pending promise after a short delay to allow reuse
+      setTimeout(() => {
+        pendingCurrentRoundPromise = null;
+      }, 1000);
+    }
+  })();
+  
+  return pendingCurrentRoundPromise;
 }
 
 /**
