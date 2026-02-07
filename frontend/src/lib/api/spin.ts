@@ -84,9 +84,10 @@ const CURRENT_ROUND_THROTTLE_MS = 5000; // Minimum 5 seconds between requests
 let pendingCurrentRoundPromise: Promise<{ round: Round | null; message?: string }> | null = null;
 
 /**
- * Get current active round (with global throttling to prevent 429 errors)
+ * Get current active round (with global throttling to prevent 429 errors).
+ * serverTime (ms) is the server's Date.now() at response time — use it to sync countdown across timezones.
  */
-export async function getCurrentRound(): Promise<{ round: Round | null; message?: string }> {
+export async function getCurrentRound(): Promise<{ round: Round | null; message?: string; serverTime?: number }> {
   const now = Date.now();
   const timeSinceLastFetch = now - lastCurrentRoundFetch;
   
@@ -122,17 +123,18 @@ export async function getCurrentRound(): Promise<{ round: Round | null; message?
       
       console.log('getCurrentRound payload (unwrapped):', payload);
       
+      const serverTime = typeof payload?.serverTime === 'number' ? payload.serverTime : undefined;
       // Handle different response formats
       if (payload?.round) {
         console.log('getCurrentRound: Found round in payload.round');
-        return { round: payload.round, message: payload.message || result?.message };
+        return { round: payload.round, message: payload.message || result?.message, serverTime };
       } else if (payload?.id && payload?.state) {
         // Backend returned round directly without wrapper
         console.log('getCurrentRound: Found round directly in payload');
-        return { round: payload as Round };
+        return { round: payload as Round, serverTime };
       } else {
         console.warn('No active round found or unexpected format:', payload);
-        return { round: null, message: payload?.message || result?.message || 'No active round' };
+        return { round: null, message: payload?.message || result?.message || 'No active round', serverTime };
       }
     } catch (error) {
       console.error('getCurrentRound: Error fetching round:', error);

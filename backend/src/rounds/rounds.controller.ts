@@ -71,10 +71,12 @@ export class RoundsController {
         return {
           message: 'No active round. New round opening soon...',
           round: null,
+          serverTime: Date.now(),
         };
       }
 
       return {
+        serverTime: Date.now(),
         round: {
           id: round.id,
           roundNumber: round.roundNumber,
@@ -103,6 +105,7 @@ export class RoundsController {
         if (this.mockRoundsService && typeof this.mockRoundsService.getCurrentRound === 'function') {
           const mock = this.mockRoundsService.getCurrentRound();
           return {
+            serverTime: Date.now(),
             round: {
               id: mock.id,
               roundNumber: mock.roundNumber,
@@ -134,6 +137,7 @@ export class RoundsController {
         const settleAt = new Date(openedAt.getTime() + roundDuration * 1000);
 
         return {
+          serverTime: Date.now(),
           round: {
             id: `inline-mock-${Math.floor(now.getTime() / 1000)}`,
             roundNumber: Math.floor(now.getTime() / 1000 / roundDuration),
@@ -157,6 +161,7 @@ export class RoundsController {
       } catch (mockErr) {
         console.error('Mock fallback failed:', mockErr);
         return {
+          serverTime: Date.now(),
           message: 'Unable to fetch current round. Please try again.',
           round: null,
           error: process.env.NODE_ENV === 'development' ? (error?.message || String(error)) : undefined,

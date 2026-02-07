@@ -26,19 +26,20 @@ export interface RoundState {
 }
 
 /**
- * Calculate sub-round checkpoint times based on main round
+ * Calculate sub-round checkpoint times based on main round.
+ * Uses server-relative "now" (nowMs) so countdown is consistent across clients and timezones.
  */
 function getSubRoundTiming(
   round: Round,
-  userDuration: UserRoundDuration
+  userDuration: UserRoundDuration,
+  nowMs: number
 ): { nextCheckpoint: number; timeUntilCheckpoint: number; timeUntilFreeze: number; quarter: number } {
-  const now = Date.now();
   const openedAt = new Date(round.openedAt).getTime();
   const settleAt = new Date(round.settleAt).getTime();
   const roundDurationMs = round.roundDuration * 1000; // Convert to ms
   
-  const elapsed = now - openedAt;
-  const timeRemaining = settleAt - now;
+  const elapsed = nowMs - openedAt;
+  const timeRemaining = settleAt - nowMs;
   const timeRemainingMinutes = timeRemaining / (60 * 1000);
   
   const freezeOffset = 60 * 1000; // 60 seconds freeze before each checkpoint
@@ -62,8 +63,8 @@ function getSubRoundTiming(
       nextCheckpoint = settleAt; // 0:00 mark
     }
     
-    const timeUntilCheckpoint = Math.max(0, nextCheckpoint - now);
-    const timeUntilFreeze = Math.max(0, nextCheckpoint - freezeOffset - now);
+    const timeUntilCheckpoint = Math.max(0, nextCheckpoint - nowMs);
+    const timeUntilFreeze = Math.max(0, nextCheckpoint - freezeOffset - nowMs);
     
     return { nextCheckpoint, timeUntilCheckpoint: timeUntilCheckpoint / 1000, timeUntilFreeze: timeUntilFreeze / 1000, quarter };
   } else if (userDuration === 10) {
@@ -79,15 +80,15 @@ function getSubRoundTiming(
       nextCheckpoint = settleAt; // 0:00 mark
     }
     
-    const timeUntilCheckpoint = Math.max(0, nextCheckpoint - now);
-    const timeUntilFreeze = Math.max(0, nextCheckpoint - freezeOffset - now);
+    const timeUntilCheckpoint = Math.max(0, nextCheckpoint - nowMs);
+    const timeUntilFreeze = Math.max(0, nextCheckpoint - freezeOffset - nowMs);
     
     return { nextCheckpoint, timeUntilCheckpoint: timeUntilCheckpoint / 1000, timeUntilFreeze: timeUntilFreeze / 1000, quarter };
   } else {
     // 20-minute full round
     const freezeAt = new Date(round.freezeAt).getTime();
-    const timeUntilCheckpoint = Math.max(0, settleAt - now) / 1000;
-    const timeUntilFreeze = Math.max(0, freezeAt - now) / 1000;
+    const timeUntilCheckpoint = Math.max(0, settleAt - nowMs) / 1000;
+    const timeUntilFreeze = Math.max(0, freezeAt - nowMs) / 1000;
     
     return { nextCheckpoint: settleAt, timeUntilCheckpoint, timeUntilFreeze, quarter: 1 };
   }
@@ -113,27 +114,30 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastFetchRef = useRef<number>(0);
   const fetchThrottleMs = 5000; // Minimum 5 seconds between fetches
+  // Server time sync: offset = serverTime - clientTime when we received server time
+  const serverTimeOffsetRef = useRef<number>(0);
+  const getServerNow = useCallback(() => Date.now() + serverTimeOffsetRef.current, []);
   
   // Sync userDuration when initialDuration prop changes
   useEffect(() => {
     setUserDuration(initialDuration);
   }, [initialDuration]);
 
-  // Calculate countdown and state from a round (including sub-round timing)
-  const calculateState = useCallback((round: Round | null, duration: UserRoundDuration): Pick<RoundState, 'countdown' | 'timeUntilFreeze' | 'state' | 'subRoundCountdown' | 'subRoundTimeUntilFreeze' | 'currentQuarter'> => {
+  // Calculate countdown and state from a round (including sub-round timing).
+  // nowMs should be server time (getServerNow()) so countdown is consistent for all users.
+  const calculateState = useCallback((round: Round | null, duration: UserRoundDuration, nowMs: number): Pick<RoundState, 'countdown' | 'timeUntilFreeze' | 'state' | 'subRoundCountdown' | 'subRoundTimeUntilFreeze' | 'currentQuarter'> => {
     if (!round) {
       return { countdown: 0, timeUntilFreeze: 0, state: 'preopen', subRoundCountdown: 0, subRoundTimeUntilFreeze: 0, currentQuarter: 1 };
     }
 
-    const now = Date.now();
     const freezeAt = new Date(round.freezeAt).getTime();
     const settleAt = new Date(round.settleAt).getTime();
 
-    const timeUntilFreeze = Math.max(0, Math.floor((freezeAt - now) / 1000));
-    const countdown = Math.max(0, Math.floor((settleAt - now) / 1000));
+    const timeUntilFreeze = Math.max(0, Math.floor((freezeAt - nowMs) / 1000));
+    const countdown = Math.max(0, Math.floor((settleAt - nowMs) / 1000));
 
-    // Calculate sub-round timing
-    const subRoundTiming = getSubRoundTiming(round, duration);
+    // Calculate sub-round timing (using server time)
+    const subRoundTiming = getSubRoundTiming(round, duration, nowMs);
 
     let state: 'preopen' | 'open' | 'frozen' | 'settled';
     if (round.state === 'SETTLED') {
@@ -175,9 +179,12 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       console.log('useRound: Got response:', data);
 
       if (data.round) {
+        if (typeof data.serverTime === 'number') {
+          serverTimeOffsetRef.current = data.serverTime - Date.now();
+        }
         console.log('useRound: Round found:', data.round.roundNumber, data.round.state);
         roundRef.current = data.round;
-        const calculated = calculateState(data.round, userDuration);
+        const calculated = calculateState(data.round, userDuration, getServerNow());
         console.log('useRound: Calculated state:', calculated);
 
         setRoundState(prev => ({
@@ -201,6 +208,9 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
             .catch(err => console.error('Failed to fetch totals:', err));
         }
       } else {
+        if (typeof data.serverTime === 'number') {
+          serverTimeOffsetRef.current = data.serverTime - Date.now();
+        }
         console.log('useRound: No round found');
         roundRef.current = null;
         setRoundState(prev => ({
@@ -229,18 +239,18 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
         loading: false,
       }));
     }
-  }, [calculateState, userDuration]);
+  }, [calculateState, userDuration, getServerNow]);
 
   // Initial fetch on mount
   useEffect(() => {
     fetchRound();
   }, [fetchRound]);
 
-  // Update countdown every second
+  // Update countdown every second (using server time for consistency)
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       if (roundRef.current) {
-        const calculated = calculateState(roundRef.current, userDuration);
+        const calculated = calculateState(roundRef.current, userDuration, getServerNow());
         setRoundState(prev => ({
           ...prev,
           ...calculated,
@@ -253,7 +263,7 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
         clearInterval(intervalRef.current);
       }
     };
-  }, [calculateState, userDuration]);
+  }, [calculateState, userDuration, getServerNow]);
 
   // Removed aggressive 3-second polling - causes 429 errors
   // WebSocket events handle real-time updates, with periodic sync as fallback
@@ -294,12 +304,19 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       }
     });
 
+    // Keep server time in sync when master clock ticks
+    const unsubscribeMasterClockTick = client.on('masterClockTick', (data: { serverTime?: number }) => {
+      if (typeof data?.serverTime === 'number') {
+        serverTimeOffsetRef.current = data.serverTime - Date.now();
+      }
+    });
+
     // v3.0: Listen for market instance settlements (sub-rounds)
     const unsubscribeMarketInstanceSettled = client.on('marketInstanceSettled', (data) => {
       console.log('WS: Market instance settled:', data);
       // Immediately recalculate state for the new sub-round (no API call needed)
       if (roundRef.current) {
-        const calculated = calculateState(roundRef.current, userDuration);
+        const calculated = calculateState(roundRef.current, userDuration, getServerNow());
         setRoundState(prev => ({
           ...prev,
           ...calculated,
@@ -338,11 +355,12 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
       unsubscribeRoundSettled();
       unsubscribeRoundStateChanged();
       unsubscribeRoundOpened();
+      unsubscribeMasterClockTick();
       unsubscribeMarketInstanceSettled();
       unsubscribeTotalsUpdated();
       unsubscribeBetPlaced();
     };
-  }, [fetchRound, calculateState, userDuration]);
+  }, [fetchRound, calculateState, userDuration, getServerNow]);
 
   // Periodic sync (every 20s) as fallback to ensure state stays valid if WebSocket misses an event
   // Increased from 10s to reduce server load and prevent 429 errors
@@ -361,19 +379,21 @@ export function useRound(initialDuration: UserRoundDuration = 20) {
     setUserDuration(duration);
     // Recalculate state immediately with new duration
     if (roundRef.current) {
-      const calculated = calculateState(roundRef.current, duration);
+      const calculated = calculateState(roundRef.current, duration, getServerNow());
       setRoundState(prev => ({
         ...prev,
         userDuration: duration,
         ...calculated,
       }));
     }
-  }, [calculateState]);
+  }, [calculateState, getServerNow]);
 
   return {
     ...roundState,
     refresh: fetchRound,
     setUserDuration: changeUserDuration,
+    /** Current server time in ms. Use for any round/schedule calculations so all users see the same time. */
+    getServerNow,
   };
 }
 

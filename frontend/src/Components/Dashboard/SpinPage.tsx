@@ -123,6 +123,7 @@ export default function SpinPage() {
     currentQuarter,
     userDuration,
     setUserDuration,
+    getServerNow,
     loading, 
     error 
   } = useRound(selectedRoundDuration as 5 | 10 | 20);
@@ -712,10 +713,11 @@ export default function SpinPage() {
   // User can bet if their sub-round is still open (not frozen)
   const canBet = roundState === 'open' && round && !isPlacingBet && effectiveTimeUntilFreeze > 0;
 
-  // Calculate future rounds for scheduling (up to 2 hours ahead)
+  // Calculate future rounds for scheduling (up to 2 hours ahead); use server time for consistency
   const futureRounds = useMemo((): FutureRound[] => {
     if (!round || !isPremium) return [];
     
+    const now = getServerNow();
     const rounds: FutureRound[] = [];
     const roundDurationMs = 20 * 60 * 1000; // Main round is always 20 min
     const subRoundDurationMs = effectiveRoundDuration * 60 * 1000;
@@ -737,9 +739,8 @@ export default function SpinPage() {
     // For sub-rounds within the current main round
     if (effectiveRoundDuration === 5 || effectiveRoundDuration === 10) {
       const checkpointsPerRound = effectiveRoundDuration === 5 ? 4 : 2;
-      const now = Date.now();
       
-      // Calculate current checkpoint within the round
+      // Calculate current checkpoint within the round (server time)
       const elapsed = now - currentRoundStart;
       const currentCheckpoint = Math.floor(elapsed / subRoundDurationMs);
       
@@ -761,7 +762,7 @@ export default function SpinPage() {
     let futureRoundNumber = round.roundNumber + 1;
     let nextRoundStart = currentRoundEnd;
     
-    while (rounds.length < maxRounds && nextRoundStart - Date.now() < maxScheduleTime) {
+    while (rounds.length < maxRounds && nextRoundStart - now < maxScheduleTime) {
       const nextRoundEnd = nextRoundStart + roundDurationMs;
       
       if (effectiveRoundDuration === 20) {
@@ -779,7 +780,7 @@ export default function SpinPage() {
           const checkpointStart = nextRoundStart + i * subRoundDurationMs;
           const checkpointEnd = nextRoundStart + (i + 1) * subRoundDurationMs;
           
-          if (checkpointStart - Date.now() < maxScheduleTime) {
+          if (checkpointStart - now < maxScheduleTime) {
             rounds.push({
               provisionalNumber: futureRoundNumber,
               estimatedStartTime: new Date(checkpointStart),
@@ -795,7 +796,7 @@ export default function SpinPage() {
     }
     
     return rounds;
-  }, [round, effectiveRoundDuration, isPremium]);
+  }, [round, effectiveRoundDuration, isPremium, getServerNow]);
 
   // Handle scheduling an order for a future round
   const handleScheduleOrder = (futureRound: FutureRound) => {

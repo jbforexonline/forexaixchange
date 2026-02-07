@@ -19,7 +19,7 @@ export default function Landing() {
   const [isNavOpen, setIsNavOpen] = useState(false);
   
   // Use the same round hook as the logged-in version for synchronization
-  const { round, state: roundState, countdown, loading, error } = useRound();
+  const { round, state: roundState, countdown, getServerNow, loading, error } = useRound();
   
   // Check maintenance mode status
   useEffect(() => {
@@ -114,9 +114,9 @@ export default function Landing() {
         return;
       }
       
-      // Only show previous winners in first 40 seconds of the round
+      // Only show previous winners in first 40 seconds of the round (use server time)
       const roundOpenedAt = new Date(round.openedAt).getTime();
-      const now = Date.now();
+      const now = getServerNow ? getServerNow() : Date.now();
       const secondsSinceOpen = (now - roundOpenedAt) / 1000;
       
       if (secondsSinceOpen > 40) {
