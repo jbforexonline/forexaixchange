@@ -1169,6 +1169,56 @@
     }
   }
 
+  // Medium/small desktop & laptop only: compact sidebar so it stays above betting panel
+  @media (max-width: 1440px) {
+    max-height: calc(100vh - 80px);
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    .sidebar-header {
+      padding: 12px 14px;
+      gap: 6px;
+      .company-logo { width: 32px; height: 32px; }
+      .company-name { font-size: 12px; }
+    }
+    .user-section {
+      padding: 10px 14px;
+      gap: 10px;
+      .user-avatar { width: 36px; height: 36px; }
+      .user-info .username { font-size: 13px; }
+      .user-info .premium-badge { font-size: 9px; padding: 2px 6px; }
+    }
+    .mode-toggle-section {
+      padding: 8px 14px;
+      .mode-toggle-btn { padding: 8px 12px; font-size: 12px; gap: 8px; }
+      .mode-hint { font-size: 9px; }
+    }
+    .balance-section {
+      padding: 10px 14px;
+      .balance-icon { width: 32px; height: 32px; }
+      .balance-value { font-size: 16px; }
+      .balance-label { font-size: 9px; }
+    }
+    .premium-controls {
+      padding: 8px 14px;
+      .control-header { font-size: 10px; margin-bottom: 6px; }
+      .duration-selector { grid-template-columns: repeat(3, 1fr); }
+      .duration-btn { padding: 5px 4px; font-size: 10px; }
+      .schedule-btn { padding: 6px 10px; font-size: 11px; margin-top: 4px; }
+      .scheduled-orders-summary { padding: 5px 8px; margin-top: 5px; .summary-label { font-size: 10px; } .summary-count { font-size: 11px; } }
+    }
+    .round-info-section {
+      padding: 8px 14px;
+      .round-duration-display { font-size: 11px; gap: 6px; margin-bottom: 6px; }
+      .upgrade-hint { padding: 6px 10px; font-size: 10px; }
+    }
+    .sidebar-menu {
+      padding: 8px 6px;
+      gap: 3px;
+      &.top-menu { padding: 8px 6px 10px 6px; margin-top: 2px; gap: 4px; .menu-item { padding: 8px 10px; font-size: 12px; } }
+      .menu-item { padding: 8px 10px; gap: 10px; font-size: 12px; border-radius: 6px; }
+    }
+  }
 
   // Collapsed state adjustments
   &.collapsed {
@@ -1981,6 +2031,20 @@
   .recent-spins-table {
     width: 100%;
     max-width: none; // Remove max-width constraint, expand as wide as possible
+  }
+
+  // Medium/small desktop & laptop only: short history (3 rows), scrollable
+  @media (max-width: 1440px) {
+    .trading-history-table.scrollable .history-wrapper.scrollable-container {
+      min-height: 0;
+      max-height: 132px;
+      height: auto;
+    }
+    .trading-history-table .history-header { padding: 8px 12px; }
+    .trading-history-table .history-table {
+      font-size: 10px;
+      thead th, tbody td { padding: 6px 8px; }
+    }
   }
 }
 
