@@ -19,13 +19,39 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const BASE_URL = "https://forexaiexchange.com";
+
 export const metadata: Metadata = {
-  title: "ForexAI Exchange",
-  description: "AI-Powered Forex Trading Platform",
+  metadataBase: new URL(BASE_URL),
+  title: {
+    default: "ForexAiXchange – Forex Gamification Platform & AI Forex Trading Game",
+    template: "%s | ForexAiXchange",
+  },
+  description:
+    "Forex gamification platform and forex simulation game. AI-driven rounds in a risk-free environment. ForexAiXchange.",
+  applicationName: "ForexAiXchange",
+  referrer: "origin-when-cross-origin",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
   icons: {
-    icon: "/image/logo.png",
+    icon: ["/favicon.ico", "/image/logo.png"],
     shortcut: "/image/logo.png",
     apple: "/image/logo.png",
+  },
+  manifest: "/site.webmanifest",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: BASE_URL,
+    siteName: "ForexAiXchange",
+    images: [{ url: "/image/logo.png", width: 512, height: 512, alt: "ForexAiXchange" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@forexaixchange",
   },
 };
 

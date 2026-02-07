@@ -1,0 +1,17 @@
+{
+  "name": "ForexAiXchange",
+  "short_name": "ForexAiXchange",
+  "description": "Forex gamification platform and AI forex trading game",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#2400ff",
+  "icons": [
+    {
+      "src": "/image/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
