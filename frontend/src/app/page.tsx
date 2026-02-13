@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     "high volatile",
     "low volatile",
     "indecision",
-    "round timer",
+    "spin timer",
     "spin history",
     "forex pair market",
   ],

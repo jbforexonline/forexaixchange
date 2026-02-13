@@ -828,7 +828,7 @@ export default function SpinPage() {
     setScheduledOrders(prev => [...prev, newOrder]);
     setShowScheduleModal(false);
     setSelectedFutureRound(null);
-    setBetSuccess(`Scheduled $${amount} on ${selectedOption.label} for Round #${selectedFutureRound.provisionalNumber} ${selectedFutureRound.checkpointLabel}`);
+    setBetSuccess(`Scheduled $${amount} on ${selectedOption.label} for Spin #${selectedFutureRound.provisionalNumber} ${selectedFutureRound.checkpointLabel}`);
   };
 
   // Remove a scheduled order
@@ -1248,7 +1248,7 @@ export default function SpinPage() {
                     <div key={order.id} className={`ticket-row scheduled-ticket ${order.status}`}>
                       <div className="ticket-main">
                         <span className="ticket-round">
-                          Round #{order.provisionalRoundNumber}
+                          Spin #{order.provisionalRoundNumber}
                         </span>
                         <span className="ticket-selection" style={{ 
                           color: MARKET_OPTIONS.find(o => o.selection === order.selection)?.color 
@@ -1416,7 +1416,7 @@ export default function SpinPage() {
                     >
                       <div className="round-info">
                         <span className="round-number">
-                          Round #{fr.provisionalNumber}
+                          Spin #{fr.provisionalNumber}
                           {fr.checkpointLabel !== 'Full' && (
                             <span className="checkpoint-label">{fr.checkpointLabel}</span>
                           )}
@@ -1457,7 +1457,7 @@ export default function SpinPage() {
                     <div key={order.id} className="scheduled-order-item">
                       <div className="order-details">
                         <span className="order-round">
-                          Round #{order.provisionalRoundNumber}
+                          Spin #{order.provisionalRoundNumber}
                         </span>
                         <span className="order-selection" style={{ 
                           color: MARKET_OPTIONS.find(o => o.selection === order.selection)?.color 
@@ -1501,7 +1501,7 @@ export default function SpinPage() {
           <div className="schedule-confirm-modal">
             <h2>Schedule Order</h2>
             <p className="subtitle">
-              Round #{selectedFutureRound.provisionalNumber} 
+              Spin #{selectedFutureRound.provisionalNumber} 
               {selectedFutureRound.checkpointLabel !== 'Full' && ` ${selectedFutureRound.checkpointLabel}`}
             </p>
             

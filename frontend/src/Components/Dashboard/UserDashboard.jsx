@@ -160,7 +160,7 @@ export default function UserDashboard() {
                 bets.slice(0, 6).map(bet => (
                   <div key={bet.id} className="investment-card">
                     <div className="investment-header">
-                      <h4>Round #{bet.round?.roundNumber || 'N/A'}</h4>
+                      <h4>Spin #{bet.round?.roundNumber || 'N/A'}</h4>
                       <span className={`status ${bet.status.toLowerCase()}`}>
                         {bet.status}
                       </span>

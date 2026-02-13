@@ -60,7 +60,7 @@ export default function RoleBasedLayout({ children }) {
     const isUserAdmin = isAdminRole(userRole);
     
     // Paths that are always accessible
-    const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback'];
+    const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works'];
     const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
     
     if (isMaintenanceMode && !isUserAdmin && !isExemptPath) {
@@ -81,7 +81,7 @@ export default function RoleBasedLayout({ children }) {
     if (!maintenanceChecked) return;
 
     const currentUser = getCurrentUser();
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works'];
     const isPublicPath = publicPaths.some(p => pathname.startsWith(p));
 
     // No user found
@@ -152,7 +152,7 @@ export default function RoleBasedLayout({ children }) {
   const currentUserForCheck = getCurrentUser();
   const currentRoleForCheck = currentUserForCheck ? getUserRole(currentUserForCheck) : UserRole.USER;
   const isCurrentUserAdmin = isAdminRole(currentRoleForCheck);
-  const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback'];
+  const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works'];
   const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
   
   if (isMaintenanceMode && !isCurrentUserAdmin && !isExemptPath) {
@@ -171,7 +171,7 @@ export default function RoleBasedLayout({ children }) {
 
   if (!user) {
     // Only allow specific public paths to render without authentication
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works'];
     const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
     
     if (pathname === '/' || isPublicPath) {

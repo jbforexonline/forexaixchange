@@ -351,13 +351,16 @@ export default function Landing() {
           </button>
 
           <nav className={`nav ${isNavOpen ? "nav-open" : ""}`}>
+            <Link href="/how-it-works">
+              <button className="btn signin">How it works</button>
+            </Link>
             <Link href="/login">
               <button className="btn signin">Buy and Sell</button>
             </Link>
-           <Link href="/login">
+            <Link href="/login">
               <button className="btn signin">Demo/Live Account</button>
             </Link>
-              <Link href="/login">
+            <Link href="/login">
               <button className="btn signin">Notification</button>
             </Link>
             <Link href="/register">
@@ -400,31 +403,73 @@ export default function Landing() {
         </section>
 
         <div className="main-grid">
-          {/* Left Column: Premium Card with Carousel */}
+          {/* Left Column: Premium card */}
           <section className="premium-card">
-            <h1>Forexaiexchange Premium</h1>
-            <div className="premium-carousel">
-              <button 
-                className="carousel-arrow carousel-prev" 
-                aria-label="Previous features"
-                onClick={() => goToSlide(premiumSlideIndex - 1)}
-              >
-                ←
-              </button>
-              <div className="premium-features-wrapper">
-                <ul className="premium-features-list" style={{ transform: `translateY(-${premiumSlideIndex * (itemsPerSlide * 34)}px)` }}>
-                  {premiumFeatures.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
+            <h1>ForexAiXchange Spin Game</h1>
+
+            <div className="hero-content">
+              <div className="hero-intro-styled">
+                <span className="hero-intro-icon">⚡</span>
+                <span className="hero-intro-text">
+                  Premium unlocks <strong>higher limits</strong>, <strong>flexible spins</strong> and <strong>extra tools</strong> for serious players.
+                </span>
               </div>
-              <button 
-                className="carousel-arrow carousel-next" 
-                aria-label="Next features"
-                onClick={() => goToSlide(premiumSlideIndex + 1)}
-              >
-                →
-              </button>
+
+              <div className="premium-features-grid">
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">✅</span>
+                  <span className="premium-feature-text">Verification badge & VIP support</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">🤝</span>
+                  <span className="premium-feature-text">Early access to supporting team</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">⚙️</span>
+                  <span className="premium-feature-text">Flexible spin timing & auto-press orders</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">💰</span>
+                  <span className="premium-feature-text">High order limits (up to $200)</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">💳</span>
+                  <span className="premium-feature-text">Unlimited withdrawals</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">📊</span>
+                  <span className="premium-feature-text">No daily withdraw limits</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">🎯</span>
+                  <span className="premium-feature-text">Members&apos; chart room access</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">🌐</span>
+                  <span className="premium-feature-text">All crypto & stock spins</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">🎁</span>
+                  <span className="premium-feature-text">Free ads account (yearly)</span>
+                </div>
+                <div className="premium-feature-card">
+                  <span className="premium-feature-icon">🚀</span>
+                  <span className="premium-feature-text">Early access to new features</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-cta-row">
+              <Link href="/login">
+                <button className="btn register" style={{ marginTop: '12px' }}>
+                  Try the Platform
+                </button>
+              </Link>
+              <Link href="/how-it-works">
+                <button className="btn signin" style={{ marginTop: '12px' }}>
+                  How it works
+                </button>
+              </Link>
             </div>
             <Link href="/login">
               <button className="btn register" style={{ marginTop: '12px', width: '100%' }}>
@@ -515,39 +560,6 @@ export default function Landing() {
                 </Link>
               </div>
             </div>
-          </section>
-          
-          {/* How It Works - SEO-friendly explanation of the spin experience */}
-          <section className="how-it-works">
-            <h2>How ForexAiXchange Spin Gamification Works</h2>
-            <p>
-              ForexAiXchange is a spin-based forex gamification experience. Before each round,
-              you choose your predictions across three simple dimensions and an optional safety net:
-            </p>
-            <ul>
-              <li>
-                <strong>Buy / Sell</strong> – choose whether the forex pair will move up (Buy) or down (Sell) over the round.
-              </li>
-              <li>
-                <strong>Blue / Red</strong> – pick the color zone where you expect the outcome to land on the spin interface.
-              </li>
-              <li>
-                <strong>High Volatile / Low Volatile</strong> – decide whether you expect bigger swings or calmer movement for that round.
-              </li>
-              <li>
-                <strong>Indecision</strong> – an extra option that wins when the paired outcomes effectively tie and the market shows no clear direction.
-              </li>
-            </ul>
-            <p>
-              Each round has a visible <strong>round timer</strong>. When the timer approaches zero,
-              orders freeze so that no new predictions can be placed for that spin. After freeze,
-              the spin result is calculated and displayed on the wheel and in your <strong>spin history</strong>.
-            </p>
-            <p>
-              The history section on this page shows previous outcomes and timing so you can review
-              how past rounds behaved for each forex pair market. Any AI components in the system are
-              focused on insights and suggestions – not on deciding outcomes.
-            </p>
           </section>
         </div>
       </main>

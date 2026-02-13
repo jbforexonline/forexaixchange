@@ -1,6 +1,6 @@
 /**
  * CountdownTimer Component
- * Displays countdown until round settlement with freeze indicator
+ * Displays countdown until spin settlement with freeze indicator
  * Updated v2.1: Supports sub-round durations (5, 10, 20 minutes)
  */
 
@@ -8,8 +8,8 @@ import React from 'react';
 import type { UserRoundDuration } from '@/hooks/useRound';
 
 interface CountdownTimerProps {
-  countdown: number; // seconds until main round settlement
-  timeUntilFreeze: number; // seconds until main round freeze
+  countdown: number; // seconds until main spin settlement
+  timeUntilFreeze: number; // seconds until main spin freeze
   roundState: 'preopen' | 'open' | 'frozen' | 'settled';
   roundNumber?: number;
   // Sub-round timing (v2.1)
@@ -37,7 +37,7 @@ export default function CountdownTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Use sub-round timing if available, otherwise fall back to main round
+  // Use sub-round timing if available, otherwise fall back to main spin
   const displayCountdown = subRoundCountdown !== undefined ? subRoundCountdown : countdown;
   const displayFreezeTime = subRoundTimeUntilFreeze !== undefined ? subRoundTimeUntilFreeze : timeUntilFreeze;
 
@@ -57,16 +57,16 @@ export default function CountdownTimer({
     } else if (userDuration === 10) {
       return `Half ${currentQuarter}`;
     }
-    return 'Full Round';
+    return 'Full Spin';
   };
 
   return (
     <div className={`countdown-timer ${roundState}`}>
-      {/* Round Number and Duration Selector */}
+      {/* Spin Number and Duration Selector */}
       <div className="round-header">
         {roundNumber !== undefined && (
           <div className="round-number">
-            <span className="round-label">Round #</span>
+            <span className="round-label">Spin #</span>
             <span className="round-value">{roundNumber}</span>
           </div>
         )}
@@ -91,7 +91,7 @@ export default function CountdownTimer({
             <button
               className={`duration-btn ${userDuration === 20 ? 'active' : ''}`}
               onClick={() => onDurationChange(20)}
-              title="Full 20-minute round"
+              title="Full 20-minute spin"
             >
               20m
             </button>
@@ -109,10 +109,10 @@ export default function CountdownTimer({
       {/* Main Timer Display */}
       <div className="timer-display">
         <div className="timer-label">
-          {roundState === 'preopen' && 'Waiting for Round'}
+          {roundState === 'preopen' && 'Waiting for Spin'}
           {roundState === 'open' && (isFreezeTime ? '❄️ Freeze Time' : `Time Until ${userDuration === 20 ? 'Settlement' : 'Your Settlement'}`)}
           {roundState === 'frozen' && '❄️ Market Frozen'}
-          {roundState === 'settled' && '✅ Round Complete'}
+          {roundState === 'settled' && '✅ Spin Complete'}
         </div>
         
         <div className={`timer-value ${isFreezeTime ? 'freeze-time' : ''}`}>
@@ -184,7 +184,7 @@ export default function CountdownTimer({
           </div>
           {userDuration !== 20 && (
             <div className="info-item">
-              <span className="info-label">Main Round:</span>
+              <span className="info-label">Main Spin:</span>
               <span className="info-value">{formatTime(countdown)}</span>
             </div>
           )}

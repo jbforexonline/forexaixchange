@@ -273,7 +273,7 @@ export default function StatisticsPage() {
             <Activity size={18} />
             Live Distribution
             {liveData?.roundNumber && (
-              <span className="round-badge">Round #{liveData.roundNumber}</span>
+              <span className="round-badge">Spin #{liveData.roundNumber}</span>
             )}
           </button>
           <button 

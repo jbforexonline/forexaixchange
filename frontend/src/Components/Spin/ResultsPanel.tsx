@@ -46,7 +46,7 @@ export default function ResultsPanel({ bets, roundNumber, winners }: ResultsPane
     <div className={`results-panel ${isWinner ? 'winner' : isLoser ? 'loser' : ''}`}>
       <div className="results-header">
         <h3 className="results-title">
-          {roundNumber !== undefined ? `Round #${roundNumber} Results` : 'Round Results'}
+          {roundNumber !== undefined ? `Spin #${roundNumber} Results` : 'Spin Results'}
         </h3>
         {winners?.indecisionTriggered && (
           <div className="indecision-badge">

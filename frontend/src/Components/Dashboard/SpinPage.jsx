@@ -154,7 +154,7 @@ export default function SpinPage() {
         {/* Round Info Overlay - Non-intrusive */}
         {round && (
           <div className="round-info-overlay">
-            <div className="round-number">Round #{round.roundNumber}</div>
+            <div className="round-number">Spin #{round.roundNumber}</div>
             <div className="round-state">
               <span className={`state-badge ${roundState}`}>{roundState.toUpperCase()}</span>
             </div>

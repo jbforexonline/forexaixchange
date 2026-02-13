@@ -421,8 +421,8 @@ export default function SpinHistoryPage() {
             ) : rounds.length === 0 ? (
               <div className="empty-state">
                 <History size={60} />
-                <h3>No Rounds Yet</h3>
-                <p>Round history will appear here once rounds are completed.</p>
+                <h3>No Spins Yet</h3>
+                <p>Spin history will appear here once spins are completed.</p>
               </div>
             ) : (
               <>
@@ -430,7 +430,7 @@ export default function SpinHistoryPage() {
                   <table className="rounds-table">
                     <thead>
                       <tr>
-                        <th>Round #</th>
+                        <th>Spin #</th>
                         {isPremium && <th>Duration</th>}
                         <th>Date</th>
                         <th>Direction Winner</th>
