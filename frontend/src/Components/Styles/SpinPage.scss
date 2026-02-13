@@ -3145,3 +3145,233 @@
     padding-bottom: 120px;
   }
 }
+
+// ===========================================
+// SPIN PAGE CONTAINER (Dashboard SpinPage.jsx)
+// Simplified layout used within UserLayout
+// ===========================================
+
+.spin-page-container {
+  position: relative;
+  min-height: calc(100vh - 60px);
+  background: radial-gradient(ellipse at 50% 30%, #001825 0%, #001220 30%, #000a15 60%, #000510 100%);
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  padding: 20px;
+  padding-bottom: 100px;
+}
+
+.spin-main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-height: 400px;
+}
+
+.spin-page-container .error-banner {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  z-index: 100;
+}
+
+.spin-page-container .loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  color: rgba(165, 213, 255, 0.8);
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(100, 200, 255, 0.2);
+    border-top-color: #64c8ff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  p {
+    font-size: 14px;
+  }
+}
+
+.spin-page-container .user-bets-overlay {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  background: rgba(10, 20, 35, 0.95);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  max-width: 280px;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+
+  h4 {
+    font-size: 12px;
+    color: #a5d5ff;
+    margin: 0 0 8px 0;
+  }
+
+  .bets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .bet-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: rgba(165, 213, 255, 0.9);
+
+    &.more {
+      color: rgba(165, 213, 255, 0.6);
+      font-style: italic;
+    }
+  }
+}
+
+.spin-page-container .round-info-overlay {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(10, 20, 35, 0.95);
+  border: 1px solid rgba(100, 200, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px 16px;
+  max-width: 220px;
+  z-index: 50;
+  backdrop-filter: blur(10px);
+
+  .round-number {
+    font-size: 14px;
+    font-weight: 700;
+    color: #64c8ff;
+    margin-bottom: 4px;
+  }
+
+  .round-state .state-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+
+  .freeze-warning {
+    font-size: 11px;
+    color: #fbbf24;
+    margin-top: 6px;
+  }
+
+  .totals-preview {
+    margin-top: 8px;
+    font-size: 10px;
+    color: rgba(165, 213, 255, 0.7);
+    line-height: 1.5;
+  }
+}
+
+.spin-page-container .wheel-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+}
+
+.spin-page-container .bet-form-bottom {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 90;
+}
+
+// Responsive: Spin Page Container
+@media (max-width: 1024px) {
+  .spin-page-container {
+    padding: 16px;
+    padding-bottom: 100px;
+  }
+
+  .spin-page-container .user-bets-overlay {
+    max-width: 240px;
+    left: 10px;
+    top: 10px;
+  }
+
+  .spin-page-container .round-info-overlay {
+    max-width: 200px;
+    right: 10px;
+    top: 10px;
+  }
+
+  .spin-page-container .wheel-wrapper {
+    max-width: 100%;
+    padding: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .spin-page-container {
+    padding: 12px;
+    padding-bottom: 120px;
+  }
+
+  .spin-page-container .user-bets-overlay {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .spin-page-container .round-info-overlay {
+    position: relative;
+    top: auto;
+    right: auto;
+    max-width: 100%;
+    margin-bottom: 12px;
+  }
+
+  .spin-main-area {
+    gap: 16px;
+  }
+
+  .spin-page-container .wheel-wrapper {
+    padding: 12px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .spin-page-container {
+    padding: 8px;
+    padding-bottom: 130px;
+  }
+
+  .spin-page-container .user-bets-overlay h4,
+  .spin-page-container .round-info-overlay .round-number {
+    font-size: 13px;
+  }
+
+  .spin-page-container .bet-form-bottom {
+    padding: 0 8px;
+  }
+}

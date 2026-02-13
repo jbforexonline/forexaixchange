@@ -331,26 +331,54 @@ $border-color: rgba(100, 200, 255, 0.2);
   }
 }
 
+@media (max-width: 1024px) {
+  .premium-page {
+    padding: 24px 16px;
+  }
+}
+
 @media (max-width: 768px) {
   .premium-page {
     padding: 20px 16px;
+  }
 
-    .premium-header h1 {
-      font-size: 32px;
+  .premium-page .premium-header h1 {
+    font-size: 32px;
+  }
+
+  .premium-page .active-subscription {
+    flex-direction: column;
+    gap: 20px;
+    text-align: center;
+
+    .cancel-btn {
+      width: 100%;
     }
+  }
 
-    .active-subscription {
-      flex-direction: column;
-      gap: 20px;
-      text-align: center;
+  .premium-page .plans-grid {
+    grid-template-columns: 1fr;
+  }
 
-      .cancel-btn {
-        width: 100%;
-      }
-    }
+  .premium-page .premium-features .features-showcase {
+    grid-template-columns: 1fr;
+  }
+}
 
-    .plans-grid {
-      grid-template-columns: 1fr;
-    }
+@media (max-width: 480px) {
+  .premium-page {
+    padding: 16px 12px;
+  }
+
+  .premium-page .premium-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .premium-page .plan-card {
+    padding: 1.5rem;
+  }
+
+  .premium-page .plan-header .price .amount {
+    font-size: 2rem;
   }
 }

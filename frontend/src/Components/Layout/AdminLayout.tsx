@@ -12,6 +12,8 @@ import {
   Building2,
   DollarSign,
   MessageCircle,
+  Menu,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -33,8 +35,11 @@ export default function AdminLayout({
   subscriptionTier,
 }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState<string[]>([]);
   const router = useRouter();
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const adminMenuItems = [
     {
@@ -137,9 +142,21 @@ export default function AdminLayout({
       {/* Maintenance Mode Banner */}
       <MaintenanceBanner />
       
+      {/* Mobile overlay */}
+      {mobileMenuOpen && (
+        <div className="admin-mobile-overlay" onClick={closeMobileMenu} aria-hidden="true" />
+      )}
+      
       {/* Header */}
       <header className="admin-header">
         <div className="header-left">
+          <button
+            className="admin-mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open menu"
+          >
+            <Menu size={24} />
+          </button>
           <button
             className="sidebar-toggle"
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -169,7 +186,10 @@ export default function AdminLayout({
 
       <div className="admin-container">
         {/* Sidebar */}
-        <aside className={`admin-sidebar ${sidebarOpen ? "open" : "closed"}`}>
+        <aside className={`admin-sidebar ${sidebarOpen ? "open" : "closed"} ${mobileMenuOpen ? "mobile-open" : ""}`}>
+          <button className="admin-sidebar-close" onClick={closeMobileMenu} aria-label="Close menu">
+            <X size={20} />
+          </button>
           <nav className="admin-nav">
             {adminMenuItems.map((item, idx) => {
               const Icon = item.icon;
@@ -185,6 +205,7 @@ export default function AdminLayout({
                         toggleMenu(item.category);
                       } else {
                         router.push(item.href);
+                        closeMobileMenu();
                       }
                     }}
                   >
@@ -208,7 +229,10 @@ export default function AdminLayout({
                         <button
                           key={subidx}
                           className="submenu-item"
-                          onClick={() => router.push(subitem.href)}
+                          onClick={() => {
+                            router.push(subitem.href);
+                            closeMobileMenu();
+                          }}
                         >
                           {subitem.label}
                         </button>

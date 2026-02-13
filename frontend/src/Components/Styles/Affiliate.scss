@@ -15,3 +15,22 @@
 .comm-table { width:100%; margin-top:10px; border-collapse:collapse; }
 .comm-table th, .comm-table td { padding:8px 10px; text-align:left; border-bottom:1px solid rgba(255,255,255,0.03); color:#cfe9ff; }
 .info-block { margin-top:12px; color:#cfe9ff; }
+
+@media (max-width: 1024px) {
+  .panel { width: 100%; max-width: 980px; }
+  .panel-wrap { padding: 8px; }
+}
+
+@media (max-width: 768px) {
+  .affiliate-top { flex-direction: column; }
+  .link-card .copy-row { flex-direction: column; }
+  .copy-row input { width: 100%; }
+  .copy-btn { width: 100%; }
+  .comm-table { font-size: 0.9rem; }
+  .comm-table th, .comm-table td { padding: 6px 8px; }
+}
+
+@media (max-width: 480px) {
+  .panel { padding: 12px; }
+  .commission-card .amount { font-size: 1.25rem; }
+}

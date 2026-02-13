@@ -759,6 +759,18 @@ export default function StatisticsPage() {
           color: #64c8ff;
         }
 
+        @media (max-width: 1024px) {
+          .statistics-page {
+            padding: 1.5rem;
+          }
+          .statistics-header {
+            flex-wrap: wrap;
+          }
+          .header-right {
+            width: 100%;
+          }
+        }
+
         @media (max-width: 768px) {
           .statistics-page {
             padding: 1rem;
@@ -766,6 +778,7 @@ export default function StatisticsPage() {
 
           .statistics-header {
             flex-direction: column;
+            align-items: flex-start;
           }
 
           .header-left h1 {
@@ -774,6 +787,15 @@ export default function StatisticsPage() {
 
           .stats-overview {
             grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+          }
+
+          .stats-card {
+            padding: 1rem;
+          }
+
+          .stats-card-value {
+            font-size: 1.25rem;
           }
 
           .tab-switcher {
@@ -783,10 +805,15 @@ export default function StatisticsPage() {
           .tab-btn {
             flex: 1;
             justify-content: center;
+            font-size: 0.85rem;
           }
 
           .filter-buttons {
             justify-content: flex-start;
+          }
+
+          .chart-container {
+            overflow-x: auto;
           }
 
           .details-grid {
@@ -797,6 +824,31 @@ export default function StatisticsPage() {
             flex-direction: column;
             gap: 0.5rem;
             text-align: center;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .statistics-page {
+            padding: 0.75rem;
+          }
+          .header-left h1 {
+            font-size: 1.25rem;
+          }
+          .stats-overview {
+            grid-template-columns: 1fr;
+          }
+          .tab-btn {
+            font-size: 0.75rem;
+            padding: 0.625rem 0.5rem;
+          }
+          .details-grid {
+            grid-template-columns: 1fr;
+          }
+          .filter-buttons {
+            flex-direction: column;
+          }
+          .filter-btn {
+            width: 100%;
           }
         }
       `}</style>

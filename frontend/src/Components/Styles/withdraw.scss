@@ -4,12 +4,15 @@
   color: #e2e8f0;
   min-height: 100vh;
   padding: 20px;
+  overflow-x: hidden;
 
   .withdraw-container {
     background: #111827;
     padding: 30px;
     border-radius: 20px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+    max-width: 1200px;
+    margin: 0 auto;
   }
 
   .page-header {
@@ -173,10 +176,67 @@
           color: #10b981;
         }
 
-        .transaction-status.pending {
-          color: #f59e0b;
-        }
+      .transaction-status.pending {
+        color: #f59e0b;
       }
     }
   }
+}
+
+@media (max-width: 1024px) {
+  .withdraw-page {
+    padding: 16px;
+  }
+
+  .withdraw-page .withdraw-content {
+    flex-direction: column;
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .withdraw-page {
+    padding: 12px;
+  }
+
+  .withdraw-page .withdraw-container {
+    padding: 20px;
+  }
+
+  .withdraw-page .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .withdraw-page .balance-card .balance-amount {
+    font-size: 1.5rem;
+  }
+
+  .withdraw-page .method-selector {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 480px) {
+  .withdraw-page {
+    padding: 8px;
+  }
+
+  .withdraw-page .withdraw-container {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .withdraw-page .page-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .withdraw-page .balance-card,
+  .withdraw-page .withdraw-form {
+    padding: 16px;
+  }
+
+  .withdraw-page .transaction-section {
+    padding: 16px;
+  }
+}
 }

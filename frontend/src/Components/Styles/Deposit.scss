@@ -161,3 +161,40 @@
     }
   }
 }
+
+@media (max-width: 1024px) {
+  .premium-page {
+    padding: 24px 16px;
+  }
+  .premium-page .premium-hero {
+    flex-direction: column;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .premium-page {
+    padding: 20px 12px;
+  }
+  .premium-page .premium-hero {
+    padding: 24px;
+    .hero-text {
+      max-width: 100%;
+    }
+    .hero-text h1 {
+      font-size: 1.75rem;
+    }
+  }
+  .premium-page .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .premium-page {
+    padding: 16px 8px;
+  }
+  .premium-page .premium-hero .hero-text h1 {
+    font-size: 1.5rem;
+  }
+}

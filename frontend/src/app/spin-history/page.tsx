@@ -1160,6 +1160,18 @@ export default function SpinHistoryPage() {
           to { transform: rotate(360deg); }
         }
 
+        @media (max-width: 1024px) {
+          .history-page {
+            padding: 1.5rem;
+          }
+          .history-header {
+            flex-wrap: wrap;
+          }
+          .filter-section {
+            width: 100%;
+          }
+        }
+
         @media (max-width: 768px) {
           .history-page {
             padding: 1rem;
@@ -1167,6 +1179,7 @@ export default function SpinHistoryPage() {
 
           .history-header {
             flex-direction: column;
+            align-items: flex-start;
           }
 
           .header-left h1 {
@@ -1186,11 +1199,23 @@ export default function SpinHistoryPage() {
 
           .stats-summary {
             grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
           }
 
           .section-header {
             flex-direction: column;
             align-items: flex-start;
+          }
+
+          .rounds-table-container,
+          .bets-table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .rounds-table,
+          .bets-table {
+            min-width: 600px;
           }
 
           .rounds-table th,
@@ -1199,6 +1224,36 @@ export default function SpinHistoryPage() {
           .bets-table td {
             padding: 0.5rem;
             font-size: 0.8rem;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .history-page {
+            padding: 0.75rem;
+          }
+          .header-left h1 {
+            font-size: 1.25rem;
+          }
+          .tab-btn {
+            font-size: 0.75rem;
+            padding: 0.625rem 0.375rem;
+          }
+          .stats-summary {
+            grid-template-columns: 1fr;
+          }
+          .stat-card {
+            padding: 0.875rem;
+          }
+          .rounds-table th,
+          .rounds-table td,
+          .bets-table th,
+          .bets-table td {
+            padding: 0.375rem;
+            font-size: 0.75rem;
+          }
+          .pagination {
+            flex-direction: column;
+            gap: 0.5rem;
           }
         }
       `}</style>

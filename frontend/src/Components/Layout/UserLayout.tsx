@@ -13,6 +13,8 @@ import {
   BarChart3,
   MessageCircle,
   LogOut,
+  Menu,
+  X,
 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -42,8 +44,11 @@ export default function UserLayout({
   subscriptionTier,
 }: UserLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
   
   // Check if we're on the spin page - render full screen without left sidebar
   const isSpinPage = pathname === "/dashboard/spin" || pathname === "/spin";
@@ -128,9 +133,24 @@ export default function UserLayout({
 
   return (
     <div className="user-layout">
+      {/* Mobile menu overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="user-mobile-overlay"
+          onClick={closeMobileMenu}
+          aria-hidden="true"
+        />
+      )}
       {/* Sidebar */}
-      <aside className={`user-sidebar ${sidebarOpen ? "open" : "closed"}`}>
+      <aside className={`user-sidebar ${sidebarOpen ? "open" : "closed"} ${mobileMenuOpen ? "mobile-open" : ""}`}>
         <div className="sidebar-top">
+          <button
+            className="sidebar-close-mobile"
+            onClick={closeMobileMenu}
+            aria-label="Close menu"
+          >
+            <X size={20} />
+          </button>
           <button
             className="toggle-btn"
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -156,6 +176,7 @@ export default function UserLayout({
                       toggleMenu(item.category);
                     } else if (item.href) {
                       router.push(item.href);
+                      closeMobileMenu();
                     }
                   }}
                   title={item.label}
@@ -196,7 +217,10 @@ export default function UserLayout({
                         <button
                           key={subidx}
                           className={`submenu-item ${isSubActive ? "active" : ""}`}
-                          onClick={() => router.push(subitem.href)}
+                          onClick={() => {
+                            router.push(subitem.href);
+                            closeMobileMenu();
+                          }}
                         >
                           <SubIcon size={16} />
                           <span>{subitem.label}</span>
@@ -217,6 +241,13 @@ export default function UserLayout({
         {/* Header */}
         <header className="user-header">
           <div className="header-left">
+            <button
+              className="mobile-menu-toggle"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              <Menu size={24} />
+            </button>
             <h1 className="page-title">ForexAI Exchange</h1>
           </div>
 

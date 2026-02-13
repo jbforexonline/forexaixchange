@@ -132,3 +132,42 @@
     }
   }
 }
+
+@media (max-width: 1024px) {
+  .system-settings {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .system-settings {
+    padding: 1rem;
+
+    .page-header h1 {
+      font-size: 1.75rem;
+    }
+
+    .settings-grid {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+
+    .settings-card {
+      padding: 1.5rem;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .system-settings {
+    padding: 0.75rem;
+
+    .page-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .settings-card {
+      padding: 1rem;
+    }
+  }
+}
