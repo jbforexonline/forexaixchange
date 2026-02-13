@@ -4,32 +4,42 @@ import LandingClient from "@/Components/Landing/LandingClient";
 const BASE_URL = "https://forexaiexchange.com";
 
 export const metadata: Metadata = {
-  title: "Forex Gamification Platform | AI Forex Trading Game | ForexAiXchange",
+  title:
+    "ForexAiXchange | Forex Spin Gamification | Buy/Sell • Blue/Red • High/Low Volatility",
   description:
-    "ForexAiXchange is a forex gamification platform and forex simulation game. Trade with AI-driven rounds in a risk-free forex trading game environment.",
+    "ForexAiXchange is a spin-based forex gamification experience where players place predictions on Buy/Sell, Blue/Red, and High/Low Volatility—with an Indecision option when outcomes tie. Where Market Trading Meets AI.",
   keywords: [
-    "forex gamification platform",
-    "forex trading game",
-    "AI forex platform",
-    "forex simulation game",
-    "forex AI",
-    "ForexAiXchange",
+    "forexaiexchange",
+    "forex game",
+    "forex spin",
+    "forex ai",
+    "buy and sell",
+    "blue and red",
+    "high volatile",
+    "low volatile",
+    "indecision",
+    "round timer",
+    "spin history",
+    "forex pair market",
   ],
   alternates: { canonical: BASE_URL },
   openGraph: {
-    title: "ForexAiXchange – Forex Gamification Platform & AI Forex Trading Game",
+    title:
+      "ForexAiXchange | Forex Spin Gamification | Buy/Sell • Blue/Red • High/Low Volatility",
     description:
-      "Forex gamification platform and forex simulation game. AI-driven rounds, risk-free forex trading game.",
+      "Spin-based forex gamification where players place predictions on Buy/Sell, Blue/Red, and High/Low Volatility—with an Indecision option when outcomes tie.",
     url: BASE_URL,
     siteName: "ForexAiXchange",
     type: "website",
-    images: [{ url: "/image/logo.png", width: 512, height: 512, alt: "ForexAiXchange" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "ForexAiXchange — Where Market Trading Meets AI" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "ForexAiXchange – Forex Gamification Platform & AI Forex Trading Game",
-    description: "Forex gamification platform and forex simulation game.",
-    images: ["/image/logo.png"],
+    title:
+      "ForexAiXchange | Forex Spin Gamification | Buy/Sell • Blue/Red • High/Low Volatility",
+    description:
+      "Spin-based forex gamification with Buy/Sell, Blue/Red, High/Low Volatility and an Indecision option when outcomes tie.",
+    images: ["/og.png"],
   },
   robots: {
     index: true,
@@ -52,7 +62,7 @@ const websiteSchema = {
   name: "ForexAiXchange",
   url: BASE_URL,
   description:
-    "Forex gamification platform and forex simulation game. AI-driven rounds in a risk-free environment.",
+    "Spin-based forex gamification where players place predictions on Buy/Sell, Blue/Red, and High/Low Volatility, plus an Indecision option when outcomes tie.",
   publisher: { "@id": `${BASE_URL}/#organization` },
   potentialAction: {
     "@type": "SearchAction",

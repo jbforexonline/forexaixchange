@@ -2,9 +2,6 @@ import type { MetadataRoute } from "next";
 
 const BASE_URL = "https://forexaiexchange.com";
 
-/**
- * Public marketing and legal pages only. Excludes login, dashboard, admin, api, etc.
- */
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
@@ -24,6 +21,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/login`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.4,
+    },
+    {
+      url: `${BASE_URL}/register`,
+      lastModified: new Date(),
+      changeFrequency: "yearly",
+      priority: 0.4,
     },
   ];
 }

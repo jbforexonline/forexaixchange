@@ -335,8 +335,8 @@ export default function Landing() {
       <header className="site-header">
         <div className="header-inner">
           <Link href="/login" className="logo">
-            <img src="/image/logo.png" alt="Forexaiexchange" />
-            <p>Forexaiexchange</p>
+            <img src="/image/logo.png" alt="ForexAiXchange logo" />
+            <p>ForexAiXchange — Where Market Trading Meets AI</p>
           </Link>
 
           <button
@@ -516,6 +516,39 @@ export default function Landing() {
               </div>
             </div>
           </section>
+          
+          {/* How It Works - SEO-friendly explanation of the spin experience */}
+          <section className="how-it-works">
+            <h2>How ForexAiXchange Spin Gamification Works</h2>
+            <p>
+              ForexAiXchange is a spin-based forex gamification experience. Before each round,
+              you choose your predictions across three simple dimensions and an optional safety net:
+            </p>
+            <ul>
+              <li>
+                <strong>Buy / Sell</strong> – choose whether the forex pair will move up (Buy) or down (Sell) over the round.
+              </li>
+              <li>
+                <strong>Blue / Red</strong> – pick the color zone where you expect the outcome to land on the spin interface.
+              </li>
+              <li>
+                <strong>High Volatile / Low Volatile</strong> – decide whether you expect bigger swings or calmer movement for that round.
+              </li>
+              <li>
+                <strong>Indecision</strong> – an extra option that wins when the paired outcomes effectively tie and the market shows no clear direction.
+              </li>
+            </ul>
+            <p>
+              Each round has a visible <strong>round timer</strong>. When the timer approaches zero,
+              orders freeze so that no new predictions can be placed for that spin. After freeze,
+              the spin result is calculated and displayed on the wheel and in your <strong>spin history</strong>.
+            </p>
+            <p>
+              The history section on this page shows previous outcomes and timing so you can review
+              how past rounds behaved for each forex pair market. Any AI components in the system are
+              focused on insights and suggestions – not on deciding outcomes.
+            </p>
+          </section>
         </div>
       </main>
 
@@ -524,8 +557,8 @@ export default function Landing() {
         <div className="footer-inner">
 
           <div className="footer-brand">
-            <h4>Forexaiexchange</h4>
-            <p className="tagline-text">Forexaiexchange where market-trading meet with ai.</p>
+            <h4>ForexAiXchange</h4>
+            <p className="tagline-text">ForexAiXchange — Where Market Trading Meets AI.</p>
             <p className="warning-text">⚠️ WARNING: Trading forex and related services is Risky.</p>
             <p className="age-restriction">🔞 18+</p>
             <div className="socials">
@@ -568,7 +601,7 @@ export default function Landing() {
         </div>
 
         <div className="footer-bottom">
-          <span>© {new Date().getFullYear()} Forexaiexchange — All rights reserved.</span>
+          <span>© {new Date().getFullYear()} ForexAiXchange — All rights reserved.</span>
         </div>
       </footer>
 

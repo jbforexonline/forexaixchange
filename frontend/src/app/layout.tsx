@@ -19,16 +19,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const BASE_URL = "https://forexaiexchange.com";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
+  metadataBase: new URL("https://forexaiexchange.com"),
   title: {
-    default: "ForexAiXchange – Forex Gamification Platform & AI Forex Trading Game",
+    default: "ForexAiXchange — Where Market Trading Meets AI",
     template: "%s | ForexAiXchange",
   },
   description:
-    "Forex gamification platform and forex simulation game. AI-driven rounds in a risk-free environment. ForexAiXchange.",
+    "ForexAiXchange is a spin-based forex gamification experience where players place predictions on Buy/Sell, Blue/Red, and High/Low Volatility—with an Indecision option when outcomes tie. Where Market Trading Meets AI.",
   applicationName: "ForexAiXchange",
   referrer: "origin-when-cross-origin",
   robots: {
@@ -37,17 +35,17 @@ export const metadata: Metadata = {
     googleBot: { index: true, follow: true },
   },
   icons: {
-    icon: ["/favicon.ico", "/image/logo.png"],
-    shortcut: "/image/logo.png",
-    apple: "/image/logo.png",
+    icon: ["/favicon-32x32.png", "/favicon-16x16.png", "/favicon.ico"],
+    shortcut: "/favicon-32x32.png",
+    apple: "/apple-touch-icon.png",
   },
   manifest: "/site.webmanifest",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: BASE_URL,
+    url: "https://forexaiexchange.com",
     siteName: "ForexAiXchange",
-    images: [{ url: "/image/logo.png", width: 512, height: 512, alt: "ForexAiXchange" }],
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "ForexAiXchange — Where Market Trading Meets AI" }],
   },
   twitter: {
     card: "summary_large_image",
