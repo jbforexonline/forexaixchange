@@ -75,6 +75,14 @@ export class LegalService {
     });
     if (!user) return { ok: false, code: 'AGE_CONFIRM_REQUIRED' };
 
+    // Admin users bypass age verification and legal terms checks
+    const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN'];
+    const isAdmin = adminRoles.includes(user.role);
+
+    if (isAdmin) {
+      return { ok: true };
+    }
+
     if (!user.isAge18Confirmed) return { ok: false, code: 'AGE_CONFIRM_REQUIRED' };
 
     const activeTerms = await this.prisma.legalDocument.findFirst({
