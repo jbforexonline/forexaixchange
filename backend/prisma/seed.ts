@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole, KycStatus } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { FAQ_SEED } from './faq-seed.data';
 
 const prisma = new PrismaClient();
 
@@ -525,6 +526,13 @@ You may request access or deletion of your data.`,
 
   console.log('🏦 Finance System v2 initialized!');
   console.log('');
+
+  // FAQ initial seed (only when table is empty)
+  const faqCount = await prisma.faqItem.count();
+  if (faqCount === 0) {
+    await prisma.faqItem.createMany({ data: FAQ_SEED });
+    console.log(`✅ FAQ seed created (${FAQ_SEED.length} items).`);
+  }
 
   console.log('✅ Database seeding completed!');
   console.log('');

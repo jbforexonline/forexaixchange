@@ -24,7 +24,7 @@ interface Table {
 }
 
 export default function DatabasePage() {
-  const { user, role } = useLayoutState();
+  const { user, role, isLoading } = useLayoutState();
   const [dbInfo, setDbInfo] = useState<DatabaseInfo>({
     name: "PostgreSQL",
     version: "14.5",
@@ -93,6 +93,10 @@ export default function DatabasePage() {
       alert("Failed to create backup");
     }
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!DATABASE_ALLOWED_ROLES.includes(role)) {
     return (

@@ -17,7 +17,7 @@ interface Report {
 }
 
 export default function ReportsPage() {
-  const { user, role } = useLayoutState();
+  const { user, role, isLoading } = useLayoutState();
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("open");
@@ -110,6 +110,10 @@ export default function ReportsPage() {
         return "#d1d5db";
     }
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdminRole(role)) {
     return (

@@ -27,20 +27,9 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     checkAuth();
   }, [router, pathname]);
 
-  // Show loading state while checking
+  // While checking auth, keep showing whatever is currently on screen
   if (isChecking) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        flexDirection: 'column',
-        gap: '1rem'
-      }}>
-        <div style={{ fontSize: '1.2rem' }}>Loading...</div>
-      </div>
-    );
+    return <>{children}</>;
   }
 
   return <>{children}</>;

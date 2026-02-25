@@ -22,7 +22,7 @@ interface ChartData {
 }
 
 export default function AnalyticsPage() {
-  const { user, role } = useLayoutState();
+  const { user, role, isLoading } = useLayoutState();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalUsers: 0,
     totalSpins: 0,
@@ -65,6 +65,10 @@ export default function AnalyticsPage() {
       setLoading(false);
     }
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdminRole(role)) {
     return (

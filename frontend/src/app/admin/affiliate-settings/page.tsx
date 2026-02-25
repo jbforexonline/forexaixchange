@@ -23,7 +23,7 @@ interface TierLevel {
 }
 
 export default function AffiliateSettingsPage() {
-  const { user, role } = useLayoutState();
+  const { user, role, isLoading } = useLayoutState();
   const toast = useToast();
   const [settings, setSettings] = useState<AffiliateSettings>({
     programEnabled: true,
@@ -110,6 +110,10 @@ export default function AffiliateSettingsPage() {
       ),
     }));
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdminRole(role)) {
     return (

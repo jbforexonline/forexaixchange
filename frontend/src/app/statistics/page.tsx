@@ -259,7 +259,7 @@ export default function StatisticsPage() {
             icon={<Users size={24} />}
             label="Participants"
             value={activeTab === 'live' ? (liveData?.totalParticipants || 0) : (historicalData?.totalParticipants || 0)}
-            subtitle={activeTab === 'live' ? 'Current round' : timeFilter || 'All time'}
+            subtitle={activeTab === 'live' ? 'Current spin' : timeFilter || 'All time'}
             color="#8b5cf6"
           />
         </div>
@@ -329,7 +329,7 @@ export default function StatisticsPage() {
               <h3>No Data Available</h3>
               <p>
                 {activeTab === 'live' 
-                  ? 'No orders have been placed in the current round yet.' 
+                  ? 'No orders have been placed in the current spin yet.' 
                   : 'No orders found for the selected time period.'}
               </p>
             </div>

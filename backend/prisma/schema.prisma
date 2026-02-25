@@ -1202,3 +1202,19 @@ model WithdrawalLimit {
   // Relations
   updater User? @relation(fields: [updatedBy], references: [id])
 }
+
+// =============================================================================
+// FAQ - Admin-managed FAQ items for public FAQ page
+// =============================================================================
+model FaqItem {
+  id        String   @id @default(cuid())
+  category  String   // e.g. "General Information", "Accounts & Verification"
+  question  String   @db.Text
+  answer    String   @db.Text
+  sortOrder Int      @default(0) // Order within category
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category])
+  @@index([sortOrder])
+}

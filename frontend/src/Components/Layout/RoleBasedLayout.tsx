@@ -60,7 +60,7 @@ export default function RoleBasedLayout({ children }) {
     const isUserAdmin = isAdminRole(userRole);
     
     // Paths that are always accessible
-    const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works'];
+    const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works', '/about', '/faq'];
     const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
     
     if (isMaintenanceMode && !isUserAdmin && !isExemptPath) {
@@ -81,7 +81,7 @@ export default function RoleBasedLayout({ children }) {
     if (!maintenanceChecked) return;
 
     const currentUser = getCurrentUser();
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works', '/about', '/faq'];
     const isPublicPath = publicPaths.some(p => pathname.startsWith(p));
 
     // No user found
@@ -102,6 +102,20 @@ export default function RoleBasedLayout({ children }) {
     setUser(currentUser);
     setRole(userRole);
     setSubscriptionTier(tier);
+
+    // Authenticated users must not stay on login/register (e.g. after back button)
+    const authOnlyPaths = ['/login', '/register', '/forgetpassword', '/auth/callback'];
+    const isAuthOnlyPath = authOnlyPaths.some(p => pathname.startsWith(p));
+    if (isAuthOnlyPath) {
+      if (isAdminRole(userRole)) {
+        router.replace('/admin/dashboard');
+      } else if (userRole === UserRole.MODERATOR) {
+        router.replace('/dashboard/spin');
+      } else {
+        router.replace('/dashboard/spin');
+      }
+      return;
+    }
 
     // If authenticated user tries to access root path, redirect based on role
     if (pathname === '/') {
@@ -138,30 +152,20 @@ export default function RoleBasedLayout({ children }) {
     };
   }, [router]);
 
-  // Wait for maintenance check to complete
+  // While checks are running, keep showing the current page
   if (!maintenanceChecked || isLoading) {
-    return (
-      <div className="layout-loading">
-        <div className="spinner" />
-        <p>Loading...</p>
-      </div>
-    );
+    return <>{children}</>;
   }
 
-  // If in maintenance mode and not admin, don't render anything (redirect will happen)
+  // If in maintenance mode and not admin, keep showing the current page while redirect happens
   const currentUserForCheck = getCurrentUser();
   const currentRoleForCheck = currentUserForCheck ? getUserRole(currentUserForCheck) : UserRole.USER;
   const isCurrentUserAdmin = isAdminRole(currentRoleForCheck);
-  const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works'];
+  const maintenanceExemptPaths = ['/maintenance', '/login', '/register', '/forgetpassword', '/auth/callback', '/how-it-works', '/about', '/faq'];
   const isExemptPath = maintenanceExemptPaths.some(p => pathname.startsWith(p));
   
   if (isMaintenanceMode && !isCurrentUserAdmin && !isExemptPath) {
-    return (
-      <div className="layout-loading">
-        <div className="spinner" />
-        <p>Redirecting to maintenance...</p>
-      </div>
-    );
+    return <>{children}</>;
   }
 
   // Maintenance page should always render without any layout wrapper
@@ -171,7 +175,7 @@ export default function RoleBasedLayout({ children }) {
 
   if (!user) {
     // Only allow specific public paths to render without authentication
-    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works'];
+    const publicPaths = ['/login', '/register', '/forgetpassword', '/auth/callback', '/terms', '/privacy', '/maintenance', '/how-it-works', '/about', '/faq'];
     const isPublicPath = publicPaths.some((p) => pathname.startsWith(p));
     
     if (pathname === '/' || isPublicPath) {
@@ -179,6 +183,13 @@ export default function RoleBasedLayout({ children }) {
     }
 
     return null;
+  }
+
+  // Authenticated user on login/register etc – don't wrap in role layout (redirect in progress)
+  const authOnlyPaths = ['/login', '/register', '/forgetpassword', '/auth/callback'];
+  const isAuthOnlyPath = authOnlyPaths.some((p) => pathname.startsWith(p));
+  if (isAuthOnlyPath) {
+    return <>{children}</>;
   }
 
   // Route to appropriate layout based on role

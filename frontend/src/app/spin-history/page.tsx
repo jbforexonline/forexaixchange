@@ -365,7 +365,7 @@ export default function SpinHistoryPage() {
             onClick={() => setActiveTab('rounds')}
           >
             <Globe size={18} />
-            All Rounds History
+            All Spins History
           </button>
           <button 
             className={`tab-btn ${activeTab === 'personal' ? 'active' : ''}`}
@@ -416,7 +416,7 @@ export default function SpinHistoryPage() {
             {roundsLoading ? (
               <div className="loading-state">
                 <RefreshCw size={40} className="spinning" />
-                <p>Loading rounds...</p>
+                <p>Loading spins...</p>
               </div>
             ) : rounds.length === 0 ? (
               <div className="empty-state">
@@ -602,7 +602,7 @@ export default function SpinHistoryPage() {
                   <table className="bets-table">
                     <thead>
                       <tr>
-                        <th>Round</th>
+                        <th>Spin</th>
                         <th>Date</th>
                         <th>Market</th>
                         <th>Your Selection</th>

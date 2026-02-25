@@ -84,7 +84,7 @@ export default function SpinPage() {
         {loading && !round && (
           <div className="loading-state">
             <div className="spinner"></div>
-            <p>Loading round data...</p>
+            <p>Loading spin data...</p>
           </div>
         )}
 

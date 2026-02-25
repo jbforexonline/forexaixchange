@@ -1,0 +1,188 @@
+/* About page – matches HowItWorks / system theme (dark blue, cyan accents) */
+.about-page {
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #0b1f33 0%, #020617 45%, #020617 100%);
+  color: #e5e7eb;
+  padding: 80px 16px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.about-hero {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 40px;
+
+  .about-hero-inner {
+    max-width: 960px;
+    text-align: left;
+
+    .about-motto {
+      font-size: 0.9rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a5b4fc;
+      margin-bottom: 0.5rem;
+    }
+
+    h1 {
+      font-size: 2.25rem;
+      line-height: 1.2;
+      color: #f9fafb;
+      margin: 0;
+    }
+  }
+}
+
+.about-main {
+  width: 100%;
+  max-width: 1100px;
+}
+
+.about-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.about-card {
+  background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.25), rgba(15, 23, 42, 0.95));
+  border-radius: 18px;
+  padding: 20px 20px 18px;
+  border: 1px solid rgba(56, 189, 248, 0.15);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+
+  h2 {
+    font-size: 1.3rem;
+    margin-bottom: 0.75rem;
+    color: #e5e7eb;
+  }
+
+  p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #cbd5e1;
+    margin-bottom: 0.6rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .about-list {
+    padding-left: 1.25rem;
+    margin: 0 0 0.5rem 0;
+
+    li {
+      margin-bottom: 0.75rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: #cbd5e1;
+
+      strong {
+        color: #e5e7eb;
+      }
+
+      p {
+        margin: 0.25rem 0 0 0;
+        padding-left: 0;
+      }
+    }
+  }
+
+  .about-list-bullets {
+    list-style: disc;
+
+    li {
+      margin-bottom: 0.5rem;
+    }
+  }
+
+  .about-list-numbered {
+    list-style: decimal;
+
+    li {
+      margin-bottom: 1rem;
+    }
+  }
+}
+
+.about-different {
+  grid-column: span 2;
+}
+
+.about-values {
+  grid-column: span 2;
+}
+
+.about-cta {
+  margin-top: 32px;
+  text-align: center;
+
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 0.5rem;
+    color: #f9fafb;
+  }
+
+  p {
+    max-width: 760px;
+    margin: 0 auto 1rem;
+    color: #cbd5f5;
+    font-size: 0.98rem;
+  }
+
+  .about-hero-cta {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-weight: 600;
+      border: 1px solid transparent;
+      cursor: pointer;
+    }
+
+    .btn.primary {
+      background: linear-gradient(90deg, #00c6ff, #0066ff);
+      color: #fff;
+      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+    }
+
+    .btn.ghost {
+      background: rgba(15, 23, 42, 0.8);
+      color: #cfeeff;
+      border-color: rgba(148, 163, 184, 0.4);
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  .about-page {
+    padding-top: 72px;
+  }
+
+  .about-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .about-different,
+  .about-values {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .about-page {
+    padding-top: 64px;
+  }
+
+  .about-hero-inner h1 {
+    font-size: 1.7rem;
+  }
+}

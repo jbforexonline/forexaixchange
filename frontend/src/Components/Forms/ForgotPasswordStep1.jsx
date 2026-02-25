@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from 'next/navigation';
+import BackToLanding from "@/Components/Common/BackToLanding";
 import "../Styles/ForgetPassword.scss";
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
@@ -51,6 +52,7 @@ export default function ForgotPasswordStep1() {
 
       <div className="form-side">
         <div className="form-wrapper">
+          <BackToLanding />
           <h2>Forgot Password</h2>
           <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem' }}>
             Enter your registered email address and we'll send you an OTP to reset your password.

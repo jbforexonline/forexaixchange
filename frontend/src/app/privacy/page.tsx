@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
+import BackToLanding from "@/Components/Common/BackToLanding";
 import { getActiveLegal } from "@/lib/api/legal";
 
 function SimpleMarkdown({ text }: { text?: string | null }) {
@@ -48,9 +49,7 @@ export default function PrivacyPage() {
   return (
     <div className="legal-page">
       <div className="legal-inner">
-        <nav>
-          <Link href="/">← Back</Link>
-        </nav>
+        <BackToLanding />
         <h1>Privacy Policy</h1>
         {loading && <p>Loading…</p>}
         {error && <p>{error}</p>}

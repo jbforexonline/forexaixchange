@@ -1054,13 +1054,13 @@ export default function SpinPage() {
               </div>
               {round && (
                 <div className="row">
-                  <span className="label">Round</span>
+                  <span className="label">Spin</span>
                   <span className="value">#{round.roundNumber}</span>
                 </div>
               )}
             </div>
             <p className="disclaimer">
-              Once placed, this order cannot be cancelled for the current round.
+              Once placed, this order cannot be cancelled for the current spin.
             </p>
             <div className="actions">
               <button
@@ -1185,7 +1185,7 @@ export default function SpinPage() {
                 {/* Regular active tickets */}
                 {betsArray.length === 0 && settledTickets.length === 0 ? (
                   <div className="empty-state">
-                    You have no active tickets for this round yet.
+                    You have no active tickets for this spin yet.
                   </div>
                 ) : (
                   betsArray.map((bet) => {
@@ -1241,7 +1241,7 @@ export default function SpinPage() {
                 {scheduledOrders.length === 0 ? (
                   <div className="empty-state">
                     <p>No scheduled orders.</p>
-                    <p className="hint">Use "Schedule Ahead" to place orders for future rounds.</p>
+                    <p className="hint">Use "Schedule Ahead" to place orders for future spins.</p>
                   </div>
                 ) : (
                   scheduledOrders.map((order) => (
@@ -1352,7 +1352,7 @@ export default function SpinPage() {
                             </span>
                           )}
                           <span className="ticket-round">
-                            R#{bet.roundNumber || bet.round?.roundNumber || 'N/A'}
+                            Spin #{bet.roundNumber || bet.round?.roundNumber || 'N/A'}
                           </span>
                         </div>
                       </div>
@@ -1386,7 +1386,7 @@ export default function SpinPage() {
               <p className="subtitle">
                 {effectiveRoundDuration === 5 ? '5-minute quarters' : 
                  effectiveRoundDuration === 10 ? '10-minute halves' : 
-                 '20-minute rounds'} • Up to 2 hours ahead
+                 '20-minute spins'} • Up to 2 hours ahead
               </p>
               <button 
                 className="close-btn"
@@ -1400,7 +1400,7 @@ export default function SpinPage() {
             <div className="future-rounds-list">
               {futureRounds.length === 0 ? (
                 <div className="empty-state">
-                  No future rounds available for scheduling.
+                  No future spins available for scheduling.
                 </div>
               ) : (
                 futureRounds.map((fr, index) => {
@@ -1537,7 +1537,7 @@ export default function SpinPage() {
             </div>
             
             <p className="disclaimer">
-              This order will be automatically placed when the round opens.
+              This order will be automatically placed when the spin opens.
               Ensure you have sufficient balance at that time.
             </p>
             
@@ -1591,8 +1591,8 @@ export default function SpinPage() {
               {cancelConfirmation.type === 'scheduled' && cancelConfirmation.order && (
                 <>
                   <div className="detail-row">
-                    <span className="label">Round</span>
-                    <span className="value">#{cancelConfirmation.order.provisionalRoundId}</span>
+                    <span className="label">Spin</span>
+                    <span className="value">#{cancelConfirmation.order.provisionalRoundNumber}</span>
                   </div>
                   <div className="detail-row">
                     <span className="label">Market</span>
@@ -1892,7 +1892,7 @@ export default function SpinPage() {
           <div className="premium-controls">
             <div className="control-header">
               <Clock size={14} />
-              <span>Round Duration</span>
+              <span>Spin Duration</span>
             </div>
             <div className="duration-selector">
               {ROUND_DURATIONS.map(duration => (
@@ -1915,7 +1915,7 @@ export default function SpinPage() {
               className="schedule-btn"
               onClick={() => setShowSchedulePanel(!showSchedulePanel)}
             >
-              {showSchedulePanel ? 'Hide Schedule' : 'View Future Rounds'}
+              {showSchedulePanel ? 'Hide Schedule' : 'View Future Spins'}
               <span className="schedule-count">
                 {scheduledOrders.length > 0 && `(${scheduledOrders.length})`}
               </span>
@@ -1936,7 +1936,7 @@ export default function SpinPage() {
           <div className="round-info-section">
             <div className="round-duration-display">
               <Clock size={14} />
-              <span>20 min rounds</span>
+              <span>20 min spins</span>
             </div>
             <button 
               className="upgrade-hint"
@@ -2037,7 +2037,7 @@ export default function SpinPage() {
             ) : roundState === 'frozen' ? (
               <>⏱️ TIME OUT</>
             ) : roundState === 'settled' ? (
-              <>⏳ NEXT ROUND</>
+              <>⏳ NEXT SPIN</>
             ) : roundState === 'preopen' ? (
               <>⏳ WAITING</>
             ) : (

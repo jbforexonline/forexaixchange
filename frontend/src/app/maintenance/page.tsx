@@ -4,6 +4,8 @@ import { Hammer, Clock, RefreshCw, Home, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCurrentUser, logout } from "@/lib/auth";
 import { getUserRole, isAdminRole } from "@/lib/layoutConfig";
+import BackToLanding from "@/Components/Common/BackToLanding";
+import "@/Components/Styles/BackToLanding.scss";
 
 export default function MaintenancePage() {
   const router = useRouter();
@@ -152,7 +154,8 @@ export default function MaintenancePage() {
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap', alignItems: 'center' }}>
+          <BackToLanding />
           <button
             onClick={checkStatus}
             disabled={isChecking}

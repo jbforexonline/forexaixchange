@@ -239,7 +239,7 @@ export default function GameBoard({ totals, roundState, winners }: GameBoardProp
       {/* Round State Indicator */}
       <div className={`round-state-indicator ${roundState}`}>
         <div className="state-badge">
-          {roundState === 'preopen' && '⏳ Waiting for Round...'}
+          {roundState === 'preopen' && '⏳ Waiting for Spin...'}
           {roundState === 'open' && '🟢 OPEN - Place Your Bets!'}
           {roundState === 'frozen' && '❄️ FROZEN - No Bets Allowed'}
           {roundState === 'settled' && '✅ SETTLED - Results Available'}

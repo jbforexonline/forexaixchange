@@ -72,15 +72,11 @@
       .logo {
         display: flex;
         align-items: center;
-        gap: 8px;
-  
+
         img {
-          height: 28px;
-        }
-  
-        p {
-          font-weight: 600;
-          color: #dbeafe;
+          height: 80px;
+          width: auto;
+          object-fit: contain;
         }
       }
   

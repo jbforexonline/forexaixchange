@@ -4,7 +4,12 @@ import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole, isAdminRole } from "@/lib/layoutConfig";
 
 export default function AdminDashboard() {
-  const { user, role, layoutConfig } = useLayoutState();
+  const { user, role, layoutConfig, isLoading } = useLayoutState();
+
+  // While layout state is still loading, don't show access errors yet
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdminRole(role)) {
     return (

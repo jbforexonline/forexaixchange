@@ -335,8 +335,7 @@ export default function Landing() {
       <header className="site-header">
         <div className="header-inner">
           <Link href="/login" className="logo">
-            <img src="/image/logo.png" alt="ForexAiXchange logo" />
-            <p>ForexAiXchange — Where Market Trading Meets AI</p>
+            <img src="/image/logo.png" alt="ForexAiXchange" />
           </Link>
 
           <button
@@ -353,6 +352,12 @@ export default function Landing() {
           <nav className={`nav ${isNavOpen ? "nav-open" : ""}`}>
             <Link href="/how-it-works">
               <button className="btn signin">How it works</button>
+            </Link>
+            <Link href="/about">
+              <button className="btn signin">About Us</button>
+            </Link>
+            <Link href="/faq">
+              <button className="btn signin">FAQ</button>
             </Link>
             <Link href="/login">
               <button className="btn signin">Buy and Sell</button>

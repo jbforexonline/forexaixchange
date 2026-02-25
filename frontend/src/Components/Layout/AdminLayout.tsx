@@ -117,6 +117,12 @@ export default function AdminLayout({
       category: "legal",
     },
     {
+      icon: FileText,
+      label: "FAQ",
+      href: "/admin/faq",
+      category: "faq",
+    },
+    {
       icon: MessageCircle,
       label: "Chat Moderation",
       href: "/admin/chat",
@@ -162,7 +168,7 @@ export default function AdminLayout({
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title="Toggle Sidebar"
           >
-            {sidebarOpen ? "⟨" : "⟩"}
+            <Menu size={22} />
           </button>
           <h1 className="system-title">Admin Dashboard</h1>
         </div>

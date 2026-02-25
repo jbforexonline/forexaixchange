@@ -101,6 +101,88 @@
   font-size: 0.95rem;
 }
 
+/* Error message: code-style, highly visible, distinct from other text */
+.auth-error-message {
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: 8px;
+  letter-spacing: 0.02em;
+}
+
+/* Color-coded message boxes */
+.auth-message {
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.auth-message--info {
+  background: #1e3a5f;
+  color: #fff;
+  border: 1px solid rgba(147, 197, 253, 0.25);
+}
+
+.auth-message--error {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Segoe UI Mono", monospace;
+  color: #fca5a5;
+  background: rgba(220, 38, 38, 0.15);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  letter-spacing: 0.02em;
+}
+
+/* Password field with eye toggle */
+.password-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 14px;
+  border: 1px solid var(--expert-border);
+  background: rgba(9, 14, 30, 0.9);
+  transition: border 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+  &:focus-within {
+    border-color: var(--expert-border-strong);
+    box-shadow: 0 0 0 3px rgba(0, 213, 255, 0.12);
+    background: rgba(9, 16, 34, 0.95);
+  }
+
+  input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    padding-right: 2.75rem;
+
+    &:focus {
+      box-shadow: none;
+    }
+  }
+
+  .password-toggle-btn {
+    flex-shrink: 0;
+    padding: 0 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #00d9ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      color: #34d1ff;
+    }
+  }
+}
+
 .login-form {
   display: flex;
   flex-direction: column;

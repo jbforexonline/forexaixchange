@@ -13,6 +13,7 @@ import {
   Clock,
   ChevronDown,
   MessageCircle,
+  Menu,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
@@ -66,6 +67,7 @@ export default function SuperAdminLayout({
         { label: "Premium Plans", href: "/admin/settings/premium" },
         { label: "Commission Rules", href: "/admin/settings/commission" },
         { label: "Legal (Terms & Privacy)", href: "/admin/legal" },
+        { label: "FAQ", href: "/admin/faq" },
       ],
     },
     {
@@ -161,7 +163,7 @@ export default function SuperAdminLayout({
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title="Toggle Sidebar"
           >
-            {sidebarOpen ? "⟨" : "⟩"}
+            <Menu size={22} />
           </button>
           <h1 className="system-title">ForexAI Exchange - Admin Console</h1>
         </div>

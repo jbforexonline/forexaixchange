@@ -17,6 +17,7 @@ import { PreferencesModule } from './preferences/preferences.module';
 import { AppThrottlerModule } from './common/throttler.module';
 import { LegalModule } from './legal/legal.module';
 import { AdminLegalModule } from './admin-legal/admin-legal.module';
+import { FaqModule } from './faq/faq.module';
 import { RealtimeModule } from './realtime/realtime.module';
 // Finance System v2
 import { LedgerModule } from './ledger/ledger.module';
@@ -33,6 +34,7 @@ import { LedgerService } from './ledger/ledger.service';
     AuthModule,
     LegalModule,
     AdminLegalModule,
+    FaqModule,
     UsersModule,
     WalletModule,
     SpinsModule,

@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from 'next/navigation';
+import BackToLanding from "@/Components/Common/BackToLanding";
 import "../Styles/ForgetPassword.scss";
 
 export default function ForgotPasswordStep2() {
@@ -68,6 +69,7 @@ export default function ForgotPasswordStep2() {
 
       <div className="form-side">
         <div className="form-wrapper">
+          <BackToLanding />
           <h2>Verify OTP</h2>
           <p style={{ textAlign: 'center', color: '#666', marginBottom: '1.5rem' }}>
             Enter the 6-digit OTP sent to your email: <strong>{email}</strong>

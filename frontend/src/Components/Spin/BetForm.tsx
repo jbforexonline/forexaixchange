@@ -123,7 +123,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
         throw new Error("Insufficient balance");
       }
       if (!round) {
-        throw new Error("Waiting for next round...");
+        throw new Error("Waiting for next spin...");
       }
       if (isFrozen) {
         throw new Error("Market is closed for your timeframe");
@@ -192,7 +192,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
                 type="button"
                 className={`duration-btn ${userDuration === 5 ? 'active' : ''}`}
                 onClick={() => handleDurationChange(5)}
-                title="5-minute quarters (4 settlements per round)"
+                title="5-minute quarters (4 settlements per spin)"
               >
                 5m
               </button>
@@ -200,7 +200,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
                 type="button"
                 className={`duration-btn ${userDuration === 10 ? 'active' : ''}`}
                 onClick={() => handleDurationChange(10)}
-                title="10-minute halves (2 settlements per round)"
+                title="10-minute halves (2 settlements per spin)"
               >
                 10m
               </button>
@@ -208,7 +208,7 @@ export default function BetForm({ onBetPlaced, onError }: BetFormProps) {
                 type="button"
                 className={`duration-btn ${userDuration === 20 ? 'active' : ''}`}
                 onClick={() => handleDurationChange(20)}
-                title="Full 20-minute round (1 settlement)"
+                title="Full 20-minute spin (1 settlement)"
               >
                 20m
               </button>

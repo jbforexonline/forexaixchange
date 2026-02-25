@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import BackToLanding from "@/Components/Common/BackToLanding";
 import "./Styles/HowItWorks.scss";
 
 export default function HowItWorksPage() {
@@ -8,11 +9,12 @@ export default function HowItWorksPage() {
     <div className="howitworks-page">
       <header className="howitworks-hero">
         <div className="howitworks-hero-inner">
+          <BackToLanding />
           <p className="howitworks-motto">ForexAiXchange — Where Market Trading Meets AI</p>
           <h1>How the ForexAiXchange Spin Gamification Works</h1>
           <p className="howitworks-lead">
             ForexAiXchange is a spin-based forex gamification platform. You place structured
-            predictions on how a forex spin will behave across three betting pairs — Buy/Sell,
+            predictions on how a forex spin will behave across three Spin product pairs — Buy/Sell,
             Blue/Red, High/Low Volatility — plus an Indecision option when you expect the market
             to show no clear direction.
           </p>
@@ -38,13 +40,13 @@ export default function HowItWorksPage() {
               marketed as risk-free trading or guaranteed profit.
             </p>
             <p>
-              You use clear betting pairs and transparent rules so that you always know what
+              You use clear Spin product pairs and transparent rules so that you always know what
               you are predicting in each <strong>forex spin</strong>.
             </p>
           </article>
 
           <article className="howitworks-card">
-            <h2>Three betting pairs + Indecision</h2>
+            <h2>Three Spin product pairs + Indecision</h2>
             <ul className="howitworks-list">
               <li>
                 <strong>Buy / Sell</strong> – you choose whether the selected forex pair ends
@@ -72,7 +74,7 @@ export default function HowItWorksPage() {
           </article>
 
           <article className="howitworks-card">
-            <h2>Rounds, timers and freeze period</h2>
+            <h2>Spins, timers and freeze period</h2>
             <p>
               Each forex spin is organized into a visible timer window. While the timer counts
               down, you can place or adjust predictions across Buy/Sell, Blue/Red, and
@@ -120,7 +122,7 @@ export default function HowItWorksPage() {
             <div className="faq-item">
               <h3>How do payouts work for winning predictions?</h3>
               <p>
-                For each betting pair, the platform looks at the results for each side of the spin.
+                For each Spin product pair, the platform looks at the results for each side of the spin.
                 The system gives out the winning sides for that forex spin, and if what you chose
                 wins, you generally receive around x2 of your stake, subject to live rules and
                 limits configured by the platform.
@@ -138,7 +140,7 @@ export default function HowItWorksPage() {
               <h3>What role does AI play?</h3>
               <p>
                 AI is used for <strong>market insights and suggestions</strong>, such as showing
-                how volatile recent rounds have been or surfacing trends. It does not promise
+                how volatile recent spins have been or surfacing trends. It does not promise
                 guaranteed predictions and does not replace your own decisions.
               </p>
             </div>

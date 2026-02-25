@@ -2,7 +2,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { isAuthenticated, verifyToken } from '../../lib/auth'
+import { Eye, EyeOff } from 'lucide-react'
+import { isAuthenticated, verifyToken, updateLastActivity } from '../../lib/auth'
 import ForgotPasswordModal from '../Modals/ForgotPasswordModal'
 
 const apiUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
@@ -18,21 +19,23 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [showForgotPassword, setShowForgotPassword] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
+  const [welcomeMessage, setWelcomeMessage] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
-  // Check if user is already authenticated and redirect
+  // Check if user is already authenticated and redirect (use replace so back button doesn't show login)
   useEffect(() => {
     const checkAuth = async () => {
       if (isAuthenticated()) {
         const isValid = await verifyToken()
         if (isValid) {
-          // User is already authenticated, redirect to appropriate page
           const user = JSON.parse(localStorage.getItem('user') || '{}')
           const role = (user.role || 'USER').toUpperCase()
           const adminRoles = ['SUPER_ADMIN', 'ADMIN', 'FINANCE_ADMIN', 'SYSTEM_ADMIN', 'AUDIT_ADMIN']
           const nextRoute = adminRoles.includes(role)
             ? '/admin/dashboard'
             : '/dashboard/spin'
-          router.replace(nextRoute)
+          // Full redirect and replace history so back button cannot return to login
+          window.location.replace(nextRoute)
           return
         }
       }
@@ -41,21 +44,31 @@ export default function LoginPage() {
     checkAuth()
   }, [router])
 
-  // Read error from query parameters (e.g., from OAuth callback failures)
+  // Read error or session message from query and clean URL
   useEffect(() => {
     const errorParam = searchParams.get('error')
     if (errorParam) {
       setError(decodeURIComponent(errorParam))
-      // Clean up URL by removing error parameter
-      const newUrl = window.location.pathname
-      router.replace(newUrl, { scroll: false })
+      router.replace(window.location.pathname, { scroll: false })
+    }
+  }, [searchParams, router])
+
+  // Set welcome message once from query (session expired / logged out) and clear URL
+  useEffect(() => {
+    const sessionExpired = searchParams.get('session_expired') === '1'
+    const loggedOut = searchParams.get('logout') === '1'
+    if (sessionExpired) {
+      setWelcomeMessage('Your session expired after 10 minutes of inactivity. Please sign in again.')
+      router.replace('/login', { scroll: false })
+    } else if (loggedOut) {
+      setWelcomeMessage('You have been logged out. Welcome back — please sign in again.')
+      router.replace('/login', { scroll: false })
     }
   }, [searchParams, router])
 
   // Prevent back navigation to authenticated pages
   useEffect(() => {
     const handlePopState = () => {
-      // If user tries to go back, check if they're authenticated
       if (isAuthenticated()) {
         const user = JSON.parse(localStorage.getItem('user') || '{}')
         const role = (user.role || 'USER').toUpperCase()
@@ -63,10 +76,9 @@ export default function LoginPage() {
         const nextRoute = adminRoles.includes(role)
           ? '/admin/dashboard'
           : '/dashboard/spin'
-        router.replace(nextRoute)
+        window.location.replace(nextRoute)
       }
     }
-
     window.addEventListener('popstate', handlePopState)
     return () => window.removeEventListener('popstate', handlePopState)
   }, [router])
@@ -114,7 +126,14 @@ export default function LoginPage() {
       console.log('Response data:', responseBody)
 
       if (!response.ok) {
-        setError(responseBody.message || 'Invalid credentials. Please try again.')
+        const serverMessage = (responseBody.message || '').trim()
+        const isAuthFailure = response.status === 401 || /invalid credential|unauthorized|bad request/i.test(serverMessage)
+        const friendlyMessage = isAuthFailure
+          ? (looksLikeEmail
+            ? 'Email or password is wrong. Please try again.'
+            : 'Phone number or password is wrong. Please try again.')
+          : (serverMessage || 'Something went wrong. Please try again.')
+        setError(friendlyMessage)
         return
       }
 
@@ -136,6 +155,7 @@ export default function LoginPage() {
       console.log('✅ Login successful!')
       console.log('📋 User role:', payload.user.role)
       console.log('💾 Stored user data:', payload.user)
+      updateLastActivity()
 
       // Get user role from response
       const role = (payload.user.role || 'USER').toUpperCase()
@@ -219,18 +239,19 @@ export default function LoginPage() {
             </button>
           </div>
           
-          <h1 className="login-title">Welcome Back!!</h1>
-          <p className="login-subtitle">Please Login your Account</p>
+          <h1 className="login-title">Welcome Back!</h1>
+          <p className="login-subtitle">
+            {welcomeMessage || 'Please sign in to your account'}
+          </p>
+
+          {welcomeMessage && (
+            <div className="auth-message auth-message--info" role="status">
+              {welcomeMessage}
+            </div>
+          )}
 
           {error && (
-            <div style={{
-              padding: '0.8rem',
-              backgroundColor: '#fee',
-              color: '#c33',
-              borderRadius: '8px',
-              marginBottom: '1rem',
-              fontSize: '0.9rem'
-            }}>
+            <div className="auth-message auth-message--error" role="alert">
               {error}
             </div>
           )}
@@ -248,15 +269,26 @@ export default function LoginPage() {
             />
 
             <label>Password</label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="********"
-              required
-              disabled={loading}
-            />
+            <div className="password-input-wrap">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="********"
+                required
+                disabled={loading}
+              />
+              <button
+                type="button"
+                className="password-toggle-btn"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
 
             <div className="login-forgot">
               <a

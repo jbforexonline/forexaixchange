@@ -18,7 +18,7 @@ function formatTime(iso: string): string {
 }
 
 export default function AdminChatPage() {
-  const { role } = useLayoutState();
+  const { role, isLoading } = useLayoutState();
   const toast = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,6 +54,10 @@ export default function AdminChatPage() {
       setDeletingId(null);
     }
   };
+
+  if (isLoading) {
+    return null;
+  }
 
   if (!isAdminRole(role)) {
     return (

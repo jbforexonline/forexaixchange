@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Home, MessageSquare, Flag, Settings, ChevronDown } from "lucide-react";
+import { Home, MessageSquare, Flag, Settings, ChevronDown, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/auth";
 import { UserRole, SubscriptionTier } from "@/lib/layoutConfig";
@@ -83,7 +83,7 @@ export default function ModeratorLayout({
             onClick={() => setSidebarOpen(!sidebarOpen)}
             title="Toggle Sidebar"
           >
-            {sidebarOpen ? "⟨" : "⟩"}
+            <Menu size={22} />
           </button>
           <h1 className="system-title">Moderator Dashboard</h1>
         </div>
