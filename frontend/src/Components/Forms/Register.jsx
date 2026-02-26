@@ -441,8 +441,7 @@ export default function Register() {
       router.replace(nextRoute)
     } catch (err) {
       console.error('Registration error details:', err)
-      const message = err instanceof Error ? err.message : 'Unexpected error'
-      setError(`Network error: ${message}. Please check if backend is running on ${apiUrl}`)
+      setError('Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }

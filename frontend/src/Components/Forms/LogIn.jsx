@@ -181,12 +181,11 @@ export default function LoginPage() {
 
       console.log('🚀 Redirecting to:', nextRoute)
 
-      // Use full page reload for all logins to ensure localStorage is properly flushed
-      window.location.href = nextRoute
+      // Use full page reload and replace history so back button cannot return to login
+      window.location.replace(nextRoute)
     } catch (err) {
       console.error('Login error details:', err)
-      const message = err instanceof Error ? err.message : 'Unexpected error'
-      setError(`Network error: ${message}. Please check if backend is running on ${apiUrl}`)
+      setError('Network error. Please check your connection and try again.')
     } finally {
       setLoading(false)
     }
@@ -355,8 +354,8 @@ export default function LoginPage() {
                         const isAdmin = adminRoles.includes((user.role || 'USER').toUpperCase());
                         const nextRoute = isAdmin ? '/admin/dashboard' : '/dashboard/spin';
                         
-                        // Use full page reload to ensure all state is properly initialized
-                        window.location.href = nextRoute;
+                        // Use full page reload and replace history so back button cannot return to login
+                        window.location.replace(nextRoute);
                       }
                     })
                     .catch(() => setError('Failed to authenticate. Please try again.'));
