@@ -5,7 +5,7 @@
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useLayoutState } from "@/hooks/useLayoutState";
 import { UserRole, isAdminRole } from "@/lib/layoutConfig";
@@ -48,7 +48,7 @@ const ALLOWED_ROLES = [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.FINANCE_AD
 
 type TabType = 'overview' | 'deposits' | 'withdrawals' | 'disputes';
 
-export default function FinancialManagementPage() {
+function FinancialManagementContent() {
   const router = useRouter();
   const toast = useToast();
   const searchParams = useSearchParams();
@@ -912,5 +912,22 @@ export default function FinancialManagementPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function FinancialManagementPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="financial-management">
+          <div className="loading-state">
+            <RefreshCw className="spinner" />
+            <p>Loading...</p>
+          </div>
+        </div>
+      }
+    >
+      <FinancialManagementContent />
+    </Suspense>
   );
 }
