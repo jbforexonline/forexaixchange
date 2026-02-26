@@ -129,6 +129,17 @@ export default function RoleBasedLayout({ children }) {
       return;
     }
 
+    // Normal user on admin route (e.g. Back after role switch): replace history so Back doesn't return to admin
+    if (pathname.startsWith('/admin') && !isAdminRole(userRole)) {
+      window.location.replace('/dashboard/spin');
+      return;
+    }
+    // Admin on user dashboard route (e.g. Back after role switch): replace history so Back doesn't return to user area
+    if (pathname.startsWith('/dashboard') && isAdminRole(userRole)) {
+      window.location.replace('/admin/dashboard');
+      return;
+    }
+
     setIsLoading(false);
   }, [pathname, router, maintenanceChecked]);
 

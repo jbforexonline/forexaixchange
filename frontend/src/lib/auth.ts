@@ -68,7 +68,7 @@ export function clearSessionAndRedirectToLogin(
   if (reason === 'session_expired') params.set('session_expired', '1');
   else if (reason === 'logout') params.set('logout', '1');
   const qs = params.toString();
-  window.location.href = qs ? `/login?${qs}` : '/login';
+  window.location.replace(qs ? `/login?${qs}` : '/login');
 }
 
 /**
@@ -147,7 +147,7 @@ export function logout(): void {
   localStorage.removeItem('user');
   localStorage.removeItem(LAST_ACTIVITY_KEY);
   sessionStorage.clear();
-  window.location.href = '/login?logout=1';
+  window.location.replace('/login?logout=1');
 }
 
 /**
