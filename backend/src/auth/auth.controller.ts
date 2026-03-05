@@ -2,6 +2,7 @@ import { Controller, Post, Body, Get, UseGuards, Req, Res, Query, HttpException,
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import type { Request, Response } from 'express';
+import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -15,7 +16,10 @@ import { LegalComplianceGuard } from '../legal/guards/legal-compliance.guard';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Post('register')
   @ApiOperation({ summary: 'Register a new user with email OR phone number' })
@@ -496,6 +500,54 @@ export class AuthController {
     } catch (error) {
       console.error('Reset password error:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Google OAuth - redirect user to Google
+   */
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth login/signup' })
+  googleAuth() {
+    // Guard will handle the redirect to Google, this method intentionally left empty
+  }
+
+  /**
+   * Google OAuth callback - handle Google response, issue JWT and redirect to frontend
+   */
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  async googleAuthCallback(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('ref') ref?: string,
+  ) {
+    try {
+      const googleUser = (req as any).user;
+      const result = await this.authService.loginOrRegisterWithGoogle(googleUser, { referralCode: ref });
+
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL') ||
+        'http://localhost:3000';
+
+      const redirectUrl = new URL('/auth/callback', frontendUrl);
+      redirectUrl.searchParams.set('token', result.token);
+
+      res.redirect(redirectUrl.toString());
+    } catch (error: any) {
+      const frontendUrl =
+        this.configService.get<string>('FRONTEND_URL') ||
+        this.configService.get<string>('NEXT_PUBLIC_FRONTEND_URL') ||
+        'http://localhost:3000';
+
+      const redirectUrl = new URL('/auth/callback', frontendUrl);
+      const message = error?.message || 'Google authentication failed';
+      redirectUrl.searchParams.set('error', encodeURIComponent(message));
+
+      res.redirect(redirectUrl.toString());
     }
   }
 }

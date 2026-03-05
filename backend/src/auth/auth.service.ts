@@ -244,6 +244,155 @@ export class AuthService {
     }
   }
 
+  /**
+   * Login or register a user using Google OAuth profile data
+   */
+  async loginOrRegisterWithGoogle(
+    googleUser: {
+      googleId: string;
+      email: string;
+      firstName?: string | null;
+      lastName?: string | null;
+      photo?: string | null;
+    },
+    options?: { referralCode?: string | null },
+  ) {
+    if (!googleUser || !googleUser.googleId || !googleUser.email) {
+      throw new BadRequestException('Invalid Google user data');
+    }
+
+    const email = googleUser.email.toLowerCase().trim();
+
+    // Try to find existing user by googleId first
+    let user = await this.prisma.user.findFirst({
+      where: { googleId: googleUser.googleId },
+      include: { wallet: true },
+    });
+
+    // If not found by googleId, try by email (link accounts)
+    if (!user) {
+      user = await this.prisma.user.findUnique({
+        where: { email },
+        include: { wallet: true },
+      });
+
+      if (user) {
+        // Link existing account with Google
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: {
+            googleId: googleUser.googleId,
+            provider: 'google',
+          },
+          include: { wallet: true },
+        });
+      }
+    }
+
+    const isNewUser = !user;
+
+    if (!user) {
+      // New user via Google OAuth
+      // Generate a username from email or Google name
+      const baseUsername =
+        email.split('@')[0] ||
+        (googleUser.firstName || 'user').toLowerCase().replace(/\s+/g, '');
+
+      let username = baseUsername.toLowerCase().replace(/[^a-z0-9_]/g, '') || 'user';
+      let suffix = 1;
+      // Ensure username is unique
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const existing = await this.prisma.user.findUnique({ where: { username } });
+        if (!existing) break;
+        username = `${baseUsername}${suffix}`;
+        suffix += 1;
+      }
+
+      const activeTerms = await this.legalService.getActive('terms');
+      const activePrivacy = await this.legalService.getActive('privacy');
+      if (!activeTerms || !activePrivacy) {
+        throw new BadRequestException(
+          'Terms and Privacy Policy must be configured before registration. Please try again later.',
+        );
+      }
+
+      // Optional referral support: if referralCode is provided, try to resolve it
+      let validReferredBy: string | null = null;
+      if (options?.referralCode) {
+        try {
+          const referrer = await this.prisma.user.findFirst({
+            where: { affiliateCode: options.referralCode },
+          });
+          if (referrer && referrer.id && referrer.email !== email) {
+            validReferredBy = referrer.id;
+          }
+        } catch (err) {
+          // Log and continue without failing Google auth
+          // eslint-disable-next-line no-console
+          console.error('Error resolving Google referral code:', err);
+        }
+      }
+
+      const now = new Date();
+
+      user = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            email,
+            username,
+            firstName: googleUser.firstName || '',
+            lastName: googleUser.lastName || '',
+            password: null,
+            googleId: googleUser.googleId,
+            provider: 'google',
+            isAge18Confirmed: true,
+            ageConfirmedAt: now,
+            affiliateCode: this.generateAffiliateCode(),
+            referredBy: validReferredBy || undefined,
+            wallet: {
+              create: {
+                available: 0,
+                held: 0,
+                totalDeposited: 0,
+                totalLost: 0,
+                totalWithdrawn: 0,
+                totalWon: 0,
+                demoAvailable: 10000,
+                demoHeld: 0,
+                demoTotalWon: 0,
+                demoTotalLost: 0,
+              },
+            },
+          },
+          include: { wallet: true },
+        });
+
+        // Record legal document acceptance so LegalComplianceGuard passes
+        await tx.userLegalAcceptance.createMany({
+          data: [
+            { userId: created.id, legalDocumentId: activeTerms.id },
+            { userId: created.id, legalDocumentId: activePrivacy.id },
+          ],
+        });
+
+        return created;
+      });
+    }
+
+    if (!user.isActive || user.isBanned) {
+      throw new UnauthorizedException('Account is inactive or banned');
+    }
+
+    const { password: _pw, ...userWithoutPassword } = user as any;
+
+    return {
+      user: userWithoutPassword,
+      token: this.generateToken(user.id, user.role),
+      isNewUser,
+    };
+  }
+
   async createAffiliateEarningRecord(referredUserId: string, referrerUserId: string) {
     try {
       console.log('📝 Creating affiliate earning record:', {

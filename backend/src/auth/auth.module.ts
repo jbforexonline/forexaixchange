@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { PrismaService } from '../database/prisma.service';
 import { OtpService } from './services/otp.service';
 import { LegalModule } from '../legal/legal.module';
@@ -12,6 +13,7 @@ import { LegalModule } from '../legal/legal.module';
 @Module({
   imports: [
     PassportModule,
+    ConfigModule,
     LegalModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
@@ -25,7 +27,7 @@ import { LegalModule } from '../legal/legal.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PrismaService, OtpService],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, PrismaService, OtpService],
   exports: [AuthService],
 })
 export class AuthModule {}
