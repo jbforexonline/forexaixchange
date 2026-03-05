@@ -8,6 +8,7 @@ import { useRound } from "@/hooks/useRound";
 import { getWebSocketClient, initWebSocket } from "@/lib/websocket";
 import { getRecentRounds } from "@/lib/api/spin";
 import { AlertTriangle } from "lucide-react";
+import { FaInstagram, FaFacebookF, FaTiktok } from "react-icons/fa";
 import "./Styles/Landing.scss";
 
 export default function Landing() {
@@ -579,9 +580,18 @@ export default function Landing() {
             <p className="warning-text">⚠️ WARNING: Trading forex and related services is Risky.</p>
             <p className="age-restriction">🔞 18+</p>
             <div className="socials">
-              <span className="dot">●</span>
-              <span className="dot">●</span>
-              <span className="dot">●</span>
+              <a href="https://www.instagram.com/forexaiexchange?igsh=MXZ3cWZuY2MwMGc3bQ==" target="_blank" rel="noopener noreferrer" className="social-link" aria-label="Instagram">
+                <FaInstagram className="social-icon" />
+                <span>Instagram</span>
+              </a>
+              <a href="https://www.tiktok.com/@forexaiexchange?_r=1&_t=ZS-94ICWssReAz" target="_blank" rel="noopener noreferrer" className="social-link" aria-label="TikTok">
+                <FaTiktok className="social-icon" />
+                <span>TikTok</span>
+              </a>
+              <a href="https://www.facebook.com/forexaiexchange" target="_blank" rel="noopener noreferrer" className="social-link" aria-label="Facebook">
+                <FaFacebookF className="social-icon" />
+                <span>Facebook</span>
+              </a>
             </div>
           </div>
 
