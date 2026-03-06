@@ -10,10 +10,10 @@ export default function HowItWorksPage() {
       <header className="howitworks-hero">
         <div className="howitworks-hero-inner">
           <BackToLanding />
-          <p className="howitworks-motto">ForexAiXchange — Where Market Trading Meets AI</p>
-          <h1>How the ForexAiXchange Spin Gamification Works</h1>
+          <p className="howitworks-motto">ForexAiExchange — Where Market Trading Meets AI</p>
+          <h1>How the ForexAiExchange Spin Gamification Works</h1>
           <p className="howitworks-lead">
-            ForexAiXchange is a spin-based forex gamification platform. You place structured
+            ForexAiExchange is a spin-based forex gamification platform. You place structured
             predictions on how a forex spin will behave across three Spin product pairs — Buy/Sell,
             Blue/Red, High/Low Volatility — plus an Indecision option when you expect the market
             to show no clear direction.
@@ -34,7 +34,7 @@ export default function HowItWorksPage() {
           <article className="howitworks-card">
             <h2>Spin-based forex game, not risk-free trading</h2>
             <p>
-              ForexAiXchange is designed as a <strong>forex game</strong> and{" "}
+              ForexAiExchange is designed as a <strong>forex game</strong> and{" "}
               <strong>forex spin</strong> experience. Each spin behaves like a structured
               prediction game on top of live or simulated forex pair movement — it is not
               marketed as risk-free trading or guaranteed profit.
@@ -98,7 +98,7 @@ export default function HowItWorksPage() {
           <article className="howitworks-card">
             <h2>AI market insights and suggestions</h2>
             <p>
-              ForexAiXchange can surface <strong>forex ai</strong> style features in the form of
+              ForexAiExchange can surface <strong>forex ai</strong> style features in the form of
               market insights and suggestions, such as highlighting volatility patterns or
               showing how recent forex spins behaved.
             </p>
@@ -112,9 +112,9 @@ export default function HowItWorksPage() {
           <article className="howitworks-card faq-card">
             <h2>FAQ</h2>
             <div className="faq-item">
-              <h3>Is ForexAiXchange a trading platform or a game?</h3>
+              <h3>Is ForexAiExchange a trading platform or a game?</h3>
               <p>
-                ForexAiXchange is a spin-based <strong>forex gamification</strong> experience.
+                ForexAiExchange is a spin-based <strong>forex gamification</strong> experience.
                 It uses real market concepts like buy and sell, volatility and color zones to
                 build a structured game around each forex spin.
               </p>
@@ -149,7 +149,7 @@ export default function HowItWorksPage() {
               <p>
                 You can explore parts of the experience from the landing page, but to fully
                 engage with orders and history you should{" "}
-                <Link href="/register">create a ForexAiXchange account</Link> and then{" "}
+                <Link href="/register">create a ForexAiExchange account</Link> and then{" "}
                 <Link href="/login">log in</Link>.
               </p>
             </div>
