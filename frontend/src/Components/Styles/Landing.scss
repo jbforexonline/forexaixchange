@@ -72,11 +72,22 @@
       .logo {
         display: flex;
         align-items: center;
+        gap: 10px;
 
-        img {
+        .logo-mark {
           height: 80px;
           width: auto;
           object-fit: contain;
+          display: block;
+        }
+
+        .logo-text {
+          display: flex;
+          flex-direction: column;
+          line-height: 1.1;
+          color: #ffffff;
+          font-weight: 600;
+          font-size: 18px;
         }
       }
   

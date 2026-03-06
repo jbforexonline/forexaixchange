@@ -335,7 +335,12 @@ export default function Landing() {
       <header className="site-header">
         <div className="header-inner">
           <Link href="/login" className="logo">
-            <img src="/image/logo.png" alt="ForexAiXchange" />
+            <img src="/logo-mark.png" alt="ForexAiXchange logo mark" className="logo-mark" />
+            <span className="logo-text">
+              <span>Forex</span>
+              <span>Ai</span>
+              <span>Exchange</span>
+            </span>
           </Link>
 
           <button
