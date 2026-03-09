@@ -863,11 +863,11 @@
       padding: 36px 20px 18px;
   
       .footer-inner {
-        max-width: 1100px;
+        max-width: 1280px;
         margin: 0 auto;
         display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1fr;
-        gap: 24px;
+        grid-template-columns: minmax(260px, 1.6fr) repeat(4, minmax(0, 1fr));
+        gap: 20px;
         align-items: start;
       }
   
@@ -946,6 +946,8 @@
       }
   
       .footer-col {
+        min-width: 0;
+
         h5 {
           margin-bottom: 10px;
           color: #9fe9e1;
@@ -964,6 +966,7 @@
               color: rgba(230,245,250,0.7);
               text-decoration: none;
               transition: color 0.2s ease;
+              overflow-wrap: anywhere;
               
               &:hover {
                 color: #9fe9e1;
@@ -982,6 +985,12 @@
         text-align: center;
       }
   
+      @media (max-width: 1100px) {
+        .footer-inner {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
       @media (max-width: 900px) {
         .footer-inner {
           grid-template-columns: 1fr;

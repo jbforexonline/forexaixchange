@@ -46,6 +46,7 @@ export default function SessionActivityProvider({
       "/auth/callback",
       "/terms",
       "/privacy",
+      "/refund-chargeback-policy",
       "/maintenance",
       "/how-it-works",
     ];

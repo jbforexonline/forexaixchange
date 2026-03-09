@@ -18,7 +18,12 @@ export const SEO_ALLOWLIST_PATHS = [
 ];
 
 export function isAllowlisted(pathname: string): boolean {
-  if (pathname === "/" || pathname === "/terms" || pathname === "/privacy") return true;
+  if (
+    pathname === "/" ||
+    pathname === "/terms" ||
+    pathname === "/privacy" ||
+    pathname === "/refund-chargeback-policy"
+  ) return true;
   if (SEO_ALLOWLIST_PATHS.some((p) => pathname === p || pathname.startsWith(p))) return true;
   if (pathname.startsWith("/_next/") || pathname.startsWith("/_next")) return true;
   if (pathname.startsWith("/sitemap-") && pathname.endsWith(".xml")) return true;

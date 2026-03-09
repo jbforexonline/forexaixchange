@@ -10,7 +10,7 @@ import {
 } from "@/lib/api/legal";
 import { getAuthToken } from "@/lib/auth";
 
-const BYPASS_PATHS = ["/terms", "/privacy"];
+const BYPASS_PATHS = ["/terms", "/privacy", "/refund-chargeback-policy"];
 
 export default function AgeGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

@@ -625,6 +625,15 @@ export default function Landing() {
             </ul>
           </div>
 
+          <div className="footer-col">
+            <h5>Terms &amp; Conditions</h5>
+            <ul>
+              <li><Link href="/terms">Terms &amp; Conditions</Link></li>
+              <li><Link href="/privacy">Privacy Policy</Link></li>
+              <li><Link href="/refund-chargeback-policy">Refund &amp; Chargeback Policy</Link></li>
+            </ul>
+          </div>
+
         </div>
 
         <div className="footer-bottom">
